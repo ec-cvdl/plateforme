@@ -795,6 +795,11 @@ select.statut option{background:#fff;color:var(--ink);font-weight:500}
 }
 .entete-liste > span:not(:last-child){border-right:1px solid var(--line);padding-right:10px}
 .structure > *:not(:last-child){border-right:1px solid var(--line);padding-right:10px}
+.entete-structure span:nth-child(1),
+.entete-structure span:nth-child(2),
+.entete-structure span:nth-child(3),
+.entete-structure span:nth-child(4),
+.entete-structure span:nth-child(5){padding-left:9px}
 .entete-structure span:nth-child(6),
 .entete-structure span:nth-child(7),
 .entete-structure span:nth-child(8){text-align:center;padding-right:10px}

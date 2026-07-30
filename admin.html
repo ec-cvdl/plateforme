@@ -245,9 +245,10 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
         <button class="action claire" id="btn-recharger">Actualiser</button>
         <button class="action" id="btn-nouvelle-commande">+ Nouvelle commande</button>
       </div>
-      <div id="bandeau-historique-partiel" class="msg msg-info" hidden style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
-        <span id="texte-historique-partiel"></span>
-        <button type="button" class="action claire" id="btn-charger-historique-complet">Charger tout l'historique</button>
+      <div id="bandeau-pagination" class="msg msg-info" hidden style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <button type="button" class="action claire" id="btn-page-precedente">← Précédent</button>
+        <span id="texte-pagination"></span>
+        <button type="button" class="action claire" id="btn-page-suivante">Suivant →</button>
       </div>
       <div id="liste"></div>
     </section>
@@ -327,9 +328,10 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
         <div id="retour-config-statuts-sav"></div>
       </div>
 
-      <div id="bandeau-historique-sav-partiel" class="msg msg-info" hidden style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
-        <span id="texte-historique-sav-partiel"></span>
-        <button type="button" class="action claire" id="btn-charger-historique-sav-complet">Charger tout l'historique</button>
+      <div id="bandeau-pagination-sav" class="msg msg-info" hidden style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <button type="button" class="action claire" id="btn-page-precedente-sav">← Précédent</button>
+        <span id="texte-pagination-sav"></span>
+        <button type="button" class="action claire" id="btn-page-suivante-sav">Suivant →</button>
       </div>
 
       <div id="liste-sav"></div>

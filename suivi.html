@@ -52,6 +52,12 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
     font-size:13px;font-weight:700;color:#fff;background:var(--primaire);text-decoration:none;
     padding:8px 16px;border-radius:8px;
   }
+  .numeros-serie-cs{display:flex;align-items:center;flex-wrap:wrap;gap:7px;margin-top:12px}
+  .libelle-numeros-serie-cs{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--gris);margin-right:2px}
+  .pilule-numero-serie-cs{
+    font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;color:var(--ink);
+    background:var(--papier);border:1px solid var(--trait);padding:4px 10px;border-radius:20px;
+  }
   .liens-colissimo-cs{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
   .liens-colissimo-cs a{
     font-size:12.5px;font-weight:600;color:var(--ink);background:var(--papier);border:1px solid var(--trait);
@@ -63,6 +69,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
   body.mode-sombre .montant-cs{color:#fff}
   body.mode-sombre .tlc-suivi-point.actuel{box-shadow:0 0 0 3px rgba(254,204,56,.3)}
   body.mode-sombre .liens-colissimo-cs a{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.18);color:#fff}
+  body.mode-sombre .pilule-numero-serie-cs{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.18);color:#fff}
 </style>
 </head>
 <body>
@@ -186,6 +193,7 @@ function rendreCommandesSuivi(commandes){
     const estAnnulee = c.statutCommande === 'Annulée';
 
     const liensColissimo = String(c.colissimo || '').split('\n').map(s => s.trim()).filter(Boolean);
+    const numerosSerie = String(c.numerosSerie || '').split('\n').map(s => s.trim()).filter(Boolean);
 
     return `<div class="carte-commande-suivi${estAnnulee ? ' annulee' : ''}">
       <div class="entete-cs">
@@ -196,6 +204,10 @@ function rendreCommandesSuivi(commandes){
       ${estAnnulee
         ? `<div class="badge-annulee-cs">Commande annulée</div>`
         : construireTimelineSuivi(c.statutCommande)}
+      ${numerosSerie.length ? `<div class="numeros-serie-cs">
+          <span class="libelle-numeros-serie-cs">${numerosSerie.length > 1 ? 'Numéros de série' : 'Numéro de série'}</span>
+          ${numerosSerie.map(n => `<span class="pilule-numero-serie-cs">${echapper(n)}</span>`).join('')}
+        </div>` : ''}
       ${liensColissimo.length ? `<div class="liens-colissimo-cs">${liensColissimo.map(l =>
           `<a href="${echapper(l)}" target="_blank" rel="noopener">📦 Suivre le colis</a>`).join('')}</div>` : ''}
       ${c.montantEstime != null ? `
