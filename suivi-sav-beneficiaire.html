@@ -20,6 +20,15 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
   .ref-ts{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:15px;color:var(--ink)}
   .date-ts{font-size:12.5px;color:var(--gris)}
   .symptome-ts{font-size:13.5px;color:var(--gris);margin-top:6px}
+  .tlc-suivi{margin-top:14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(60px,1fr));gap:4px}
+  .tlc-suivi-etape{position:relative;display:flex;flex-direction:column;align-items:center;gap:5px}
+  .tlc-suivi-etape:not(:last-child)::after{
+    content:'';position:absolute;top:5px;left:50%;width:100%;height:2px;background:var(--trait);z-index:0;
+  }
+  .tlc-suivi-etape.fait:not(:last-child)::after{background:var(--tlc-couleur, var(--trait))}
+  .tlc-suivi-point{position:relative;z-index:1;width:10px;height:10px;border-radius:50%;background:var(--trait)}
+  .tlc-suivi-libelle{font-size:9.5px;font-weight:600;color:var(--gris);text-align:center;line-height:1.25}
+
   .statut-ts{
     display:inline-block;margin-top:12px;font-size:12px;font-weight:700;color:var(--ink);
     background:var(--papier);border:1px solid var(--trait);padding:6px 13px;border-radius:20px;
@@ -123,6 +132,37 @@ function jsonp(params){
   });
 }
 
+/* Mêmes teintes que le back-office, pour que la couleur du statut reste cohérente partout */
+const TEINTES_SAV = {
+  't-ambre':     { fond:'#FFF3DB', texte:'#8A5A00' },
+  't-bleu':      { fond:'#DCE7FA', texte:'#1D4ED8' },
+  't-violet':    { fond:'#F1E4F7', texte:'#6B2E8C' },
+  't-turquoise': { fond:'#DCF3F2', texte:'#0A6E6B' },
+  't-vert':      { fond:'#E2F0EA', texte:'#1B6B4F' },
+  't-rouge':     { fond:'#FBE1DD', texte:'#A3311C' },
+  't-gris':      { fond:'#ECEEF0', texte:'#65727E' }
+};
+let statutsSavPublic = [];
+
+function construireTimelineSav(statutActuel){
+  if(!statutsSavPublic.length) return '';
+  const indexActuel = statutsSavPublic.findIndex(s => s.statut === statutActuel);
+  if(indexActuel === -1) return '';
+  const teinteActuelle = TEINTES_SAV[statutsSavPublic[indexActuel].couleur] || TEINTES_SAV['t-gris'];
+  const etapes = statutsSavPublic.map((s, i) => {
+    const cls = i < indexActuel ? 'fait' : (i === indexActuel ? 'actuel' : '');
+    const styleTrait = cls ? `--tlc-couleur:${teinteActuelle.texte};` : '';
+    const stylePoint = cls === 'actuel' ? `background:${teinteActuelle.texte};box-shadow:0 0 0 3px ${teinteActuelle.fond}`
+      : (cls === 'fait' ? `background:${teinteActuelle.texte}` : '');
+    const styleLibelle = cls ? `color:${teinteActuelle.texte}` : '';
+    return `<div class="tlc-suivi-etape ${cls}" style="${styleTrait}">
+      <div class="tlc-suivi-point ${cls}" style="${stylePoint}"></div>
+      <div class="tlc-suivi-libelle ${cls}" style="${styleLibelle}">${echapper(s.statut)}</div>
+    </div>`;
+  }).join('');
+  return `<div class="tlc-suivi">${etapes}</div>`;
+}
+
 function rendreTicketsSuivi(tickets){
   if(!tickets.length){
     $('liste-tickets-suivi').innerHTML = `<p class="sous-question">Aucune demande SAV trouvée pour ce numéro de série.</p>`;
@@ -136,7 +176,7 @@ function rendreTicketsSuivi(tickets){
         <div class="date-ts">${echapper(t.date)}</div>
       </div>
       <div class="symptome-ts">${echapper(t.symptome || 'Symptôme non précisé')}</div>
-      <div class="statut-ts">${echapper(t.statut)}</div>
+      ${construireTimelineSav(t.statut) || `<div class="statut-ts">${echapper(t.statut)}</div>`}
       ${t.dateResolution ? `<div class="date-resolution-ts">Résolu le ${echapper(t.dateResolution)}</div>` : ''}
       ${liensColissimo.length ? `<div class="liens-colissimo-ts">${liensColissimo.map(l =>
           `<a href="${echapper(l)}" target="_blank" rel="noopener">📦 Suivre le colis</a>`).join('')}</div>` : ''}
@@ -153,7 +193,11 @@ async function chargerTicketsSuivi(){
   afficherMsg('retour-numero', '', 'info');
 
   try{
-    const r = await jsonp({ action: 'sav-par-numero-serie', numeroSerie: numeroSerie });
+    const [r, rStatuts] = await Promise.all([
+      jsonp({ action: 'sav-par-numero-serie', numeroSerie: numeroSerie }),
+      statutsSavPublic.length ? Promise.resolve({ ok: true, statuts: statutsSavPublic }) : jsonp({ action: 'sav-statuts-public' })
+    ]);
+    if(rStatuts.ok) statutsSavPublic = rStatuts.statuts.sort((a, b) => a.ordre - b.ordre);
     if(r.ok){
       $('nb-tickets-texte').textContent = r.tickets.length > 1
         ? `${r.tickets.length} demandes trouvées`
