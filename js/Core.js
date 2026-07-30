@@ -160,6 +160,9 @@ function svgIconeSymptome(texte){
 
 let motDePasse = '';
 let commandes  = [];
+const LIMITE_COMMANDES_DEFAUT = 200;
+let limiteCommandesActuelle = LIMITE_COMMANDES_DEFAUT; // 0 = tout l'historique, une fois demandé
+let totalCommandes = 0;
 let seuilAlerteImpayee = 30; // valeur de repli tant que /reglages n'a pas encore répondu
 let suppressionSimple = false; // idem
 let dossierFacturesPdfId = ''; // idem — sert au bouton "Ouvrir le dossier" de l'onglet Factures
@@ -404,7 +407,9 @@ async function connecter(){
       barre.hidden = false;
 
       const etapesChargement = [
-        { label: 'Commandes', fn: () => jsonp({action:'list', password:mdp}).then(res => { if(res.ok) commandes = res.commandes; }) },
+        { label: 'Commandes', fn: () => jsonp({action:'list', password:mdp, limite:LIMITE_COMMANDES_DEFAUT}).then(res => {
+            if(res.ok){ commandes = res.commandes; totalCommandes = res.total; limiteCommandesActuelle = LIMITE_COMMANDES_DEFAUT; }
+          }) },
         { label: 'Réglages', fn: () => jsonp({action:'reglages', password:mdp}).then(res => {
             if(!res.ok) return;
             seuilAlerteImpayee = res.seuilAlerteImpayee;
@@ -430,14 +435,19 @@ async function connecter(){
       ];
 
       let termines = 0;
-      await Promise.all(etapesChargement.map(etape =>
-        Promise.resolve().then(etape.fn).catch(() => {}).then(() => {
-          termines++;
-          const pourcentage = Math.round((termines / etapesChargement.length) * 100);
-          remplissage.style.width = pourcentage + '%';
-          texteProgression.textContent = 'Chargement… ' + termines + '/' + etapesChargement.length + ' (' + etape.label + ')';
-        })
-      ));
+      const CONCURRENCE_MAX = 3; // pas tout en même temps : Apps Script a ses propres limites d'exécutions simultanées
+      let curseur = 0;
+      async function lancerSuivant(){
+        if(curseur >= etapesChargement.length) return;
+        const etape = etapesChargement[curseur++];
+        try{ await etape.fn(); }catch(e){ /* on continue malgré une étape en échec */ }
+        termines++;
+        const pourcentage = Math.round((termines / etapesChargement.length) * 100);
+        remplissage.style.width = pourcentage + '%';
+        texteProgression.textContent = 'Chargement… ' + termines + '/' + etapesChargement.length + ' (' + etape.label + ')';
+        await lancerSuivant();
+      }
+      await Promise.all(Array.from({length: CONCURRENCE_MAX}, lancerSuivant));
 
       barre.hidden = true;
       $('connexion').hidden = true;
@@ -476,8 +486,8 @@ async function rafraichirSilencieusement(){
   const ongletActif = document.querySelector('.onglets button.actif')?.dataset.vue;
 
   try{
-    const r = await jsonp({action:'list', password:motDePasse});
-    if(r.ok){ commandes = r.commandes; rendre(); }
+    const r = await jsonp({action:'list', password:motDePasse, limite:limiteCommandesActuelle});
+    if(r.ok){ commandes = r.commandes; totalCommandes = r.total; rendre(); }
   }catch(e){ /* silencieux — nouvelle tentative au prochain cycle */ }
   try{
     if(statutsSav.length) await chargerSav(true);

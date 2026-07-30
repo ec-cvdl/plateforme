@@ -3,11 +3,23 @@
 async function recharger(){
   etat('Actualisation…', 'neutre');
   try{
-    const r = await jsonp({action:'list', password:motDePasse});
-    if(r.ok){ commandes = r.commandes; rendre(); etat('À jour', 'succes'); }
+    const r = await jsonp({action:'list', password:motDePasse, limite:limiteCommandesActuelle});
+    if(r.ok){ commandes = r.commandes; totalCommandes = r.total; rendre(); etat('À jour', 'succes'); }
   }catch(e){ etat('Actualisation impossible', 'erreur'); }
 }
 $('btn-recharger').addEventListener('click', recharger);
+
+async function chargerToutLHistorique(){
+  etat('Chargement de tout l\'historique…', 'chargement');
+  try{
+    const r = await jsonp({action:'list', password:motDePasse, limite:0});
+    if(r.ok){
+      commandes = r.commandes; totalCommandes = r.total; limiteCommandesActuelle = 0;
+      rendre(); etat('À jour', 'succes');
+    }
+  }catch(e){ etat('Chargement impossible', 'erreur'); }
+}
+$('btn-charger-historique-complet').addEventListener('click', chargerToutLHistorique);
 
 $('filtres').addEventListener('click', e => {
   const b = e.target.closest('button');
@@ -83,6 +95,15 @@ $('apercu-general').addEventListener('click', e => {
 });
 
 function rendre(){
+  const banniereHistorique = $('bandeau-historique-partiel');
+  if(limiteCommandesActuelle > 0 && totalCommandes > commandes.length){
+    $('texte-historique-partiel').textContent =
+      `Affichage des ${commandes.length} commandes les plus récentes sur ${totalCommandes} au total.`;
+    banniereHistorique.hidden = false;
+  }else{
+    banniereHistorique.hidden = true;
+  }
+
   const aLivrer = {};
   commandes.forEach(c => {
     if (!['Reçue', 'Validée'].includes(c.statutCommande)) return;
