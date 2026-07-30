@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CVDL — Espace bénéficiaire</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{ --ink:#002743; --ambre:#B5850A; }
+  *{box-sizing:border-box}
+  body{
+    margin:0;min-height:100vh;font-family:'Archivo',system-ui,sans-serif;background:#F4F6F8;
+    padding:24px;
+  }
+  .conteneur{width:100%;max-width:900px;margin:5vh auto 0}
+  .fil-ariane{margin-bottom:20px}
+  .fil-ariane a{color:#8592A0;font-size:13px;text-decoration:none}
+  .fil-ariane a:hover{text-decoration:underline}
+  .entete{text-align:center;margin-bottom:32px}
+  .entete img{height:100px;margin-bottom:14px}
+  .entete h1{font-family:'Space Grotesk',sans-serif;font-size:24px;font-weight:600;color:var(--ink);margin:0}
+  .entete p{color:#8592A0;font-size:14.5px;margin:8px 0 0}
+
+  .grille-cartes{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:22px}
+  a.carte, div.carte{
+    display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;
+    background:#fff;border:1px solid #E2E6EA;border-radius:18px;padding:36px 22px;
+    text-decoration:none;box-shadow:0 2px 10px rgba(0,39,67,.05);
+    transition:transform .15s, box-shadow .15s;
+  }
+  a.carte:hover{transform:translateY(-3px);box-shadow:0 10px 26px rgba(0,39,67,.09)}
+  .carte .icone{width:56px;height:56px;display:flex;align-items:center;justify-content:center;border-radius:16px;background:#EEF1F4}
+  .carte .icone svg{width:28px;height:28px}
+  .carte .label{font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:600;color:var(--ink)}
+  .carte .sous{font-size:12.5px;letter-spacing:.01em;color:#8592A0;line-height:1.5;max-width:220px}
+
+  .sav .icone svg{color:var(--ambre)}
+  .suivi-sav .icone svg{color:#213A8E}
+
+  div.carte.desactivee{opacity:.5;cursor:not-allowed;position:relative}
+  .carte.desactivee .icone{background:#E2E6EA}
+  .carte.desactivee .icone svg{color:#8592A0}
+  .badge-bientot{
+    position:absolute;top:14px;right:14px;font-size:10px;font-weight:700;letter-spacing:.04em;
+    text-transform:uppercase;color:#8592A0;background:#EEF1F4;padding:4px 9px;border-radius:20px;
+  }
+
+  @media(max-width:480px){
+    .conteneur{margin-top:3vh}
+    .entete img{height:76px}
+    a.carte, div.carte{padding:28px 18px}
+  }
+</style>
+</head>
+<body>
+
+<div class="conteneur">
+  <div class="fil-ariane"><a href="portail.html">← Retour</a></div>
+  <div class="entete">
+    <img src="logo.png" alt="" onerror="this.style.display='none'">
+    <h1>Espace bénéficiaire</h1>
+    <p>Vous avez reçu du matériel reconditionné et rencontrez un problème ? C'est ici.</p>
+  </div>
+
+  <div class="grille-cartes">
+    <a class="carte sav" href="sav-beneficiaire.html">
+      <div class="icone">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a3 3 0 0 0-4.2 4.2L3 18v3h3l7.5-7.5a3 3 0 0 0 4.2-4.2l-2.6 2.6-2-2 2.6-2.6z"/></svg>
+      </div>
+      <div class="label">Signaler une panne</div>
+      <div class="sous">Sans code, avec le numéro de série de votre appareil</div>
+    </a>
+    <a class="carte suivi-sav" href="suivi-sav-beneficiaire.html">
+      <div class="icone">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
+      </div>
+      <div class="label">Suivre ma demande</div>
+      <div class="sous">Avancement de votre panne, avec le numéro de série</div>
+    </a>
+    <div class="carte desactivee" title="Bientôt disponible" aria-disabled="true">
+      <span class="badge-bientot">Bientôt</span>
+      <div class="icone">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><circle cx="12" cy="16" r=".3" fill="currentColor" stroke="none"/></svg>
+      </div>
+      <div class="label">Besoin d'aide ?</div>
+      <div class="sous">Un espace d'entraide arrive bientôt ici</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

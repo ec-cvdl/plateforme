@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<script>
+// 👉 C'EST ICI, LA LIGNE JUSTE EN DESSOUS ↓↓↓ — remplace UNIQUEMENT le texte entre guillemets
+const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy9-ZwhkG-hhmh7eI1f8NuMGtdofnXixQhgJAQr4gN0Q/exec';
+// 👆 C'ÉTAIT ICI — fais la même chose dans admin.html, sav.html et sav-beneficiaire.html
+</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Commande de matériel — CVDL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="marque-barre">
+  <div class="marque">
+    <!-- Dépose ton logo (logo.png) dans le même dossier que ce fichier pour qu'il s'affiche ici -->
+    <img src="logo.png" alt="" onerror="this.style.display='none'">
+    <span class="nom-org">CVDL — Dotation matériel</span>
+  </div>
+  <div class="bascule-mode" role="group" aria-label="Apparence du formulaire">
+    <button type="button" data-mode="clair" class="actif">Clair</button>
+    <button type="button" data-mode="sombre">Sombre</button>
+    <button type="button" data-mode="accessible">Accessible</button>
+  </div>
+</header>
+
+<div class="scene-wrap">
+  <div class="scene" id="scene">
+
+    <div class="voile-envoi" id="voile-envoi" hidden>
+      <div class="spinner"></div>
+      <div class="texte-voile" id="texte-voile">Envoi en cours…</div>
+      <div class="barre-progression-envoi" id="barre-progression-envoi" hidden>
+        <div class="barre-progression-envoi-remplissage" id="barre-progression-envoi-remplissage"></div>
+      </div>
+    </div>
+
+    <div class="progression" id="progression"></div>
+    <div class="plaque-persistante" id="plaque-persistante" hidden></div>
+
+    <!-- Étape : code structure -->
+    <section class="etape" data-etape="code">
+      <div class="compte">ÉTAPE <span class="num-actuel">1</span> SUR <span class="num-total">–</span></div>
+      <div class="question">Quel est votre <em>code structure</em> ?</div>
+      <p class="sous-question">Ce code vous a été communiqué par mail. Vous voulez plutôt suivre une commande déjà passée ? <a href="suivi.html">Cliquez ici</a>.</p>
+      <input type="text" class="champ-texte" id="code" autocomplete="off" spellcheck="false" placeholder="Saisissez votre code">
+      <div id="retour-code"></div>
+      <div class="suite">
+        <button type="button" class="bouton-principal" id="btn-verifier">Continuer →</button>
+      </div>
+      <div class="astuce-clavier">Appuyez sur Entrée ↵</div>
+    </section>
+
+    <!-- Étape : matériel (produit + quantité + devis) -->
+    <section class="etape" data-etape="materiel" hidden>
+      <div class="compte">ÉTAPE <span class="num-actuel">2</span> SUR <span class="num-total">–</span></div>
+      <div class="question">Quel <em>matériel</em> souhaitez-vous commander ?</div>
+
+      <div id="lignes-ajoutees"></div>
+
+      <div id="zone-ajout-produit">
+        <p class="sous-question" id="titre-ajout-produit">Choisissez un produit à ajouter :</p>
+        <div class="choix-grille" id="grille-produits"></div>
+        <a class="lien-aide" href="#" target="_blank" rel="noopener" id="lien-aide-choix">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9.2"/><path d="M9.3 9.3a2.7 2.7 0 1 1 3.7 2.5c-.9.4-1.4 1-1.4 2v.4"/><circle cx="12" cy="17" r=".3" fill="currentColor" stroke="none"/></svg>
+          Besoin d'aide pour choisir ?
+        </a>
+        <div id="retour-produit"></div>
+
+        <div id="bloc-quantite" hidden>
+          <label class="champ" style="display:block;font-size:13px;font-weight:600;color:var(--gris);margin:26px 0 8px">Quantité pour ce produit</label>
+          <div class="compteur">
+            <button type="button" id="qte-moins" aria-label="Retirer une unité">−</button>
+            <input type="number" class="champ-nombre" id="quantite" value="1" min="1" max="5" inputmode="numeric">
+            <button type="button" id="qte-plus" aria-label="Ajouter une unité">+</button>
+          </div>
+          <div id="info-stock"></div>
+          <div class="suite" style="margin-top:16px">
+            <button type="button" class="bouton-principal" id="btn-ajouter-ligne" style="width:100%">+ Ajouter ce produit à la commande</button>
+          </div>
+        </div>
+      </div>
+
+      <label class="case-attestation" style="margin-top:22px">
+        <input type="checkbox" id="demande-devis">
+        <span>Nous avons besoin d'un devis avant de confirmer cette commande.</span>
+      </label>
+
+      <div class="recap-total" id="recap-total"></div>
+
+      <div class="suite">
+        <button type="button" class="bouton-retour" data-retour>← Retour</button>
+        <button type="button" class="bouton-principal" id="btn-materiel-suivant" disabled>Continuer →</button>
+      </div>
+    </section>
+
+    <!-- Étape : moyen de paiement -->
+    <section class="etape" data-etape="paiement" hidden>
+      <div class="compte">ÉTAPE <span class="num-actuel">3</span> SUR <span class="num-total">–</span></div>
+      <div class="question">Comment souhaitez-vous <em>régler</em> cette commande ?</div>
+      <div class="choix-grille">
+        <label class="carte-choix"><input type="radio" name="paiement" value="Paiement en ligne (CB)" style="display:none"><span class="libelle">En ligne (CB)</span></label>
+        <label class="carte-choix"><input type="radio" name="paiement" value="Chèque" style="display:none"><span class="libelle">Chèque</span></label>
+        <label class="carte-choix"><input type="radio" name="paiement" value="Espèces" style="display:none"><span class="libelle">Espèces</span></label>
+      </div>
+      <div id="retour-paiement"></div>
+      <div class="suite">
+        <button type="button" class="bouton-retour" data-retour>← Retour</button>
+        <button type="button" class="bouton-principal" id="btn-paiement-suivant" disabled>Continuer →</button>
+      </div>
+    </section>
+
+    <!-- Étape : pièce jointe (PDF + attestation + upload adaptatif) — sautée pour les structures RN -->
+    <section class="etape" data-etape="piece-jointe" hidden>
+      <div class="compte">ÉTAPE <span class="num-actuel">4</span> SUR <span class="num-total">–</span></div>
+      <div class="question">Un dernier <em>document</em> à joindre par personne</div>
+
+      <div class="bloc-pdf">
+        <a href="#" target="_blank" rel="noopener" id="lien-pdf-modele">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="width:17px;height:17px"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5z"/><path d="M14 3v5h5"/></svg>
+          Télécharger le document à remplir
+        </a>
+        <p>Remplissez-le, enregistrez-le, puis déposez-le ci-dessous.</p>
+      </div>
+
+      <div id="zone-uploads"></div>
+      <div id="retour-upload"></div>
+
+      <div class="suite">
+        <button type="button" class="bouton-retour" data-retour>← Retour</button>
+        <button type="button" class="bouton-principal" id="btn-upload-suivant" disabled>Continuer →</button>
+      </div>
+    </section>
+
+    <!-- Étape : commentaire + envoi -->
+    <section class="etape" data-etape="commentaire" hidden>
+      <div class="compte">ÉTAPE <span class="num-actuel">5</span> SUR <span class="num-total">–</span></div>
+      <div class="question">Une <em>précision</em> à ajouter ?</div>
+      <p class="sous-question">Facultatif.</p>
+      <textarea class="champ-long" id="commentaire" maxlength="1000"></textarea>
+      <div class="rappel-prix" id="rappel-prix"></div>
+
+      <label class="case-attestation" style="margin-top:22px">
+        <input type="checkbox" id="attestation-finale">
+        <span>Je certifie que les informations transmises dans ce formulaire sont exactes.</span>
+      </label>
+
+      <div id="retour-envoi"></div>
+      <div class="suite">
+        <button type="button" class="bouton-retour" data-retour>← Retour</button>
+        <button type="button" class="bouton-principal" id="btn-envoyer" disabled>Envoyer la commande</button>
+      </div>
+    </section>
+
+    <!-- Confirmation -->
+    <section class="etape confirmation" data-etape="confirmation" hidden>
+      <div class="compte" style="justify-content:center">COMMANDE ENREGISTRÉE</div>
+      <h2>C'est envoyé</h2>
+      <div class="ref" id="reference"></div>
+      <div class="montant-final" id="montant-final" hidden></div>
+      <p>Conservez cette référence. Votre commande est en cours de vérification ; vous recevrez un mail dès qu'elle sera validée.</p>
+    </section>
+
+  </div>
+
+  <p class="pied">CVDL — Dotation matériel reconditionné</p>
+</div>
+
+<script>
+/* const API est maintenant tout en haut du fichier (juste après <head>), pour être
+   facile à trouver — ne la redéclare pas ici, elle est déjà accessible partout. */
+const LIEN_AIDE_CHOIX = 'https://ec-cvdl.github.io/decision-tree/';
+const LIEN_PDF_MODELE = 'https://drive.google.com/file/d/1Qg2zNrjPhtgcYK4sNr2e5tDNzNN1lIdK/view?usp=sharing';
+const MAX_FICHIER_MO = 8;
+
+const $  = id => document.getElementById(id);
+const $$ = sel => Array.from(document.querySelectorAll(sel));
+
+/** Dérive l'URL de suivi.html à partir de la position actuelle de ce formulaire — le
+ *  backend ne connaît pas l'adresse à laquelle le site est hébergé, donc c'est au front
+ *  de la lui fournir. Même principe que urlFormulairePublic() côté admin.html. */
+function urlSuiviCommandes(){
+  const href = window.location.href;
+  if(href.includes('commande.html')) return href.split('?')[0].split('#')[0].replace('commande.html', 'suivi.html');
+  try{
+    const url = new URL(href);
+    const segments = url.pathname.split('/');
+    segments[segments.length - 1] = 'suivi.html';
+    url.pathname = segments.join('/');
+    url.search = ''; url.hash = '';
+    return url.toString();
+  }catch(e){ return ''; }
+}
+
+function jsonp(params){
+  return new Promise((ok, ko) => {
+    const nom = 'cb' + Date.now() + Math.floor(Math.random()*1000);
+    const balise = document.createElement('script');
+    const t = setTimeout(() => { nettoyer(); ko(new Error('Délai dépassé')); }, 45000);
+    function nettoyer(){ clearTimeout(t); window[nom] = () => {}; balise.remove(); }
+    window[nom] = data => { nettoyer(); ok(data); };
+    balise.src = API + '?' + new URLSearchParams({...params, callback:nom});
+    balise.onerror = () => { nettoyer(); ko(new Error('Connexion impossible')); };
+    document.body.appendChild(balise);
+  });
+}
+function poster(data){
+  return fetch(API, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify(data)
+  }).then(r => r.json());
+}
+/* Identique à poster(), avec un pourcentage affiché pendant l'attente. Basé sur fetch()
+ * (fiable, utilisé partout ailleurs dans l'outil) plutôt que XMLHttpRequest : le suivi
+ * d'upload octet par octet n'est pas fiable sur tous les navigateurs/réseaux et a cassé
+ * l'envoi pour certains — cette version anime une progression le temps de la requête,
+ * sans prétendre mesurer l'upload réel, puis saute à 100% dès la réponse reçue. */
+function posterAvecProgression(data, onProgression){
+  let annule = false;
+  let pourcentage = 0;
+  const minuteur = setInterval(function(){
+    if(annule) return;
+    // Avance vite au début, ralentit en approchant de 90%, ne dépasse jamais 90% avant la vraie réponse
+    pourcentage += (90 - pourcentage) * 0.12;
+    if(onProgression) onProgression(Math.min(90, Math.round(pourcentage)));
+  }, 200);
+
+  return poster(data).then(function(reponse){
+    annule = true;
+    clearInterval(minuteur);
+    if(onProgression) onProgression(100);
+    return reponse;
+  }).catch(function(erreur){
+    annule = true;
+    clearInterval(minuteur);
+    throw erreur;
+  });
+}
+function afficherMsg(cible, texte, type){
+  $(cible).innerHTML = texte ? '<div class="msg msg-' + type + '">' + texte + '</div>' : '';
+}
+function echapper(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+function formaterMontant(montant){
+  return Math.round(parseFloat(montant) || 0) + ' €';
+}
+
+/* Icônes par mots-clés, avec repli générique */
+const ICONES = {
+  telephone: '<path d="M7 2h10a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z"/><path d="M11 18h2"/>',
+  tablette:  '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M11 18h2"/>',
+  portable:  '<rect x="3.5" y="3.5" width="17" height="11" rx="1"/><path d="M8 14.5v1.3M16 14.5v1.3"/><path d="M1 18.8h22l-1.3 1.6a1 1 0 0 1-.8.4H3.1a1 1 0 0 1-.8-.4L1 18.8z"/>',
+  fixe:      '<rect x="2.5" y="4" width="7" height="16" rx="1"/><circle cx="6" cy="17.3" r="1"/><rect x="12" y="6" width="9.5" height="7.5" rx="1"/><path d="M15.2 17h4.6M16.7 13.5v3.5"/>',
+  telephone_touches: '<path d="M6.6 4.5c-1.1 0-2 .9-2 2 0 8.3 6.6 14.9 14.9 14.9 1.1 0 2-.9 2-2v-2.7c0-.6-.4-1.1-1-1.2l-3-.7c-.5-.1-1 .1-1.3.5l-1 1.3c-2.1-1.1-3.9-2.9-5-5l1.3-1c.4-.3.6-.8.5-1.3l-.7-3c-.1-.6-.6-1-1.2-1H6.6z"/>',
+  atelier:   '<circle cx="8.5" cy="8" r="3"/><path d="M2.5 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.3"/><path d="M14.7 20c.3-2.7 2.2-4.8 4.8-5.3"/>',
+  feuille:   '<path d="M5 19c0-8 4-14 14-15 1 6-1 11-5 14-3 2.2-6.5 2.5-9 1z"/><path d="M5 19c3-4 6-7 9-10"/>',
+  generique: '<rect x="3.5" y="7" width="17" height="13" rx="1.5"/><path d="M3.5 11h17M8 7V5.6A1.6 1.6 0 0 1 9.6 4h4.8A1.6 1.6 0 0 1 16 5.6V7"/>'
+};
+function iconePour(nom, icone){
+  if (icone && ICONES[icone]) return ICONES[icone];
+  const n = String(nom || '').toLowerCase();
+  if (/(sensibilisation|[ée]cologi|environnement)/.test(n)) return ICONES.feuille;
+  if (/(atelier|animation)/.test(n)) return ICONES.atelier;
+  if (/touches?/.test(n)) return ICONES.telephone_touches;
+  if (/(smartphone|t[ée]l[ée]phone|mobile)/.test(n)) return ICONES.telephone;
+  if (/tablet/.test(n)) return ICONES.tablette;
+  if (/(portable|laptop)/.test(n)) return ICONES.portable;
+  if (/(fixe|bureau|desktop|tour)/.test(n)) return ICONES.fixe;
+  return ICONES.generique;
+}
+function svgIcone(nom, icone){
+  return '<svg class="icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' + iconePour(nom, icone) + '</svg>';
+}
+
+/* Bascule de mode (clair / sombre / accessible) */
+function appliquerMode(mode){
+  document.body.classList.remove('mode-sombre','mode-accessible');
+  if(mode === 'sombre') document.body.classList.add('mode-sombre');
+  if(mode === 'accessible') document.body.classList.add('mode-accessible');
+  $$('.bascule-mode button').forEach(function(b){ b.classList.toggle('actif', b.dataset.mode === mode); });
+  try{ localStorage.setItem('cvdl-mode', mode); }catch(e){}
+
+  const badge = document.getElementById('badge-accessible-conteneur');
+  if(mode === 'accessible' && !badge){
+    const b = document.createElement('div');
+    b.className = 'badge-accessible';
+    b.id = 'badge-accessible-conteneur';
+    b.innerHTML = '◆ Mode accessible activé';
+    $('scene').insertBefore(b, $('scene').firstChild);
+  } else if(mode !== 'accessible' && badge){
+    badge.remove();
+  }
+}
+$$('.bascule-mode button').forEach(function(b){ b.addEventListener('click', function(){ appliquerMode(b.dataset.mode); }); });
+try{
+  const memorise = localStorage.getItem('cvdl-mode');
+  if(memorise) appliquerMode(memorise);
+}catch(e){}
+
+/* Machine à étapes */
+const etapes = ['code','materiel','paiement','piece-jointe','commentaire'];
+let indexEtape = 0;
+let moyenImpose = null;
+let estEsn = false;
+
+const etat = {
+  code: '', nomStructure: '',
+  lignes: [], moyenPaiement: '',
+  demandeDevis: false, commentaire: ''
+};
+
+/** Quantité totale tous produits confondus — sert au nombre de documents à joindre. */
+function quantiteTotaleLignes(){
+  return etat.lignes.reduce(function(s, l){ return s + l.quantite; }, 0);
+}
+
+function etapesActives(){
+  return etapes.filter(function(e){
+    if(e === 'paiement' && (moyenImpose || estEsn)) return false;
+    if(e === 'piece-jointe' && (moyenImpose || estEsn)) return false; // RN : pas de bon d'orientation à joindre — ESN : ni paiement ni pièce jointe
+    return true;
+  });
+}
+
+function majProgression(){
+  const actives = etapesActives();
+  const i = actives.indexOf(etapes[indexEtape]);
+  $('progression').innerHTML = actives.map(function(_, idx){
+    return '<div class="segment ' + (idx <= i ? 'fait' : '') + '"></div>';
+  }).join('');
+  $$('.num-total').forEach(function(el){ el.textContent = actives.length; });
+  $$('.etape:not(.confirmation) .num-actuel').forEach(function(el){
+    const nomEtape = el.closest('.etape').dataset.etape;
+    el.textContent = actives.indexOf(nomEtape) + 1;
+  });
+}
+
+function afficherEtape(nom){
+  $$('.etape').forEach(function(s){ s.hidden = (s.dataset.etape !== nom); });
+  majProgression();
+
+  // La plaque d'identité de la structure reste visible sur toutes les étapes
+  // sauf la première, qui a déjà sa propre confirmation détaillée
+  const plaque = $('plaque-persistante');
+  if(etat.nomStructure && nom !== 'code'){
+    plaque.innerHTML = '<span class="puce-mini">✓</span> ' + echapper(etat.nomStructure);
+    plaque.hidden = false;
+  } else {
+    plaque.hidden = true;
+  }
+
+  const champPrincipal = document.querySelector('.etape[data-etape="' + nom + '"] .champ-texte, .etape[data-etape="' + nom + '"] .champ-nombre');
+  if(champPrincipal) setTimeout(function(){ champPrincipal.focus(); }, 50);
+}
+
+function allerA(nomEtape){
+  const idx = etapes.indexOf(nomEtape);
+  if(idx === -1) return;
+  indexEtape = idx;
+  afficherEtape(nomEtape);
+}
+
+function suivant(){
+  const actives = etapesActives();
+  const iActuel = actives.indexOf(etapes[indexEtape]);
+  if(iActuel < actives.length - 1) allerA(actives[iActuel + 1]);
+  if(etapes[indexEtape] === 'commentaire') majRappelPrix();
+}
+function precedent(){
+  const actives = etapesActives();
+  const iActuel = actives.indexOf(etapes[indexEtape]);
+  if(iActuel > 0) allerA(actives[iActuel - 1]);
+  else allerA('code');
+}
+$$('[data-retour]').forEach(function(b){ b.addEventListener('click', precedent); });
+
+/* Étape 1 : code */
+async function verifierCode(){
+  const code = $('code').value.trim();
+  if(!code){ afficherMsg('retour-code', 'Saisissez votre code structure.', 'erreur'); return; }
+
+  $('btn-verifier').disabled = true;
+  $('btn-verifier').textContent = 'Vérification…';
+  afficherMsg('retour-code', '', 'info');
+
+  try{
+    const r = await jsonp({action:'check', code: code});
+    if(r.ok){
+      etat.code = code;
+      etat.nomStructure = r.nom;
+      moyenImpose = r.moyenImpose || null;
+      estEsn = !!r.esn || !!r.interne;
+      $('demande-devis').closest('.case-attestation').hidden = estEsn;
+      if(estEsn) $('demande-devis').checked = false;
+
+      $('retour-code').innerHTML =
+        '<div class="plaque"><span class="puce">OK</span>' +
+        '<div class="contenu"><b>' + echapper(r.nom) + '</b><span>Code reconnu</span></div></div>';
+
+      await chargerProduits();
+      suivant();
+      return;
+    }
+    afficherMsg('retour-code', '<strong>Code non reconnu.</strong> Vérifiez la saisie ou contactez-nous.', 'erreur');
+  }catch(e){
+    afficherMsg('retour-code', 'Connexion impossible. Réessayez dans un instant.', 'erreur');
+  }
+  $('btn-verifier').disabled = false;
+  $('btn-verifier').textContent = 'Continuer →';
+}
+$('btn-verifier').addEventListener('click', verifierCode);
+$('code').addEventListener('keydown', function(e){ if(e.key === 'Enter'){ e.preventDefault(); verifierCode(); } });
+
+/* Étape 2 : matériel — une liste de lignes {produit, quantite, prixUnitaire}, ajoutées une à une */
+async function chargerProduits(){
+  $('grille-produits').innerHTML = '<p class="sous-question">Chargement du catalogue…</p>';
+  try{
+    const r = await jsonp({action:'produits-public', code: etat.code});
+    if(r.ok) afficherProduits(r.produits.filter(function(p){ return p.visible; }));
+    else afficherMsg('retour-produit', 'Impossible de charger le catalogue.', 'erreur');
+  }catch(e){
+    afficherMsg('retour-produit', 'Connexion impossible.', 'erreur');
+  }
+}
+
+let produitsCache = [];
+let produitSelectionne = null; // le produit choisi dans la grille, en attente d'ajout
+
+function afficherProduits(produits){
+  produitsCache = produits;
+  if(!produits.length){
+    $('grille-produits').innerHTML = '<p class="sous-question">Aucun produit disponible pour le moment.</p>';
+    return;
+  }
+  const nomsDejaAjoutes = etat.lignes.map(function(l){ return l.produit; });
+
+  $('grille-produits').innerHTML = produits.map(function(p){
+    const dejaAjoute = nomsDejaAjoutes.indexOf(p.nom) !== -1;
+    const specs = [p.disque, p.ram, p.systeme].filter(Boolean).join(' · ');
+    const prixAffiche = (typeof p.prixUnitaire === 'number')
+      ? '<div class="prix-produit">' + formaterMontant(p.prixUnitaire) + ' / unité</div>' : '';
+    return '<label class="carte-choix ' + (p.disponible && !dejaAjoute ? '' : 'epuise') + '">' +
+      '<input type="radio" name="produit" value="' + echapper(p.nom) + '" style="display:none" ' + (p.disponible && !dejaAjoute ? '' : 'disabled') + '>' +
+      svgIcone(p.nom, p.icone) +
+      '<div><div class="libelle">' + echapper(p.nom) + '</div>' +
+      (specs ? '<div class="specs-produit">' + echapper(specs) + '</div>' : '') +
+      (dejaAjoute ? '<div class="specs-produit">✓ Déjà dans la commande</div>' : (p.disponible ? prixAffiche : '<div class="message-rupture">' + echapper(p.messageRupture) + '</div>')) +
+      '</div></label>';
+  }).join('');
+
+  $$('#grille-produits input[type=radio]').forEach(function(input){
+    input.addEventListener('change', function(){
+      $$('#grille-produits .carte-choix').forEach(function(c){ c.classList.remove('selectionne'); });
+      input.closest('.carte-choix').classList.add('selectionne');
+      produitSelectionne = produitsCache.find(function(x){ return x.nom === input.value; }) || null;
+
+      champQte.value = 1;
+      $('bloc-quantite').hidden = false;
+      majInfoStock();
+    });
+  });
+}
+$('lien-aide-choix').href = LIEN_AIDE_CHOIX;
+
+const champQte = $('quantite');
+function maxAutorise(){
+  if(!produitSelectionne) return 5;
+  const maxProduit = produitSelectionne.quantiteMax || 5;
+  return Math.max(1, Math.min(maxProduit, produitSelectionne.stock || maxProduit));
+}
+function bornerQte(v){ return Math.min(maxAutorise(), Math.max(1, v || 1)); }
+
+function majInfoStock(){
+  const max = maxAutorise();
+  $('qte-plus').disabled = (+champQte.value >= max);
+  if(!produitSelectionne || (produitSelectionne.stock || 0) <= 0){
+    afficherMsg('info-stock', 'Ce produit vient de passer en rupture de stock. Merci de choisir un autre matériel.', 'erreur');
+    $('btn-ajouter-ligne').disabled = true;
+  } else if(+champQte.value >= max){
+    afficherMsg('info-stock', 'Maximum ' + max + ' unité' + (max > 1 ? 's' : '') + ' pour ce produit.', 'info');
+    $('btn-ajouter-ligne').disabled = false;
+  } else {
+    afficherMsg('info-stock', '', 'info');
+    $('btn-ajouter-ligne').disabled = false;
+  }
+}
+
+$('qte-moins').addEventListener('click', function(){ champQte.value = bornerQte(+champQte.value - 1); majInfoStock(); });
+$('qte-plus').addEventListener('click',  function(){ champQte.value = bornerQte(+champQte.value + 1); majInfoStock(); });
+champQte.addEventListener('change', function(){ champQte.value = bornerQte(parseInt(champQte.value, 10)); majInfoStock(); });
+$('demande-devis').addEventListener('change', function(){ etat.demandeDevis = this.checked; });
+
+function rendreLignesAjoutees(){
+  if(!etat.lignes.length){
+    $('lignes-ajoutees').innerHTML = '';
+  }else{
+    $('lignes-ajoutees').innerHTML = etat.lignes.map(function(l, i){
+      const sousTotal = (typeof l.prixUnitaire === 'number') ? formaterMontant(l.prixUnitaire * l.quantite) : '';
+      return '<div class="ligne-produit-ajoutee">' +
+        '<span class="quantite-ligne">' + l.quantite + '×</span>' +
+        '<span class="libelle-ligne">' + echapper(l.produit) + '</span>' +
+        (sousTotal ? '<span class="prix-ligne">' + sousTotal + '</span>' : '') +
+        '<button type="button" class="retirer-ligne" data-retirer-ligne="' + i + '" aria-label="Retirer ce produit">✕</button>' +
+        '</div>';
+    }).join('');
+  }
+  $$('[data-retirer-ligne]').forEach(function(b){
+    b.addEventListener('click', function(){
+      etat.lignes.splice(parseInt(b.dataset.retirerLigne, 10), 1);
+      rendreLignesAjoutees();
+      afficherProduits(produitsCache); // un produit retiré redevient sélectionnable
+      majRecapTotal();
+      $('btn-materiel-suivant').disabled = !etat.lignes.length;
+    });
+  });
+}
+
+function majRecapTotal(){
+  if(!etat.lignes.length){ $('recap-total').innerHTML = ''; return; }
+  let total = 0, connu = true;
+  etat.lignes.forEach(function(l){
+    if(typeof l.prixUnitaire === 'number') total += l.prixUnitaire * l.quantite;
+    else connu = false;
+  });
+  $('recap-total').innerHTML = connu
+    ? '<span class="total-prix">Total : ' + formaterMontant(total) + '</span>'
+    : '';
+}
+
+$('btn-ajouter-ligne').addEventListener('click', function(){
+  if(!produitSelectionne) return;
+  etat.lignes.push({
+    produit: produitSelectionne.nom,
+    quantite: bornerQte(parseInt(champQte.value, 10)),
+    prixUnitaire: (typeof produitSelectionne.prixUnitaire === 'number') ? produitSelectionne.prixUnitaire : null
+  });
+
+  produitSelectionne = null;
+  $('bloc-quantite').hidden = true;
+  afficherMsg('info-stock', '', 'info');
+  rendreLignesAjoutees();
+  afficherProduits(produitsCache);
+  majRecapTotal();
+  $('btn-materiel-suivant').disabled = false;
+});
+
+$('btn-materiel-suivant').addEventListener('click', function(){
+  construireZoneUploads();
+  suivant();
+});
+
+/* Étape 3 : paiement */
+$$('.etape[data-etape="paiement"] input[type=radio]').forEach(function(input){
+  input.addEventListener('change', function(){
+    $$('.etape[data-etape="paiement"] .carte-choix').forEach(function(c){ c.classList.remove('selectionne'); });
+    input.closest('.carte-choix').classList.add('selectionne');
+    etat.moyenPaiement = input.value;
+    $('btn-paiement-suivant').disabled = false;
+  });
+});
+$('btn-paiement-suivant').addEventListener('click', suivant);
+
+/* Étape 5 : pièce jointe */
+$('lien-pdf-modele').href = LIEN_PDF_MODELE;
+
+function construireZoneUploads(){
+  const n = quantiteTotaleLignes();
+  let html = '';
+  for(let i = 1; i <= n; i++){
+    html += '<div class="zone-upload" data-index="' + i + '">' +
+      '<label for="fichier-' + i + '">' + (n > 1 ? ('Document — Personne ' + i) : 'Document à joindre') + '</label>' +
+      '<input type="file" id="fichier-' + i + '" accept=".pdf,.jpg,.jpeg,.png"></div>';
+  }
+  $('zone-uploads').innerHTML = html;
+  $$('#zone-uploads input[type=file]').forEach(function(input){
+    input.addEventListener('change', verifierEtatUpload);
+  });
+  verifierEtatUpload();
+}
+
+function verifierEtatUpload(){
+  const inputs = $$('#zone-uploads input[type=file]');
+  const tousRemplis = inputs.every(function(i){ return i.files[0]; });
+
+  inputs.forEach(function(i){ i.closest('.zone-upload').classList.toggle('rempli', !!i.files[0]); });
+
+  const tropLourd = inputs.some(function(i){ return i.files[0] && i.files[0].size > MAX_FICHIER_MO * 1024 * 1024; });
+  afficherMsg('retour-upload', tropLourd ? ('Un fichier dépasse ' + MAX_FICHIER_MO + ' Mo. Compressez-le puis réessayez.') : '', 'erreur');
+
+  $('btn-upload-suivant').disabled = !(tousRemplis && !tropLourd);
+}
+$('btn-upload-suivant').addEventListener('click', suivant);
+
+/* La case de certification finale (juste avant l'envoi) gate le bouton d'envoi, façon signature */
+$('attestation-finale').addEventListener('change', function(){
+  $('btn-envoyer').disabled = !$('attestation-finale').checked;
+});
+
+/* Étape 4 : commentaire + envoi */
+function lireFichier(f){
+  return new Promise(function(ok, ko){
+    const lecteur = new FileReader();
+    lecteur.onload = function(){ ok({ nom: f.name, type: f.type || 'application/octet-stream', base64: lecteur.result.split(',')[1] }); };
+    lecteur.onerror = function(){ ko(new Error('Lecture du fichier impossible')); };
+    lecteur.readAsDataURL(f);
+  });
+}
+
+function majRappelPrix(){
+  const connu = etat.lignes.every(function(l){ return typeof l.prixUnitaire === 'number'; });
+  if(!connu || !etat.lignes.length){ $('rappel-prix').innerHTML = ''; return; }
+  const total = etat.lignes.reduce(function(s, l){ return s + l.prixUnitaire * l.quantite; }, 0);
+  $('rappel-prix').innerHTML =
+    '<span>Montant de cette commande</span><b>' + formaterMontant(total) + '</b>';
+}
+
+$('btn-envoyer').addEventListener('click', async function(){
+  $('btn-envoyer').disabled = true;
+  afficherMsg('retour-envoi', '', 'info');
+
+  const voile = $('voile-envoi');
+  const texteVoile = $('texte-voile');
+  voile.hidden = false;
+
+  try{
+    // Les structures RN et ESN n'ont jamais vu l'étape de pièce jointe : rien à lire dans ce cas
+    const inputs = (moyenImpose || estEsn) ? [] : $$('#zone-uploads input[type=file]');
+    if(inputs.length){
+      texteVoile.textContent = inputs.length > 1 ? 'Lecture des documents…' : 'Lecture du document…';
+    }
+    const fichiers = await Promise.all(inputs.map(function(i){ return lireFichier(i.files[0]); }));
+
+    texteVoile.textContent = 'Envoi de la commande…';
+    const barreProgression = $('barre-progression-envoi');
+    const remplissage = $('barre-progression-envoi-remplissage');
+    barreProgression.hidden = false;
+    remplissage.style.width = '0%';
+
+    const donnees = {
+      action: 'create',
+      code: etat.code,
+      lignes: etat.lignes.map(function(l){ return { produit: l.produit, quantite: l.quantite }; }),
+      moyenPaiement: moyenImpose || (estEsn ? 'Non applicable (ESN/Interne)' : etat.moyenPaiement),
+      fichiers: fichiers,
+      demandeDevis: etat.demandeDevis,
+      commentaire: $('commentaire').value.trim(),
+      urlSuivi: urlSuiviCommandes()
+    };
+
+    const r = await posterAvecProgression(donnees, function(pourcentage){
+      remplissage.style.width = pourcentage + '%';
+      texteVoile.textContent = 'Envoi de la commande… ' + pourcentage + '%';
+    });
+    barreProgression.hidden = true;
+    if(r.ok){
+      texteVoile.textContent = 'C\'est envoyé…';
+      $('reference').textContent = r.reference;
+      if(typeof r.montant === 'number'){
+        $('montant-final').innerHTML = '<span>Montant total</span><b>' + formaterMontant(r.montant) + '</b>';
+        $('montant-final').hidden = false;
+      }
+      $$('.etape').forEach(function(s){ s.hidden = true; });
+      $('progression').innerHTML = '';
+      document.querySelector('.confirmation').hidden = false;
+      window.scrollTo({top:0, behavior:'smooth'});
+      voile.hidden = true;
+      return;
+    }
+    voile.hidden = true;
+    afficherMsg('retour-envoi', r.erreur || 'Envoi impossible.', 'erreur');
+  }catch(e){
+    voile.hidden = true;
+    afficherMsg('retour-envoi', 'Envoi impossible. Vérifiez votre connexion puis réessayez.', 'erreur');
+  }
+  $('btn-envoyer').disabled = false;
+});
+
+/* Démarrage */
+allerA('code');
+</script>
+</body>
+</html>

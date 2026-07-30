@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<script>
+// 👉 C'EST ICI, LA LIGNE JUSTE EN DESSOUS ↓↓↓ — remplace UNIQUEMENT le texte entre guillemets
+const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy9-ZwhkG-hhmh7eI1f8NuMGtdofnXixQhgJAQr4gN0Q/exec';
+// 👆 C'ÉTAIT ICI — fais la même chose dans admin.html, commande.html et sav.html
+</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Demande de SAV — CVDL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+  .grille-symptomes{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-top:14px}
+  .carte-symptome{
+    display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;
+    padding:16px 10px;border-radius:12px;border:1.5px solid var(--trait);background:var(--carte);cursor:pointer;
+  }
+  .carte-symptome input{display:none}
+  .carte-symptome .icone-symptome{width:30px;height:30px;color:var(--gris)}
+  .carte-symptome span{font-size:12.5px;font-weight:600;color:var(--ink);line-height:1.3}
+  .carte-symptome:has(input:checked){border-color:var(--sarcelle);background:#EAFBFA}
+  .carte-symptome:has(input:checked) .icone-symptome{color:var(--sarcelle)}
+  body.mode-sombre .carte-symptome{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.15)}
+  body.mode-sombre .carte-symptome span{color:#fff}
+  body.mode-sombre .carte-symptome:has(input:checked){background:rgba(0,172,176,.18);border-color:var(--sarcelle)}
+
+  .bloc-non-trouve{
+    margin-top:16px;padding:16px 18px;border-radius:10px;background:var(--papier);border:1px solid var(--trait);
+  }
+  .bloc-non-trouve p{margin:0 0 10px;font-size:13.5px;color:var(--ink);line-height:1.5}
+  .bloc-non-trouve a{color:var(--sarcelle);font-weight:600}
+  body.mode-sombre .bloc-non-trouve{background:rgba(255,255,255,.05)}
+  body.mode-sombre .bloc-non-trouve p{color:#fff}
+
+  .zone-photo-video{margin-top:18px;display:flex;flex-direction:column;gap:14px}
+  .zone-photo-video label{font-size:13px;font-weight:600;color:var(--gris);display:block;margin-bottom:6px}
+  body.mode-sombre .zone-photo-video label{color:rgba(255,255,255,.7)}
+</style>
+</head>
+<body>
+
+<header class="marque-barre">
+  <div class="marque">
+    <img src="logo.png" alt="" onerror="this.style.display='none'">
+    <span class="nom-org">CVDL — Service après-vente</span>
+  </div>
+  <div class="bascule-mode" role="group" aria-label="Apparence du formulaire">
+    <button type="button" data-mode="clair" class="actif">Clair</button>
+    <button type="button" data-mode="sombre">Sombre</button>
+    <button type="button" data-mode="accessible">Accessible</button>
+  </div>
+</header>
+
+<div class="scene-wrap">
+  <div class="scene" id="scene">
+
+    <div class="voile-envoi" id="voile-envoi" hidden>
+      <div class="spinner"></div>
+      <div class="texte-voile" id="texte-voile">Envoi en cours…</div>
+      <div class="barre-progression-envoi" id="barre-progression-envoi" hidden>
+        <div class="barre-progression-envoi-remplissage" id="barre-progression-envoi-remplissage"></div>
+      </div>
+    </div>
+
+    <div class="progression" id="progression"></div>
+    <div class="plaque-persistante" id="plaque-persistante" hidden></div>
+
+    <!-- Étape : identification -->
+    <section class="etape" data-etape="identification">
+      <div class="compte">ÉTAPE <span class="num-actuel">1</span> SUR <span class="num-total">–</span></div>
+      <div class="question">Quel est le <em>numéro de série</em> de l'appareil ?</div>
+      <p class="sous-question">Vous le trouverez généralement sous l'appareil (S/N ou Serial Number), dans les paramètres système ou juste votre attestation de paiement. Vous êtes une structure avec un code ? <a href="sav.html">Cliquez ici</a>. Vous voulez plutôt suivre une demande déjà envoyée ? <a href="suivi-sav-beneficiaire.html">Cliquez ici</a>.</p>
+      <input type="text" class="champ-texte" id="id-numero-serie" autocomplete="off" spellcheck="false" placeholder="Numéro de série de l'appareil">
+      <div id="retour-id-serie"></div>
+      <div class="suite">
+        <button type="button" class="bouton-principal" id="btn-verifier-serie">Continuer →</button>
+      </div>
+
+      <div class="bloc-non-trouve" id="bloc-non-trouve" hidden>
+        <p>Nous n'avons pas retrouvé ce numéro de série dans nos commandes — ce n'est pas grave, ça peut arriver avec du matériel plus ancien.</p>
+        <p id="contact-sav-message"></p>
+        <button type="button" class="bouton-principal" id="btn-continuer-quand-meme">Continuer quand même →</button>
+      </div>
+    </section>
+
+    <!-- Étape : nom -->
+    <section class="etape" data-etape="nom" hidden>
+      <div class="compte">ÉTAPE <span class="num-actuel">2</span> SUR <span class="num-total">–</span></div>
+      <div class="question">À quel <em>nom</em> ?</div>
+      <p class="sous-question">Votre prénom et nom.</p>
+      <input type="text" class="champ-texte" id="nom-personne" autocomplete="off" placeholder="Prénom Nom">
+
+      <label class="champ" style="display:block;font-size:13px;font-weight:600;color:var(--gris);margin:20px 0 8px">Adresse email</label>
+      <input type="email" class="champ-texte" id="email-personne" autocomplete="off" placeholder="Afin que nous puissions vous contacter">
+
+      <label class="champ" style="display:block;font-size:13px;font-weight:600;color:var(--gris);margin:20px 0 8px">Confirmez votre adresse email</label>
+      <input type="email" class="champ-texte" id="email-personne-confirmation" autocomplete="off" placeholder="Retapez la même adresse"
+        onpaste="return false" oncopy="return false" oncut="return false" ondrop="return false" autocorrect="off" autocapitalize="off" spellcheck="false">
+      <p class="sous-question" id="retour-email-confirmation" style="margin-top:6px"></p>
+
+      <label class="champ" style="display:block;font-size:13px;font-weight:600;color:var(--gris);margin:20px 0 8px">Numéro de téléphone</label>
+      <input type="tel" class="champ-texte" id="telephone-personne" autocomplete="off" placeholder="06 12 34 56 78">
+
+      <label class="champ" style="display:block;font-size:13px;font-weight:600;color:var(--gris);margin:20px 0 8px">Date d'achat ou de don du matériel</label>
+      <input type="date" class="champ-texte" id="date-achat-sav" lang="fr">
+
+      <label class="champ" style="display:block;font-size:13px;font-weight:600;color:var(--gris);margin:20px 0 8px">Auprès de quelle structure avez-vous obtenu ce matériel ?</label>
+      <input type="text" class="champ-texte" id="structure-origine-sav" autocomplete="off" placeholder="Nom de la structure (si vous le connaissez)">
+
+      <div id="retour-nom"></div>
+      <div class="suite">
+        <button type="button" class="bouton-retour" data-retour>← Retour</button>
+        <button type="button" class="bouton-principal" id="btn-nom-suivant">Continuer →</button>
+      </div>
+    </section>
+
+    <!-- Étape : symptôme (numéro de série déjà connu depuis l'étape 1) -->
+    <section class="etape" data-etape="symptome" hidden>
+      <div class="compte">ÉTAPE <span class="num-actuel">3</span> SUR <span class="num-total">–</span></div>
+      <div class="question">Quel <em>symptôme</em> observez-vous ?</div>
+      <div class="grille-symptomes" id="grille-symptomes"></div>
+
+      <div id="retour-symptome"></div>
+      <div class="suite">
+        <button type="button" class="bouton-retour" data-retour>← Retour</button>
+        <button type="button" class="bouton-principal" id="btn-symptome-suivant" disabled>Continuer →</button>
+      </div>
+    </section>
+
+    <!-- Étape : détails (commentaire, photo, vidéo) -->
+    <section class="etape" data-etape="details" hidden>
+      <div class="compte">ÉTAPE <span class="num-actuel">4</span> SUR <span class="num-total">–</span></div>
+      <div class="question">Décrivez-nous <em>le problème</em></div>
+      <textarea class="champ-long" id="commentaire-sav" maxlength="1000" placeholder="Décrivez votre problème…"></textarea>
+
+      <div class="zone-photo-video">
+        <div>
+          <label for="photo-sav">Une photo du problème (facultatif)</label>
+          <input type="file" id="photo-sav" accept=".jpg,.jpeg,.png,.pdf">
+        </div>
+        <div>
+          <label for="lien-video-sav">Ou un lien vers une vidéo (facultatif)</label>
+          <input type="text" class="champ-texte" id="lien-video-sav" placeholder="Lien Drive, YouTube non répertorié, etc.">
+        </div>
+      </div>
+
+      <div id="retour-details"></div>
+      <div class="suite">
+        <button type="button" class="bouton-retour" data-retour>← Retour</button>
+        <button type="button" class="bouton-principal" id="btn-details-suivant">Continuer →</button>
+      </div>
+    </section>
+
+    <!-- Étape : récap + envoi -->
+    <section class="etape" data-etape="envoi" hidden>
+      <div class="compte">ÉTAPE <span class="num-actuel">5</span> SUR <span class="num-total">–</span></div>
+      <div class="question">Vérifiez et <em>envoyez</em></div>
+      <div id="recap-sav" class="recap-total" style="display:block;padding:16px 18px"></div>
+
+      <label class="case-attestation" style="margin-top:22px">
+        <input type="checkbox" id="attestation-finale-sav">
+        <span>Je certifie que les informations transmises dans ce formulaire sont exactes.</span>
+      </label>
+
+      <div id="retour-envoi-sav"></div>
+      <div class="suite">
+        <button type="button" class="bouton-retour" data-retour>← Retour</button>
+        <button type="button" class="bouton-principal" id="btn-envoyer-sav" disabled>Envoyer la demande</button>
+      </div>
+    </section>
+
+    <!-- Confirmation -->
+    <section class="etape confirmation" data-etape="confirmation" hidden>
+      <div class="compte" style="justify-content:center">DEMANDE ENREGISTRÉE</div>
+      <h2>C'est envoyé</h2>
+      <div class="ref" id="reference-sav"></div>
+      <p>Conservez cette référence. Nous revenons vers vous dès que votre demande est prise en charge.</p>
+    </section>
+
+  </div>
+
+  <p class="pied">CVDL — Service après-vente</p>
+</div>
+
+<script>
+const $  = id => document.getElementById(id);
+const $$ = sel => Array.from(document.querySelectorAll(sel));
+
+function jsonp(params){
+  return new Promise((ok, ko) => {
+    const nom = 'cb' + Date.now() + Math.floor(Math.random()*1000);
+    const balise = document.createElement('script');
+    const t = setTimeout(() => { nettoyer(); ko(new Error('Délai dépassé')); }, 45000);
+    function nettoyer(){ clearTimeout(t); window[nom] = () => {}; balise.remove(); }
+    window[nom] = data => { nettoyer(); ok(data); };
+    balise.src = API + '?' + new URLSearchParams({...params, callback:nom});
+    balise.onerror = () => { nettoyer(); ko(new Error('Connexion impossible')); };
+    document.body.appendChild(balise);
+  });
+}
+function poster(data){
+  return fetch(API, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify(data)
+  }).then(r => r.json());
+}
+function posterAvecProgression(data, onProgression){
+  let annule = false;
+  let pourcentage = 0;
+  const minuteur = setInterval(function(){
+    if(annule) return;
+    pourcentage += (90 - pourcentage) * 0.12;
+    if(onProgression) onProgression(Math.min(90, Math.round(pourcentage)));
+  }, 200);
+
+  return poster(data).then(function(reponse){
+    annule = true;
+    clearInterval(minuteur);
+    if(onProgression) onProgression(100);
+    return reponse;
+  }).catch(function(erreur){
+    annule = true;
+    clearInterval(minuteur);
+    throw erreur;
+  });
+}
+function afficherMsg(cible, texte, type){
+  $(cible).innerHTML = texte ? '<div class="msg msg-' + type + '">' + texte + '</div>' : '';
+}
+function echapper(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+
+/* Icônes de symptôme — même principe de reconnaissance par mot-clé que côté admin */
+const ICONES_SYMPTOME = {
+  ecran:    '<rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/><path d="M7 10l2-2 2 2 3-3 3 3" opacity=".5"/>',
+  batterie: '<rect x="2.5" y="8" width="17" height="8" rx="1.5"/><path d="M21 10.5v3"/><path d="M6 12h1.5M9 12h1.5" opacity=".6"/>',
+  clavier:  '<rect x="2.5" y="6" width="19" height="12" rx="1.5"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h12" opacity=".6"/>',
+  generique_sav: '<circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><circle cx="12" cy="15.5" r=".3" fill="currentColor" stroke="none"/>'
+};
+function iconeSymptome(texte){
+  const t = String(texte || '').toLowerCase();
+  if (/[ée]cran/.test(t)) return ICONES_SYMPTOME.ecran;
+  if (/(charge|batterie|alimentation)/.test(t)) return ICONES_SYMPTOME.batterie;
+  if (/clavier/.test(t)) return ICONES_SYMPTOME.clavier;
+  return ICONES_SYMPTOME.generique_sav;
+}
+function svgIconeSymptome(texte){
+  return '<svg class="icone-symptome" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + iconeSymptome(texte) + '</svg>';
+}
+
+/* Bascule de mode (clair / sombre / accessible) — identique au formulaire commande */
+function appliquerMode(mode){
+  document.body.classList.remove('mode-sombre','mode-accessible');
+  if(mode === 'sombre') document.body.classList.add('mode-sombre');
+  if(mode === 'accessible') document.body.classList.add('mode-accessible');
+  $$('.bascule-mode button').forEach(function(b){ b.classList.toggle('actif', b.dataset.mode === mode); });
+  try{ localStorage.setItem('cvdl-mode', mode); }catch(e){}
+}
+$$('.bascule-mode button').forEach(function(b){ b.addEventListener('click', function(){ appliquerMode(b.dataset.mode); }); });
+try{
+  const memorise = localStorage.getItem('cvdl-mode');
+  if(memorise) appliquerMode(memorise);
+}catch(e){}
+
+/* Machine à étapes */
+const etapes = ['identification', 'nom', 'symptome', 'details', 'envoi'];
+let indexEtape = 0;
+
+const etat = {
+  code: '', nomStructure: '', numeroSerie: '', symptome: '', commentaire: '', lienVideo: '',
+  email: '', telephone: '', dateAchat: '', structureOrigine: ''
+};
+
+function majProgression(){
+  const i = etapes.indexOf(etapes[indexEtape]);
+  $('progression').innerHTML = etapes.map(function(_, idx){
+    return '<div class="segment ' + (idx <= i ? 'fait' : '') + '"></div>';
+  }).join('');
+  $$('.num-total').forEach(function(el){ el.textContent = etapes.length; });
+  $$('.etape:not(.confirmation) .num-actuel').forEach(function(el){
+    const nomEtape = el.closest('.etape').dataset.etape;
+    el.textContent = etapes.indexOf(nomEtape) + 1;
+  });
+}
+
+function afficherEtape(nom){
+  $$('.etape').forEach(function(s){ s.hidden = (s.dataset.etape !== nom); });
+  majProgression();
+
+  const plaque = $('plaque-persistante');
+  if(etat.nomStructure && nom !== 'identification'){
+    plaque.innerHTML = '<span class="puce-mini">✓</span> ' + echapper(etat.nomStructure);
+    plaque.hidden = false;
+  } else {
+    plaque.hidden = true;
+  }
+
+  const champPrincipal = document.querySelector('.etape[data-etape="' + nom + '"] .champ-texte, .etape[data-etape="' + nom + '"] .champ-nombre');
+  if(champPrincipal) setTimeout(function(){ champPrincipal.focus(); }, 50);
+}
+
+function allerA(nomEtape){
+  const idx = etapes.indexOf(nomEtape);
+  if(idx === -1) return;
+  indexEtape = idx;
+  afficherEtape(nomEtape);
+}
+function suivant(){
+  if(indexEtape < etapes.length - 1) allerA(etapes[indexEtape + 1]);
+  if(etapes[indexEtape] === 'envoi') majRecapSav();
+}
+function precedent(){
+  if(indexEtape > 0) allerA(etapes[indexEtape - 1]);
+}
+$$('[data-retour]').forEach(function(b){ b.addEventListener('click', precedent); });
+
+/* Étape 1 : identification (code, ou numéro de série sans code) */
+$('btn-verifier-serie').addEventListener('click', async function(){
+  const numeroSerie = $('id-numero-serie').value.trim();
+  if(!numeroSerie){ afficherMsg('retour-id-serie', 'Saisissez le numéro de série.', 'erreur'); return; }
+  $('btn-verifier-serie').disabled = true;
+  $('btn-verifier-serie').textContent = 'Recherche…';
+  afficherMsg('retour-id-serie', '', 'info');
+  $('bloc-non-trouve').hidden = true;
+  try{
+    const r = await jsonp({action:'sav-verifier-numero-serie', numeroSerie: numeroSerie});
+    etat.numeroSerie = numeroSerie;
+    if(r.ok && r.trouve){
+      // On ne pré-remplit jamais le nom avec celui de la structure trouvée : ici, c'est le
+      // bénéficiaire qui doit indiquer SON propre nom à l'étape suivante, pas celui de la
+      // structure qui lui a remis l'appareil.
+      afficherMsg('retour-id-serie', 'Numéro reconnu — nous avons retrouvé la commande correspondante.', 'succes');
+      setTimeout(suivant, 700);
+    }else{
+      let message = '';
+      if(r.emailContact){
+        message = 'Vous pouvez aussi nous contacter directement à <a href="mailto:' + echapper(r.emailContact) + '">' + echapper(r.emailContact) + '</a>.';
+      }
+      $('contact-sav-message').innerHTML = message;
+      $('bloc-non-trouve').hidden = false;
+    }
+  }catch(e){
+    afficherMsg('retour-id-serie', 'Connexion impossible. Réessayez.', 'erreur');
+  }
+  $('btn-verifier-serie').disabled = false;
+  $('btn-verifier-serie').textContent = 'Continuer →';
+});
+$('btn-continuer-quand-meme').addEventListener('click', suivant);
+
+/* Étape 2 : nom */
+$('btn-nom-suivant').addEventListener('click', function(){
+  const nom = $('nom-personne').value.trim();
+  const email = $('email-personne').value.trim();
+  const emailConfirmation = $('email-personne-confirmation').value.trim();
+  const telephone = $('telephone-personne').value.trim();
+  if(!nom){ afficherMsg('retour-nom', 'Merci d\'indiquer un nom.', 'erreur'); return; }
+  if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    afficherMsg('retour-nom', 'Merci d\'indiquer une adresse email valide.', 'erreur');
+    return;
+  }
+  if(email.toLowerCase() !== emailConfirmation.toLowerCase()){
+    afficherMsg('retour-nom', 'Les deux adresses email ne correspondent pas.', 'erreur');
+    return;
+  }
+  if(!telephone){
+    afficherMsg('retour-nom', 'Merci d\'indiquer un numéro de téléphone.', 'erreur');
+    return;
+  }
+  etat.nomStructure = nom;
+  etat.email = email;
+  etat.telephone = telephone;
+  etat.dateAchat = $('date-achat-sav').value;
+  etat.structureOrigine = $('structure-origine-sav').value.trim();
+  suivant();
+});
+
+/* Étape 3 : symptôme + numéro de série (si pas déjà connu à l'identification) */
+async function chargerSymptomes(){
+  try{
+    const r = await jsonp({action:'sav-symptomes'});
+    if(r.ok) afficherSymptomes(r.symptomes);
+  }catch(e){ afficherMsg('retour-symptome', 'Impossible de charger les symptômes.', 'erreur'); }
+}
+function afficherSymptomes(symptomes){
+  $('grille-symptomes').innerHTML = symptomes.map(function(s){
+    return '<label class="carte-symptome">' +
+      '<input type="radio" name="symptome" value="' + echapper(s) + '">' +
+      svgIconeSymptome(s) +
+      '<span>' + echapper(s) + '</span>' +
+      '</label>';
+  }).join('');
+  $$('#grille-symptomes input[type=radio]').forEach(function(input){
+    input.addEventListener('change', function(){
+      etat.symptome = input.value;
+      $('btn-symptome-suivant').disabled = false;
+    });
+  });
+}
+$('btn-symptome-suivant').addEventListener('click', function(){
+  suivant();
+});
+
+/* Étape 4 : détails (commentaire, photo, vidéo) */
+function lireFichier(f){
+  return new Promise(function(ok, ko){
+    const lecteur = new FileReader();
+    lecteur.onload = function(){ ok({ nom: f.name, type: f.type || 'application/octet-stream', base64: lecteur.result.split(',')[1] }); };
+    lecteur.onerror = function(){ ko(new Error('Lecture du fichier impossible')); };
+    lecteur.readAsDataURL(f);
+  });
+}
+$('btn-details-suivant').addEventListener('click', function(){
+  etat.commentaire = $('commentaire-sav').value.trim();
+  etat.lienVideo = $('lien-video-sav').value.trim();
+  suivant();
+});
+
+/* Étape 5 : récap + envoi */
+function majRecapSav(){
+  $('recap-sav').innerHTML =
+    '<div><strong>' + echapper(etat.nomStructure) + '</strong></div>' +
+    '<div style="margin-top:6px">' + echapper(etat.email) + '</div>' +
+    (etat.numeroSerie ? '<div style="margin-top:6px">N° série : ' + echapper(etat.numeroSerie) + '</div>' : '') +
+    (etat.dateAchat ? '<div style="margin-top:6px">Acheté/reçu le ' + echapper(etat.dateAchat) + '</div>' : '') +
+    (etat.structureOrigine ? '<div style="margin-top:6px">Structure d\'origine : ' + echapper(etat.structureOrigine) + '</div>' : '') +
+    '<div style="margin-top:6px">Symptôme : ' + echapper(etat.symptome) + '</div>';
+}
+$('attestation-finale-sav').addEventListener('change', function(){
+  $('btn-envoyer-sav').disabled = !$('attestation-finale-sav').checked;
+});
+
+$('btn-envoyer-sav').addEventListener('click', async function(){
+  $('btn-envoyer-sav').disabled = true;
+  afficherMsg('retour-envoi-sav', '', 'info');
+
+  const voile = $('voile-envoi');
+  const texteVoile = $('texte-voile');
+  voile.hidden = false;
+
+  try{
+    let fichiers = [];
+    const fichierPhoto = $('photo-sav').files[0];
+    if(fichierPhoto){
+      texteVoile.textContent = 'Lecture de la photo…';
+      fichiers = [await lireFichier(fichierPhoto)];
+    }
+
+    texteVoile.textContent = 'Envoi de la demande…';
+    const barreProgression = $('barre-progression-envoi');
+    const remplissage = $('barre-progression-envoi-remplissage');
+    barreProgression.hidden = false;
+    remplissage.style.width = '0%';
+
+    const donnees = {
+      action: 'sav-create',
+      code: etat.code,
+      nom: etat.nomStructure,
+      email: etat.email,
+      telephone: etat.telephone,
+      dateAchat: etat.dateAchat,
+      structureOrigine: etat.structureOrigine,
+      numeroSerie: etat.numeroSerie,
+      symptome: etat.symptome,
+      commentaire: etat.commentaire,
+      lienVideo: etat.lienVideo,
+      fichiers: fichiers
+    };
+
+    const r = await posterAvecProgression(donnees, function(pourcentage){
+      remplissage.style.width = pourcentage + '%';
+      texteVoile.textContent = 'Envoi de la demande… ' + pourcentage + '%';
+    });
+    barreProgression.hidden = true;
+    if(r.ok){
+      texteVoile.textContent = 'C\'est envoyé…';
+      $('reference-sav').textContent = r.reference;
+      $$('.etape').forEach(function(s){ s.hidden = true; });
+      $('progression').innerHTML = '';
+      document.querySelector('.confirmation').hidden = false;
+      window.scrollTo({top:0, behavior:'smooth'});
+      voile.hidden = true;
+      return;
+    }
+    voile.hidden = true;
+    afficherMsg('retour-envoi-sav', r.erreur || 'Envoi impossible.', 'erreur');
+  }catch(e){
+    voile.hidden = true;
+    afficherMsg('retour-envoi-sav', 'Envoi impossible. Vérifiez votre connexion puis réessayez.', 'erreur');
+  }
+  $('btn-envoyer-sav').disabled = false;
+});
+
+/* Démarrage */
+chargerSymptomes();
+allerA('identification');
+</script>
+</body>
+</html>

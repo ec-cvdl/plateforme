@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<script>
+// 👉 C'EST ICI, LA LIGNE JUSTE EN DESSOUS ↓↓↓ — remplace UNIQUEMENT le texte entre guillemets
+const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy9-ZwhkG-hhmh7eI1f8NuMGtdofnXixQhgJAQr4gN0Q/exec';
+// 👆 C'ÉTAIT ICI — fais la même chose dans commande.html, sav.html et sav-beneficiaire.html
+</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Suivi des commandes — CVDL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+
+<!-- Connexion -->
+<div class="connexion" id="connexion">
+  <h1 id="titre-connexion">Suivi des commandes</h1>
+  <p>Accès réservé.</p>
+  <input type="password" id="mdp" placeholder="Mot de passe" style="width:100%">
+  <button class="action pleine" id="btn-connexion">Ouvrir le suivi</button>
+  <div id="retour-connexion"></div>
+  <div class="barre-progression-connexion" id="barre-progression-connexion" hidden>
+    <div class="barre-progression-connexion-piste">
+      <div class="barre-progression-connexion-remplissage" id="barre-progression-connexion-remplissage"></div>
+    </div>
+    <div class="barre-progression-connexion-texte" id="barre-progression-connexion-texte"></div>
+  </div>
+  <button type="button" class="lien-aide-installation" id="btn-ouvrir-installation">Besoin d'aide pour l'installation ?</button>
+</div>
+
+<!-- Installateur : guide interactif de premier déploiement -->
+<div class="installation" id="installation" hidden>
+  <div class="installation-carte">
+
+    <p style="text-align:center;margin:0 0 16px">
+      <button type="button" class="lien-aide-installation" id="btn-deja-installe">Déjà installé ? Passer à la connexion classique</button>
+    </p>
+
+    <div class="installation-progres" id="installation-progres"></div>
+
+    <!-- Étape 1 : créer le Google Sheets -->
+    <section class="etape-installation" data-etape="1">
+      <span class="etape-numero">Étape 1 sur 4</span>
+      <h2>Crée ton Google Sheets</h2>
+      <p class="etape-texte">
+        C'est la <strong>base de données</strong> de ton application : toutes les commandes,
+        structures, produits et tickets SAV y seront enregistrés, en continu, pour toujours —
+        rien n'est stocké ailleurs. Une fois créé, ce fichier ne doit ni être supprimé ni renommé,
+        mais tu peux tout à fait l'ouvrir et regarder son contenu à tout moment, comme n'importe
+        quel autre Google Sheets. Utilise un fichier vide tout neuf, ou un classeur existant si tu
+        préfères.
+      </p>
+      <a class="action pleine" href="https://sheets.new" target="_blank" rel="noopener">Créer un nouveau Google Sheets</a>
+      <p class="etape-note">Garde cet onglet ouvert, tu vas en avoir besoin à l'étape suivante.</p>
+      <div class="etape-pied">
+        <span></span>
+        <button type="button" class="action" data-etape-suivante="2">J'ai mon Google Sheets, continuer</button>
+      </div>
+    </section>
+
+    <!-- Étape 2 : coller le code -->
+    <section class="etape-installation" data-etape="2" hidden>
+      <span class="etape-numero">Étape 2 sur 4</span>
+      <h2>Colle le code dans Apps Script</h2>
+      <ol class="etape-liste-numerotee">
+        <li>Dans ton Google Sheets : menu <strong>Extensions → Apps Script</strong></li>
+        <li>Supprime le code d'exemple déjà présent</li>
+        <li>Colle le code ci-dessous, en entier</li>
+        <li>Clique sur l'icône de sauvegarde (💾) en haut</li>
+      </ol>
+      <div class="bloc-code-installation">
+        <button type="button" class="btn-copier-code" id="btn-copier-code-script">Copier le code</button>
+        <pre id="code-script-affiche"></pre>
+      </div>
+      <div class="etape-pied">
+        <button type="button" class="action claire" data-etape-precedente="1">Retour</button>
+        <button type="button" class="action" data-etape-suivante="3">C'est collé et sauvegardé, continuer</button>
+      </div>
+    </section>
+
+    <!-- Étape 3 : déployer et connecter -->
+    <section class="etape-installation" data-etape="3" hidden>
+      <span class="etape-numero">Étape 3 sur 4</span>
+      <h2>Déploie et connecte l'application</h2>
+      <ol class="etape-liste-numerotee">
+        <li>Toujours dans Apps Script : <strong>Déployer → Nouveau déploiement</strong></li>
+        <li>Type : <strong>Application Web</strong></li>
+        <li>Exécuter en tant que : <strong>Moi</strong> — Accès : <strong>Tout le monde</strong></li>
+        <li>Clique sur <strong>Déployer</strong></li>
+      </ol>
+      <div class="bloc-alerte-finale" style="margin:14px 0">
+        <h3 style="margin-top:0">Google va demander une autorisation — c'est normal</h3>
+        <p class="etape-texte" style="margin-bottom:0">
+          Un écran "Autoriser l'accès" va s'afficher, avec un avertissement du genre "Google n'a pas
+          vérifié cette application". C'est normal : c'est <em>ton propre</em> script, sur <em>ton
+          propre</em> compte Google, personne d'autre n'y a accès. Il faut cliquer sur
+          <strong>Paramètres avancés</strong> puis <strong>Accéder à [nom du projet] (non sécurisé)</strong>
+          pour continuer. Ensuite, Google liste ce à quoi le script va pouvoir accéder — c'est
+          nécessaire pour que l'app fonctionne :
+        </p>
+        <ul class="etape-liste-numerotee" style="list-style:disc;margin-top:10px">
+          <li><strong>Voir et gérer tes feuilles de calcul</strong> : pour lire/écrire les commandes, structures, SAV… dans le Google Sheets créé à l'étape 1</li>
+          <li><strong>Voir et gérer les fichiers Drive créés par l'application</strong> : pour déposer les documents joints (bons d'orientation, factures PDF, exports CSV)</li>
+          <li><strong>Envoyer des emails en ton nom</strong> : pour les notifications automatiques (nouvelle commande, suivi Colissimo…), si tu choisis de les activer dans Réglages</li>
+        </ul>
+        <p class="etape-texte" style="margin-bottom:0;margin-top:10px">
+          Rien de tout ça ne transite par un tiers : ces autorisations restent entre Google et ton
+          propre compte, exactement comme n'importe quel autre script que tu écrirais toi-même dans
+          Apps Script.
+        </p>
+      </div>
+      <ol class="etape-liste-numerotee" start="5">
+        <li>Copie l'URL affichée (elle se termine par <code>/exec</code>)</li>
+      </ol>
+      <label for="installation-url">URL de déploiement</label>
+      <input type="text" id="installation-url" placeholder="https://script.google.com/macros/s/.../exec">
+      <button type="button" class="action pleine" id="btn-tester-connexion">Vérifier la connexion</button>
+      <div id="retour-test-connexion"></div>
+      <div class="etape-pied">
+        <button type="button" class="action claire" data-etape-precedente="2">Retour</button>
+        <button type="button" class="action" id="btn-vers-etape-4" disabled>Continuer</button>
+      </div>
+    </section>
+
+    <!-- Étape 4 : connexion immédiate, mot de passe par défaut — tout le reste (mot de passe
+         personnalisé, email, dossier Drive…) se règle ensuite depuis l'onglet Réglages,
+         une fois à l'intérieur, sans jamais bloquer l'entrée. -->
+    <section class="etape-installation" data-etape="4" hidden>
+      <span class="etape-numero">Étape 4 sur 4</span>
+      <h2>C'est prêt, connecte-toi</h2>
+      <p class="etape-texte">
+        Aucun mot de passe à créer maintenant. Le back-office démarre avec un mot de passe
+        par défaut, le même pour tout le monde tant que tu ne l'as pas changé :
+      </p>
+      <div class="bloc-code-installation">
+        <button type="button" class="btn-copier-code" id="btn-copier-mdp-defaut">Copier</button>
+        <pre>change-moi-tout-de-suite</pre>
+      </div>
+      <p class="etape-texte">
+        Ce navigateur a déjà mémorisé l'URL testée à l'étape précédente : la connexion va
+        fonctionner tout de suite. Une fois entré, va dans l'onglet <strong>Réglages</strong>
+        pour définir ton propre mot de passe (et, si tu veux, l'email de notification et le
+        dossier Drive des bons d'orientation) — à faire rapidement, ce mot de passe par défaut
+        n'est pas fait pour durer.
+      </p>
+      <div id="retour-connexion-immediate"></div>
+      <div class="etape-pied">
+        <button type="button" class="action claire" data-etape-precedente="3">Retour</button>
+        <button type="button" class="action" id="btn-connexion-immediate">Me connecter maintenant</button>
+      </div>
+
+      <div class="bloc-alerte-finale" style="margin-top:26px">
+        <h3 style="margin-top:0">⚠️ Étape obligatoire avant d'utiliser le site pour de vrai</h3>
+        <p class="etape-texte" style="margin-bottom:14px">
+          La connexion ci-dessus ne fonctionne que sur <strong>ce navigateur, là, maintenant</strong> —
+          c'est une facilité de test, pas une vraie configuration. Pour que le formulaire public et
+          le back-office fonctionnent une fois remis en ligne (Netlify Drop, GitHub Pages…) — ou même
+          utilisés simplement en local, directement depuis ton ordinateur, sans rien mettre en ligne —
+          et pour que n'importe qui d'autre (ou toi depuis un autre appareil) puisse s'en servir, tu dois
+          impérativement :
+        </p>
+        <ol class="etape-liste-numerotee">
+          <li>Ouvrir chacun de ces 4 fichiers avec un éditeur de texte simple — <strong>Bloc-notes</strong> sous Windows,
+            un <strong>éditeur de texte</strong> (gedit, Kate, VS Code…) sous Linux ou Mac : <code>admin.html</code>,
+            <code>commande.html</code>, <code>sav.html</code>, <code>sav-beneficiaire.html</code></li>
+          <li>Tout en haut de chaque fichier, trouver la ligne <code>const API = '...'</code></li>
+          <li>Remplacer l'URL entre guillemets par celle-ci, dans les <strong>quatre</strong> fichiers :</li>
+        </ol>
+        <div class="bloc-code-installation">
+          <button type="button" class="btn-copier-code" id="btn-copier-url-finale">Copier l'URL</button>
+          <pre id="url-finale-affichee"></pre>
+        </div>
+        <ol class="etape-liste-numerotee" start="4">
+          <li>Enregistrer les quatre fichiers</li>
+          <li>Les remettre en ligne, ou simplement les garder tels quels si tu comptes les utiliser en local</li>
+        </ol>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<!-- Application -->
+<div id="app" hidden>
+  <header class="barre">
+    <div class="wrap">
+      <div class="haut">
+        <div class="identite-org">
+          <img src="logo.png" alt="" onerror="this.style.display='none'">
+          <div>
+            <span class="eyebrow">Dotation matériel reconditionné</span>
+            <h1 id="titre-entete">Suivi des commandes</h1>
+          </div>
+        </div>
+        <div class="actions-entete">
+          <button type="button" class="action claire" id="btn-copier-lien-formulaire" title="Copier le lien du formulaire public">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;vertical-align:-2px;margin-right:5px"><path d="M9 15l6-6M10 8l1.5-1.5a3 3 0 0 1 4.2 4.2L14 12M14 16l-1.5 1.5a3 3 0 0 1-4.2-4.2L10 12"/></svg>Lien du formulaire
+          </button>
+          <button type="button" class="bouton-mode-admin" id="btn-mode-sombre-admin" title="Mode sombre">🌙</button>
+          <button type="button" class="action claire" id="btn-deconnexion">Déconnexion</button>
+        </div>
+      </div>
+      <div class="bandeau-entete-pilules">
+        <div class="chiffres" id="chiffres"></div>
+        <div class="separateur-entete-pilules" id="separateur-entete-pilules"></div>
+        <div class="apercu-general" id="apercu-general"></div>
+      </div>
+      <nav class="onglets">
+        <button data-vue="commandes" class="actif">Commandes</button>
+        <button data-vue="produits">Stock</button>
+        <button data-vue="structures">Structures</button>
+        <span class="separateur-onglets"></span>
+        <button data-vue="devis">Devis</button>
+        <button data-vue="factures">Factures</button>
+        <button data-vue="comptabilite">Comptabilité</button>
+        <span class="separateur-onglets"></span>
+        <button data-vue="sav">SAV</button>
+        <span class="separateur-onglets"></span>
+        <button data-vue="bilan">Statistiques</button>
+        <span class="separateur-onglets"></span>
+        <button data-vue="reglages">Réglages</button>
+      </nav>
+    </div>
+  </header>
+
+  <div class="wrap">
+
+    <!-- Vue commandes -->
+    <section id="vue-commandes">
+      <div class="outils">
+        <div class="filtres" id="filtres">
+          <button data-f="tout" class="actif">Toutes</button>
+          <button data-f="Reçue">Reçues</button>
+          <button data-f="Validée">Validées</button>
+          <button data-f="Préparée">Préparées</button>
+          <button data-f="En cours de livraison">En livraison</button>
+          <button data-f="Livrée">Livrées</button>
+          <button data-f="impaye">Impayées</button>
+        </div>
+        <input type="text" id="recherche" placeholder="Structure, référence, numéro de série…">
+        <button class="action claire" id="btn-recharger">Actualiser</button>
+        <button class="action" id="btn-nouvelle-commande">+ Nouvelle commande</button>
+      </div>
+      <div id="liste"></div>
+    </section>
+
+    <!-- Vue structures -->
+    <section id="vue-structures" hidden>
+      <div class="outils" style="justify-content:flex-end">
+        <button class="action claire" id="btn-recharger-structures">Actualiser</button>
+        <button class="action" id="btn-nouvelle-structure">+ Nouvelle structure</button>
+      </div>
+
+      <div class="entete-liste entete-structure">
+        <span>Code</span><span>Nom</span><span>Email</span><span>Téléphone</span><span>Adresse</span><span>RN</span><span>ESN</span><span>Interne</span><span></span>
+      </div>
+      <div id="liste-structures"></div>
+    </section>
+
+    <!-- Vue produits -->
+    <section id="vue-produits" hidden>
+      <div class="bandeau-stock" id="recap-stock"></div>
+
+      <div class="outils" style="justify-content:flex-end">
+        <button class="action claire" id="btn-recharger-produits">Actualiser</button>
+        <button class="action" id="btn-nouveau-produit">+ Nouveau produit</button>
+      </div>
+
+      <div class="entete-liste entete-produit">
+        <span>Nom</span><span>Prix standard</span><span>Prix RN</span><span>Stock</span><span>Visible</span><span></span>
+      </div>
+      <div id="liste-produits" class="grille-produits-admin"></div>
+    </section>
+
+    <!-- Vue devis -->
+    <section id="vue-devis" hidden>
+      <div class="outils">
+        <input type="text" id="recherche-devis" placeholder="Rechercher une structure, une référence…">
+        <button class="action claire" id="btn-recharger-devis">Actualiser</button>
+        <button class="action" id="btn-nouveau-devis">+ Nouveau devis</button>
+      </div>
+      <div id="liste-devis"></div>
+    </section>
+
+    <!-- Vue factures -->
+    <section id="vue-factures" hidden>
+      <div class="bandeau-total-factures" id="bandeau-total-factures"></div>
+      <div class="outils">
+        <input type="text" id="recherche-factures" placeholder="Rechercher une structure, une référence…">
+        <button class="action claire" id="btn-recharger-factures">Actualiser</button>
+        <a class="action claire" id="btn-ouvrir-fichier-numerotation" href="#" target="_blank" rel="noopener" hidden>🔢 Ouvrir le fichier de numérotation</a>
+        <a class="action claire" id="btn-ouvrir-dossier-factures" href="#" target="_blank" rel="noopener" hidden>📁 Ouvrir le dossier d'archivage des factures</a>
+      </div>
+      <div id="liste-factures"></div>
+    </section>
+
+    <!-- Vue SAV -->
+    <section id="vue-sav" hidden>
+      <div class="outils">
+        <div class="filtres" id="filtres-sav">
+          <button data-fs="tout" class="actif">Tous</button>
+        </div>
+        <input type="text" id="recherche-sav" placeholder="Structure, référence, numéro de série…">
+        <button class="action claire" id="btn-recharger-sav">Actualiser</button>
+        <button class="action claire" id="btn-config-statuts-sav">⚙️ Statuts</button>
+        <button class="action" id="btn-nouveau-sav">+ Nouveau ticket</button>
+      </div>
+
+      <div id="config-statuts-sav" class="config-statuts-sav" hidden>
+        <p class="reglage-texte">
+          Carte blanche : ajoute, renomme, réordonne, colore ou supprime les statuts selon le déroulé de ton territoire.
+          Les trois drapeaux pilotent l'apparition progressive des champs sur chaque ticket, et le calcul du délai.
+        </p>
+        <div id="liste-config-statuts-sav"></div>
+        <div class="ligne-reglage" style="margin-top:10px">
+          <input type="text" id="nouveau-statut-sav-nom" placeholder="Nom du nouveau statut">
+          <button type="button" class="action claire" id="btn-ajouter-statut-sav">+ Ajouter</button>
+        </div>
+        <div id="retour-config-statuts-sav"></div>
+      </div>
+
+      <div id="liste-sav"></div>
+    </section>
+
+    <!-- Vue comptabilité -->
+    <section id="vue-comptabilite" hidden>
+      <div class="outils">
+        <div class="filtres" id="filtres-compta">
+          <button data-fc="tout" class="actif">Tous</button>
+          <button data-fc="non-paye">Non payé</button>
+          <button data-fc="Non rapproché">En attente</button>
+          <button data-fc="Rapproché">Rapproché</button>
+          <button data-fc="Clôturé">Clôturé</button>
+        </div>
+        <input type="text" id="recherche-compta" placeholder="Rechercher une structure, une référence…">
+        <button class="action claire" id="btn-recharger-compta">Actualiser</button>
+      </div>
+      <div id="liste-compta"></div>
+    </section>
+
+    <!-- Vue bilan matériel -->
+    <section id="vue-bilan" hidden>
+      <div id="bilan-bandeau"></div>
+      <div class="outils">
+        <div class="filtres" id="filtres-bilan-type">
+          <button data-bt="materiel" class="actif">📦 Matériel</button>
+          <button data-bt="sav">🎫 SAV</button>
+          <button data-bt="tout">Les deux</button>
+        </div>
+        <label style="font-size:13px;font-weight:600;color:var(--steel);display:flex;align-items:center;gap:8px">
+          Du
+          <input type="date" id="bilan-date-debut" lang="fr" style="width:auto">
+        </label>
+        <label style="font-size:13px;font-weight:600;color:var(--steel);display:flex;align-items:center;gap:8px">
+          au
+          <input type="date" id="bilan-date-fin" lang="fr" style="width:auto">
+        </label>
+        <button type="button" class="action claire" id="btn-bilan-annee-courante">Année en cours</button>
+        <button type="button" class="action claire" id="btn-recharger-bilan">Actualiser</button>
+      </div>
+      <div id="bilan-contenu"></div>
+      <div id="bilan-sav-contenu"></div>
+    </section>
+
+    <!-- Vue réglages -->
+    <section id="vue-reglages" hidden>
+      <h2 class="categorie-reglages">Administration</h2>
+      <div class="grille-reglages">
+
+      <div class="carte-reglage">
+        <h3>Nom de la structure</h3>
+        <p class="reglage-texte">
+          Affiché en haut du back-office (et sur l'écran de connexion), par exemple pour un déploiement
+          dans une autre commune ou un autre département : « Marne — Suivi des commandes ».
+          Laisse vide pour garder juste « Suivi des commandes ».
+        </p>
+        <div class="ligne-reglage">
+          <input type="text" id="nom-organisation-input" placeholder="La Collecte CVDL ou ESN Bordeaux" maxlength="80">
+          <button type="button" class="action claire" id="btn-nom-organisation-enregistrer">Enregistrer</button>
+        </div>
+        <div id="retour-nom-organisation"></div>
+      </div>
+
+      <div class="carte-reglage">
+        <h3>Email de notification</h3>
+        <p class="reglage-texte">Reçoit un email à chaque nouvelle commande. Laisse vide pour désactiver ces notifications.</p>
+        <div class="ligne-reglage">
+          <input type="email" id="email-admin-input" placeholder="toi@exemple.fr">
+          <button type="button" class="action claire" id="btn-email-admin-enregistrer">Enregistrer</button>
+        </div>
+        <div id="retour-email-admin"></div>
+      </div>
+
+      <div class="carte-reglage">
+        <h3>Mots de passe</h3>
+        <p class="reglage-texte">Laisse un champ vide pour ne pas changer le mot de passe correspondant.</p>
+        <label for="nouveau-mdp-admin-input">Nouveau mot de passe back-office</label>
+        <div class="ligne-reglage">
+          <input type="password" id="nouveau-mdp-admin-input" placeholder="Au moins 6 caractères" autocomplete="new-password">
+        </div>
+        <label for="nouveau-mdp-compta-input" style="margin-top:10px">Nouveau mot de passe comptabilité</label>
+        <div class="ligne-reglage">
+          <input type="password" id="nouveau-mdp-compta-input" placeholder="Au moins 6 caractères" autocomplete="new-password">
+          <button type="button" class="action claire" id="btn-mdp-enregistrer">Enregistrer</button>
+        </div>
+        <div id="retour-mdp"></div>
+      </div>
+
+      <div class="carte-reglage">
+        <h3>Confirmation de suppression</h3>
+        <p class="reglage-texte">
+          Par défaut, supprimer une commande, une structure, un produit, un devis ou une facture demande
+          deux confirmations successives. Tu peux passer à une seule si tu préfères aller plus vite.
+        </p>
+        <label class="case-checkbox-reglage">
+          <input type="checkbox" id="suppression-simple-input">
+          Une seule confirmation suffit (au lieu de deux)
+        </label>
+        <div id="retour-suppression-simple"></div>
+      </div>
+
+      <div class="carte-reglage">
+        <h3>Dossier Drive des bons d'orientation</h3>
+        <p class="reglage-texte">
+          C'est là que sont déposés les fichiers joints aux commandes. Colle l'URL du dossier
+          (ex. <code>https://drive.google.com/drive/folders/1AbCdEf...</code>) ou juste son ID.
+          Laisse vide pour utiliser la racine de ton Drive.
+        </p>
+        <div class="ligne-reglage">
+          <input type="text" id="dossier-drive-input" placeholder="URL ou ID du dossier Drive">
+          <button type="button" class="action claire" id="btn-dossier-drive-enregistrer">Enregistrer</button>
+        </div>
+        <div id="retour-dossier-drive"></div>
+      </div>
+
+      <div class="carte-reglage">
+        <h3>Alerte "Impayée depuis X jours"</h3>
+        <p class="reglage-texte">
+          Sur une commande livrée et non payée, cette alerte apparaît une fois ce nombre de jours écoulés depuis la livraison.
+        </p>
+        <div class="ligne-reglage">
+          <input type="number" id="seuil-alerte-input" min="1" step="1" style="max-width:120px">
+          <span class="reglage-unite">jours</span>
+          <button type="button" class="action claire" id="btn-seuil-alerte-enregistrer">Enregistrer</button>
+        </div>
+        <div id="retour-seuil-alerte"></div>
+      </div>
+
+      <div class="carte-reglage">
+        <h3>Quantité max commande</h3>
+        <p class="reglage-texte">
+          S'applique à tous les produits, sauf ceux qui ont leur propre limite définie dans l'onglet Produits.
+        </p>
+        <div class="ligne-reglage">
+          <input type="number" id="quantite-max-defaut-input" min="1" step="1" style="max-width:120px">
+          <button type="button" class="action claire" id="btn-quantite-max-defaut-enregistrer">Enregistrer</button>
+        </div>
+        <div id="retour-quantite-max-defaut"></div>
+
+        <h3 style="margin-top:20px">Quantité max commande ESN</h3>
+        <p class="reglage-texte">
+          Même principe, mais pour les structures marquées ESN — prend le pas sur la quantité max par défaut
+          ci-dessus (la limite propre à un produit reste toujours prioritaire sur les deux).
+        </p>
+        <div class="ligne-reglage">
+          <input type="number" id="quantite-max-defaut-esn-input" min="1" step="1" style="max-width:120px">
+          <button type="button" class="action claire" id="btn-quantite-max-defaut-esn-enregistrer">Enregistrer</button>
+        </div>
+        <div id="retour-quantite-max-defaut-esn"></div>
+      </div>
+
+      <div class="carte-reglage">
+        <h3>Badge "NEW" sur les commandes et tickets SAV récents</h3>
+        <p class="reglage-texte">
+          Durée d'affichage en <strong>jours ouvrés</strong> (le week-end ne compte jamais), réglable séparément
+          pour les commandes et pour le SAV. Le vendredi, le décompte s'arrête à l'heure ci-dessous ; il reprend le
+          lundi à l'heure indiquée — comme ça le badge tient tout le week-end sans se faire grignoter par les
+          dernières heures du vendredi. Les horaires sont communs aux deux.
+        </p>
+        <div class="grille-modale">
+          <div>
+            <label for="badge-nouvelle-jours-input">Durée — commandes (jours ouvrés)</label>
+            <input type="number" id="badge-nouvelle-jours-input" min="0.1" step="0.1">
+          </div>
+          <div>
+            <label for="badge-nouvelle-sav-jours-input">Durée — tickets SAV (jours ouvrés)</label>
+            <input type="number" id="badge-nouvelle-sav-jours-input" min="0.1" step="0.1">
+          </div>
+        </div>
+        <div class="grille-modale" style="margin-top:12px">
+          <div>
+            <label for="heure-fin-vendredi-input">Fin de journée le vendredi</label>
+            <input type="number" id="heure-fin-vendredi-input" min="0" max="23" step="1">
+          </div>
+          <div>
+            <label for="heure-debut-lundi-input">Reprise le lundi</label>
+            <input type="number" id="heure-debut-lundi-input" min="0" max="23" step="1">
+          </div>
+        </div>
+        <div class="ligne-reglage" style="margin-top:10px">
+          <button type="button" class="action claire" id="btn-badge-nouvelle-enregistrer">Enregistrer</button>
+        </div>
+        <div id="retour-badge-nouvelle"></div>
+      </div>
+
+      </div>
+
+      <h2 class="categorie-reglages">Devis & Facturation</h2>
+      <div class="grille-reglages">
+
+      <div class="carte-reglage">
+        <h3>Modèle de nommage des devis</h3>
+        <p class="reglage-texte">
+          Jetons disponibles : <code>{ANNEE}</code> et <code>{NUM}</code> (numéro séquentiel, complété à 4 chiffres).
+        </p>
+        <div class="ligne-reglage">
+          <input type="text" id="modele-devis-input" placeholder="DEV-{ANNEE}-{NUM}">
+          <button type="button" class="action claire" id="btn-modele-devis-enregistrer">Enregistrer</button>
+        </div>
+        <div class="apercu-modele-devis" id="apercu-modele-devis"></div>
+      </div>
+
+      <div class="carte-reglage">
+        <h3>Modèle de nommage des commandes</h3>
+        <p class="reglage-texte">
+          Même principe : <code>{ANNEE}</code> et <code>{NUM}</code> (numéro séquentiel, complété à 4 chiffres).
+        </p>
+        <div class="ligne-reglage">
+          <input type="text" id="modele-commande-input" placeholder="CVDL-{ANNEE}-{NUM}">
+          <button type="button" class="action claire" id="btn-modele-commande-enregistrer">Enregistrer</button>
+        </div>
+        <div class="apercu-modele-devis" id="apercu-modele-commande"></div>
+      </div>
+
+      <div class="carte-reglage">
+        <h3>Modèle de nommage des tickets SAV</h3>
+        <p class="reglage-texte">
+          Même principe : <code>{ANNEE}</code> et <code>{NUM}</code> (numéro séquentiel, complété à 4 chiffres).
+        </p>
+        <div class="ligne-reglage">
+          <input type="text" id="modele-sav-input" placeholder="SAV-{ANNEE}-{NUM}">
+          <button type="button" class="action claire" id="btn-modele-sav-enregistrer">Enregistrer</button>
+        </div>
+        <div class="apercu-modele-devis" id="apercu-modele-sav"></div>
+      </div>
+
+      <div class="carte-reglage">
+        <h3>Modèle de facturation (PDF)</h3>
+        <p class="reglage-texte">
+          Le Google Sheets utilisé comme modèle pour générer les factures PDF depuis l'onglet Factures.
+          Doit contenir des jetons du type <code>{{STRUCTURE}}</code>, <code>{{NUMERO_FACTURE}}</code>, etc.
+        </p>
+        <div class="ligne-reglage">
+          <input type="text" id="modele-facturation-input" placeholder="URL ou ID du Sheets modèle">
+          <button type="button" class="action claire" id="btn-modele-facturation-enregistrer">Enregistrer</button>
+        </div>
+        <div id="retour-modele-facturation"></div>
+      </div>
+
+      <div class="carte-reglage">
+        <h3>Dossier Drive des factures PDF</h3>
+        <p class="reglage-texte">
+          Change chaque année : mets à jour ce lien en janvier. Un bouton "Ouvrir le dossier" apparaîtra
+          dans l'onglet Factures pour y accéder en un clic.
+        </p>
+        <div class="ligne-reglage">
+          <input type="text" id="dossier-factures-input" placeholder="URL ou ID du dossier Drive">
+          <button type="button" class="action claire" id="btn-dossier-factures-enregistrer">Enregistrer</button>
+        </div>
+        <div id="retour-dossier-factures"></div>
+      </div>
+
+      <div class="carte-reglage">
+        <h3>Dossier export tec.tech</h3>
+        <p class="reglage-texte">
+          Dossier Drive où déposer les fichiers CSV issus du logiciel de traçabilité tec.tech, une fois
+          importés depuis une carte commande (colonne G lue automatiquement pour les numéros de série).
+        </p>
+        <div class="ligne-reglage">
+          <input type="text" id="dossier-tectech-input" placeholder="URL ou ID du dossier Drive">
+          <button type="button" class="action claire" id="btn-dossier-tectech-enregistrer">Enregistrer</button>
+        </div>
+        <div id="retour-dossier-tectech"></div>
+      </div>
+
+      <div class="carte-reglage">
+        <h3>Fichier de numérotation officielle des factures</h3>
+        <p class="reglage-texte">
+          Le classeur externe où sont réservés les numéros de facture (colonne B = structure,
+          colonne C = numéro). Optionnel — sans ça, la saisie manuelle du numéro reste toujours possible.
+        </p>
+        <label for="fichier-numerotation-input">Fichier (URL ou ID)</label>
+        <div class="ligne-reglage">
+          <input type="text" id="fichier-numerotation-input" placeholder="URL ou ID du classeur">
+        </div>
+        <label for="onglet-numerotation-input" style="margin-top:12px">Nom de l'onglet à l'intérieur</label>
+        <div class="ligne-reglage">
+          <input type="text" id="onglet-numerotation-input" placeholder="Ex. 2026" style="max-width:160px">
+          <button type="button" class="action claire" id="btn-numerotation-enregistrer">Enregistrer</button>
+        </div>
+        <div id="retour-numerotation"></div>
+      </div>
+
+      <div class="carte-reglage">
+        <h3>Responsable facturation</h3>
+        <p class="reglage-texte">Affiché sur chaque facture PDF générée — un seul réglage, réutilisé partout.</p>
+        <label for="responsable-nom-input">Prénom et NOM</label>
+        <div class="ligne-reglage">
+          <input type="text" id="responsable-nom-input" placeholder="Prénom Nom">
+        </div>
+        <label for="responsable-telephone-input" style="margin-top:12px">Téléphone</label>
+        <div class="ligne-reglage">
+          <input type="text" id="responsable-telephone-input" placeholder="06 12 34 56 78">
+        </div>
+        <label for="responsable-email-input" style="margin-top:12px">Email</label>
+        <div class="ligne-reglage">
+          <input type="email" id="responsable-email-input" placeholder="prenom.nom@exemple.fr">
+          <button type="button" class="action claire" id="btn-responsable-enregistrer">Enregistrer</button>
+        </div>
+        <div id="retour-responsable"></div>
+      </div>
+
+      </div>
+
+      <h2 class="categorie-reglages">SAV</h2>
+      <div class="grille-reglages">
+
+      <div class="carte-reglage">
+        <h3>Symptômes proposés</h3>
+        <p class="reglage-texte">Un par ligne. Cette liste alimente le menu déroulant "Symptôme déclaré", côté admin comme sur le futur formulaire public.</p>
+        <textarea id="symptomes-sav-input" style="min-height:110px;font-family:inherit;width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px"></textarea>
+        <div class="ligne-reglage" style="margin-top:8px">
+          <button type="button" class="action claire" id="btn-symptomes-sav-enregistrer">Enregistrer</button>
+        </div>
+        <div id="retour-symptomes-sav"></div>
+      </div>
+
+      <div class="carte-reglage">
+        <h3>Email de contact SAV</h3>
+        <p class="reglage-texte">Affiché quand un numéro de série n'est reconnu nulle part (utile pour le futur formulaire public, bénéficiaires sans code notamment).</p>
+        <div class="ligne-reglage">
+          <input type="email" id="email-contact-sav-input" placeholder="sav@exemple.fr">
+          <button type="button" class="action claire" id="btn-email-contact-sav-enregistrer">Enregistrer</button>
+        </div>
+        <div id="retour-email-contact-sav"></div>
+      </div>
+
+      <div class="carte-reglage">
+        <h3>Modèle d'email — suivi Colissimo SAV</h3>
+        <p class="reglage-texte">
+          Utilisé quand tu envoies le suivi Colissimo par email depuis un ticket SAV. Jetons disponibles :
+          <code>{{NOM}}</code>, <code>{{REFERENCE}}</code>, <code>{{COLISSIMO}}</code>, <code>{{ORGANISATION}}</code>.
+        </p>
+        <textarea id="email-modele-sav-input" style="min-height:140px;font-family:inherit;width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px"></textarea>
+        <div class="ligne-reglage" style="margin-top:8px">
+          <button type="button" class="action claire" id="btn-email-modele-sav-enregistrer">Enregistrer</button>
+        </div>
+        <div id="retour-email-modele-sav"></div>
+      </div>
+
+      </div>
+
+      <h2 class="categorie-reglages">Interface</h2>
+      <div class="grille-reglages">
+
+      <div class="carte-reglage">
+        <h3>Onglets visibles</h3>
+        <p class="reglage-texte">Décoche un onglet pour le masquer dans la navigation. L'onglet Réglages reste toujours visible.</p>
+        <div id="cases-onglets-visibles" style="display:flex;flex-direction:column;gap:8px"></div>
+        <div class="ligne-reglage" style="margin-top:10px">
+          <button type="button" class="action claire" id="btn-onglets-visibles-enregistrer">Enregistrer</button>
+        </div>
+        <div id="retour-onglets-visibles"></div>
+      </div>
+
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<div id="etat"></div>
+
+<!-- Modale : numéros de série -->
+<div class="voile-modale" id="modale-serie" hidden>
+  <div class="modale">
+    <h2>Numéros de série</h2>
+    <p class="sous-titre">Un numéro par ligne. Colle directement une colonne copiée depuis un tableur — chaque cellule atterrit sur sa propre ligne automatiquement.</p>
+    <label for="serie-texte">Numéros</label>
+    <textarea id="serie-texte" placeholder="SN-00123&#10;SN-00124&#10;SN-00125"></textarea>
+    <div class="compteur-lignes" id="serie-compte">0 numéro</div>
+
+    <div class="zone-import-csv">
+      <label for="serie-fichier-csv">Importer un CSV tec.tech</label>
+      <p class="sous-titre" style="margin:2px 0 8px">
+        Dépose le fichier CSV exporté par tec.tech : il est conservé dans le dossier Drive dédié, et les
+        numéros de série de sa colonne G sont ajoutés automatiquement à la liste ci-dessus.
+      </p>
+      <div class="ligne-reglage">
+        <input type="file" id="serie-fichier-csv" accept=".csv,text/csv">
+        <button type="button" class="action claire" id="btn-serie-importer-csv" disabled>Importer</button>
+      </div>
+      <div id="retour-import-csv"></div>
+      <div id="serie-lien-csv-existant"></div>
+    </div>
+
+    <div class="pied-modale">
+      <button class="action claire" id="serie-annuler">Annuler</button>
+      <button class="action" id="serie-enregistrer">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modale : suivi Colissimo (plusieurs liens possibles) -->
+<!-- Modale : statut de la commande et livraison -->
+<div class="voile-modale" id="modale-statut" hidden>
+  <div class="modale">
+    <h2>Statut &amp; livraison</h2>
+    <p class="sous-titre" id="modale-statut-ref"></p>
+    <label for="modale-statut-select">Statut de la commande</label>
+    <select id="modale-statut-select" class="statut"></select>
+    <div id="bloc-date-livraison">
+      <label for="modale-statut-date-livraison">Date de livraison</label>
+      <input type="date" id="modale-statut-date-livraison" lang="fr">
+    </div>
+    <div class="pied-modale">
+      <button class="action claire" id="modale-statut-fermer">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modale : modifier la commande (produit, quantité, moyen de paiement, commentaire) -->
+<div class="voile-modale" id="modale-modifier-commande" hidden>
+  <div class="modale">
+    <h2>Modifier la commande</h2>
+    <p class="sous-titre" id="modale-modifier-ref"></p>
+
+    <div class="grille-modale">
+      <div>
+        <label for="modale-modifier-produit">Produit</label>
+        <select id="modale-modifier-produit"></select>
+      </div>
+      <div>
+        <label for="modale-modifier-quantite">Quantité</label>
+        <select id="modale-modifier-quantite">
+          <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+          <option value="4">4</option><option value="5">5</option>
+        </select>
+      </div>
+    </div>
+    <p class="sous-titre" id="modale-modifier-avertissement-stock" style="display:none;color:var(--t-rouge-t)"></p>
+
+    <div id="bloc-modifier-paiement">
+      <label for="modale-modifier-paiement">Moyen de paiement</label>
+      <select id="modale-modifier-paiement"></select>
+    </div>
+
+    <label for="modale-modifier-commentaire">Commentaire</label>
+    <textarea id="modale-modifier-commentaire" style="min-height:70px;font-family:inherit"></textarea>
+
+    <div id="retour-modifier-commande"></div>
+    <div class="pied-modale">
+      <button class="action claire" id="modale-modifier-annuler">Annuler</button>
+      <button class="action" id="modale-modifier-enregistrer">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modale : paiement et facturation -->
+<div class="voile-modale" id="modale-paiement" hidden>
+  <div class="modale">
+    <h2>Paiement &amp; facturation</h2>
+    <p class="sous-titre" id="modale-paiement-ref"></p>
+    <label for="modale-paiement-statut">Statut de paiement</label>
+    <select id="modale-paiement-statut" class="statut"></select>
+    <label for="modale-paiement-moyen">Moyen de paiement</label>
+    <select id="modale-paiement-moyen"></select>
+    <label for="modale-paiement-lien">Lien de paiement</label>
+    <input type="text" id="modale-paiement-lien" placeholder="Sans objet">
+    <div id="modale-paiement-devis-zone"></div>
+    <div id="modale-paiement-facture-zone"></div>
+    <div class="pied-modale">
+      <button class="action claire" id="modale-paiement-fermer">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<div class="voile-modale" id="modale-colissimo" hidden>
+  <div class="modale">
+    <h2>Suivi Colissimo</h2>
+    <p class="sous-titre">Un lien par ligne s'il y a plusieurs colis pour cette commande.</p>
+    <label for="colissimo-texte">Liens de suivi</label>
+    <textarea id="colissimo-texte" placeholder="https://www.laposte.fr/outils/suivre-vos-envois?code=..."></textarea>
+    <div class="compteur-lignes" id="colissimo-compte">0 lien</div>
+    <div class="pied-modale">
+      <button class="action claire" id="colissimo-annuler">Annuler</button>
+      <button class="action claire" id="colissimo-envoyer-email">📧 Envoyer par email</button>
+      <button class="action" id="colissimo-enregistrer">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modale : confirmation avant tout envoi d'email (partagée commande + SAV) -->
+<div class="voile-modale" id="modale-confirmation-email" hidden>
+  <div class="modale">
+    <h2>Aperçu de l'email</h2>
+    <p class="sous-titre" id="confirmation-email-texte"></p>
+    <div id="confirmation-email-chargement" class="msg msg-info">Préparation de l'aperçu…</div>
+    <div id="confirmation-email-corps" hidden>
+      <label for="confirmation-email-sujet">Sujet</label>
+      <input type="text" id="confirmation-email-sujet">
+      <label for="confirmation-email-texte-corps">Message — modifiable avant envoi</label>
+      <textarea id="confirmation-email-texte-corps" rows="9" style="width:100%;font-family:inherit"></textarea>
+    </div>
+    <div id="retour-confirmation-email"></div>
+    <div class="pied-modale">
+      <button class="action claire" id="confirmation-email-annuler">Annuler</button>
+      <button class="action" id="confirmation-email-confirmer">Envoyer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modale : commentaire de la commande -->
+<div class="voile-modale" id="modale-commentaire" hidden>
+  <div class="modale">
+    <h2>Commentaire</h2>
+    <p class="sous-titre">Laissé par la structure à la commande, ou ajouté par toi ici.</p>
+    <label for="commentaire-texte">Commentaire</label>
+    <textarea id="commentaire-texte" style="min-height:110px"></textarea>
+    <div class="pied-modale">
+      <button class="action claire" id="commentaire-annuler">Annuler</button>
+      <button class="action" id="commentaire-enregistrer">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modale : facturer directement, sans passer par un devis -->
+<div class="voile-modale" id="modale-facturer-direct" hidden>
+  <div class="modale">
+    <h2>Facturer directement</h2>
+    <p class="sous-titre">Sans devis intermédiaire — le montant est calculé à partir du produit et du statut RN de la structure, comme d'habitude.</p>
+
+    <div id="zone-numerotation-auto" hidden>
+      <label for="facturer-onglet-numerotation">Fichier de numérotation — onglet</label>
+      <div class="ligne-reglage">
+        <select id="facturer-onglet-numerotation" style="flex:1"></select>
+        <a class="action claire" id="lien-ouvrir-onglet-numerotation" href="#" target="_blank" rel="noopener">Ouvrir cet onglet</a>
+      </div>
+      <div class="separateur-ou">note le numéro trouvé, puis saisis-le ci-dessous</div>
+    </div>
+
+    <label for="facturer-numero">Numéro de facture</label>
+    <input type="text" id="facturer-numero" placeholder="ex : 2026-0142">
+    <a class="action claire" id="lien-dossier-factures-modale" href="#" target="_blank" rel="noopener" style="display:inline-block;margin-top:10px" hidden>Ouvrir le dossier des factures PDF</a>
+    <div id="retour-facturer"></div>
+    <div class="pied-modale">
+      <button class="action claire" id="facturer-annuler">Annuler</button>
+      <button class="action" id="facturer-confirmer">Créer la facture</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modale : nouvelle commande manuelle -->
+<div class="voile-modale" id="modale-nouvelle-structure" hidden>
+  <div class="modale">
+    <h2>Nouvelle structure</h2>
+    <div class="grille">
+      <input type="text" id="s-code" class="mono" placeholder="Code d'accès">
+      <input type="text" id="s-nom" placeholder="Nom de la structure">
+      <input type="text" id="s-email" placeholder="Email">
+      <input type="text" id="s-tel" placeholder="Téléphone">
+      <input type="text" id="s-adresse" placeholder="Adresse">
+    </div>
+    <label class="case-rn">
+      <input type="checkbox" id="s-rn">
+      <span>Structure RN <em>(tarif préférentiel + paiement par virement imposé)</em></span>
+    </label>
+    <label class="case-rn">
+      <input type="checkbox" id="s-esn">
+      <span>Structure ESN <em>(aucun prix affiché, aucune facturation générée)</em></span>
+    </label>
+    <label class="case-rn">
+      <input type="checkbox" id="s-interne">
+      <span>Structure Interne <em>(commandes passées en interne — mêmes effets que ESN, juste le nom qui change)</em></span>
+    </label>
+    <div id="retour-ajout"></div>
+    <div class="pied-modale">
+      <button class="action claire" id="s-annuler">Annuler</button>
+      <button class="action claire" id="btn-generer">Générer un code</button>
+      <button class="action" id="btn-ajouter">Ajouter la structure</button>
+    </div>
+  </div>
+</div>
+
+<div class="voile-modale" id="modale-nouveau-produit" hidden>
+  <div class="modale">
+    <h2>Nouveau produit</h2>
+    <p class="note-tarif">Le prix RN s'applique automatiquement aux commandes des structures marquées RN, le prix standard à toutes les autres.</p>
+    <div class="grille grille-produit">
+      <input type="text" id="p-nom" placeholder="Nom du produit">
+      <input type="number" id="p-prix-standard" placeholder="Prix standard (€)" min="0" step="0.01">
+      <input type="number" id="p-prix-rn" placeholder="Prix RN (€)" min="0" step="0.01">
+      <input type="number" id="p-stock" placeholder="Stock" min="0" step="1">
+    </div>
+    <div class="grille grille-specs">
+      <input type="text" id="p-disque" placeholder="Disque dur (ex: 256 Go SSD)">
+      <input type="text" id="p-ram" placeholder="RAM (ex: 8 Go)">
+      <input type="text" id="p-systeme" placeholder="Système (ex: Windows 11)">
+    </div>
+    <label for="p-icone" style="display:block;font-size:12.5px;font-weight:600;color:var(--steel);margin-bottom:5px">Icône</label>
+    <select id="p-icone" style="width:100%;margin-bottom:11px">
+      <option value="">Automatique (deviné depuis le nom)</option>
+      <option value="telephone">Smartphone</option>
+      <option value="tablette">Tablette</option>
+      <option value="portable">PC portable</option>
+      <option value="fixe">PC fixe</option>
+      <option value="telephone_touches">Téléphone à touches</option>
+      <option value="atelier">Animation / atelier</option>
+      <option value="feuille">Atelier de sensibilisation</option>
+      <option value="generique">Générique</option>
+    </select>
+    <input type="text" id="p-message" placeholder="Message si épuisé (ex: Nous n'avons jamais de tablettes en stock)" style="width:100%;margin-bottom:11px">
+    <label class="case-rn">
+      <input type="checkbox" id="p-visible" checked>
+      <span>Visible dans le formulaire public</span>
+    </label>
+    <div id="retour-produit"></div>
+    <div class="pied-modale">
+      <button class="action claire" id="p-annuler">Annuler</button>
+      <button class="action" id="btn-produit-ajouter">Ajouter le produit</button>
+    </div>
+  </div>
+</div>
+
+<div class="voile-modale" id="modale-commande" hidden>
+  <div class="modale">
+    <h2>Nouvelle commande</h2>
+    <p class="sous-titre">Pour saisir une commande passée oralement, par mail, ou pour rattraper une commande antérieure.</p>
+
+    <label for="nc-code">Code de la structure</label>
+    <input type="text" id="nc-code" list="nc-structures-liste" placeholder="Code ou nom de la structure">
+    <datalist id="nc-structures-liste"></datalist>
+
+    <label style="margin-top:14px">Produits</label>
+    <div id="nc-lignes-ajoutees"></div>
+    <div class="grille-modale" style="align-items:end">
+      <div>
+        <label for="nc-produit">Produit</label>
+        <select id="nc-produit"></select>
+      </div>
+      <div style="display:flex;gap:8px;align-items:end">
+        <div style="flex:1">
+          <label for="nc-quantite">Quantité</label>
+          <input type="number" id="nc-quantite" min="1" value="1">
+        </div>
+        <button type="button" class="action claire" id="nc-ajouter-ligne">+ Ajouter</button>
+      </div>
+    </div>
+    <div id="retour-nc-ligne"></div>
+
+    <div class="grille-modale">
+      <div id="nc-bloc-paiement">
+        <label for="nc-paiement">Moyen de paiement</label>
+        <select id="nc-paiement">
+          <option>Paiement en ligne (CB)</option>
+          <option>Virement (RN uniquement)</option>
+          <option>Chèque</option>
+          <option>Espèces</option>
+          <option>Chorus Pro</option>
+          <option>Subventions</option>
+        </select>
+      </div>
+      <div>
+        <label for="nc-date">Date de la commande</label>
+        <input type="date" id="nc-date" lang="fr">
+      </div>
+    </div>
+
+    <div class="grille-modale">
+      <div>
+        <label for="nc-statut-commande">Statut commande</label>
+        <select id="nc-statut-commande">
+          <option>Reçue</option><option>Validée</option><option>Préparée</option>
+          <option>Livrée</option><option>Annulée</option>
+        </select>
+      </div>
+      <div id="nc-bloc-statut-paiement">
+        <label for="nc-statut-paiement">Statut paiement</label>
+        <select id="nc-statut-paiement">
+          <option>Non payé</option><option>Lien envoyé</option><option>Payé</option><option>Remboursé</option>
+        </select>
+      </div>
+    </div>
+
+    <label for="nc-commentaire">Commentaire</label>
+    <textarea id="nc-commentaire" style="min-height:70px;font-family:inherit"></textarea>
+
+    <div id="retour-nouvelle-commande"></div>
+    <div class="pied-modale">
+      <button class="action claire" id="nc-annuler">Annuler</button>
+      <button class="action" id="nc-enregistrer">Créer la commande</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modale : nouveau devis -->
+<div class="voile-modale" id="modale-devis" hidden>
+  <div class="modale">
+    <h2>Nouveau devis</h2>
+    <p class="sous-titre">Rattache-le obligatoirement à une commande existante, en collant sa référence. Si le devis n'est finalement pas accepté, il suffira d'annuler cette commande.</p>
+
+    <label for="dv-code">Code de la structure</label>
+    <input type="text" id="dv-code" list="nc-structures-liste" placeholder="Code ou nom de la structure">
+
+    <label for="dv-commande">Référence commande</label>
+    <input type="text" id="dv-commande" placeholder="ex : CVDL-2026-0008 (obligatoire)">
+
+    <div class="grille-modale">
+      <div>
+        <label for="dv-produit">Produit</label>
+        <select id="dv-produit"></select>
+      </div>
+      <div>
+        <label for="dv-quantite">Quantité</label>
+        <input type="number" id="dv-quantite" min="1" max="5" value="1">
+      </div>
+    </div>
+
+    <label for="dv-paiement">Moyen de paiement</label>
+    <select id="dv-paiement">
+      <option>Paiement en ligne (CB)</option>
+      <option>Virement (RN uniquement)</option>
+      <option>Chèque</option>
+      <option>Espèces</option>
+      <option>Chorus Pro</option>
+      <option>Subventions</option>
+    </select>
+
+    <div id="retour-devis"></div>
+    <div class="pied-modale">
+      <button class="action claire" id="dv-annuler">Annuler</button>
+      <button class="action" id="dv-enregistrer">Créer le devis</button>
+    </div>
+  </div>
+</div>
+
+<div class="voile-modale" id="modale-sav" hidden>
+  <div class="modale">
+    <h2>Nouveau ticket SAV</h2>
+    <p class="sous-titre">Pour une demande reçue par téléphone ou par email. Numéro de série, commande, facture, code structure : tout est facultatif — utile mais jamais bloquant, notamment pour du matériel vendu avant la plateforme.</p>
+
+    <div class="grille-modale">
+      <div>
+        <label for="sav-nom">Nom (structure ou personne)</label>
+        <input type="text" id="sav-nom" list="nc-structures-liste" placeholder="Nom de la structure, ou prénom + nom">
+      </div>
+      <div>
+        <label for="sav-code">Code structure (facultatif)</label>
+        <input type="text" id="sav-code" placeholder="Si applicable">
+      </div>
+    </div>
+
+    <div class="grille-modale">
+      <div>
+        <label for="sav-numero-serie">Numéro de série (facultatif)</label>
+        <input type="text" id="sav-numero-serie" placeholder="Si connu">
+      </div>
+      <div>
+        <label for="sav-commande">Référence commande (facultatif)</label>
+        <input type="text" id="sav-commande" placeholder="ex : CVDL-2026-0008">
+      </div>
+    </div>
+
+    <label for="sav-facture">Référence facture (facultatif)</label>
+    <input type="text" id="sav-facture" placeholder="ex : 2026-0142">
+
+    <label for="sav-symptome">Symptôme déclaré</label>
+    <select id="sav-symptome"></select>
+
+    <label for="sav-commentaire">Commentaire (facultatif)</label>
+    <textarea id="sav-commentaire" style="min-height:60px;font-family:inherit"></textarea>
+
+    <div class="grille-modale">
+      <div>
+        <label for="sav-marque">Marque (facultatif)</label>
+        <input type="text" id="sav-marque">
+      </div>
+      <div>
+        <label for="sav-modele">Modèle (facultatif)</label>
+        <input type="text" id="sav-modele">
+      </div>
+    </div>
+    <label for="sav-systeme">Système d'exploitation (facultatif)</label>
+    <input type="text" id="sav-systeme">
+
+    <label for="sav-statut">Statut</label>
+    <select id="sav-statut"></select>
+
+    <div id="retour-sav"></div>
+    <div class="pied-modale">
+      <button class="action claire" id="sav-annuler">Annuler</button>
+      <button class="action" id="sav-enregistrer">Créer le ticket</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modale : détail complet d'un ticket SAV -->
+<div class="voile-modale" id="modale-detail-sav" hidden>
+  <div class="modale">
+    <h2>Détail du ticket</h2>
+    <p class="sous-titre" id="detail-sav-souscription"></p>
+
+    <div class="grille-modale">
+      <div>
+        <label for="detail-sav-nom">Nom (structure ou personne)</label>
+        <input type="text" id="detail-sav-nom">
+      </div>
+      <div>
+        <label for="detail-sav-numero-serie">Numéro de série</label>
+        <input type="text" id="detail-sav-numero-serie">
+      </div>
+    </div>
+    <div class="grille-modale">
+      <div>
+        <label for="detail-sav-structure-origine">Structure d'origine (déclarée)</label>
+        <input type="text" id="detail-sav-structure-origine">
+      </div>
+      <div>
+        <label for="detail-sav-reference-facture">Référence facture</label>
+        <input type="text" id="detail-sav-reference-facture">
+      </div>
+    </div>
+    <div class="grille-modale">
+      <div>
+        <label for="detail-sav-marque">Marque</label>
+        <input type="text" id="detail-sav-marque">
+      </div>
+      <div>
+        <label for="detail-sav-modele">Modèle</label>
+        <input type="text" id="detail-sav-modele">
+      </div>
+    </div>
+    <label for="detail-sav-systeme">Système d'exploitation</label>
+    <input type="text" id="detail-sav-systeme">
+
+    <label for="detail-sav-commentaire">Commentaire</label>
+    <textarea id="detail-sav-commentaire" style="min-height:60px;font-family:inherit"></textarea>
+
+    <div id="detail-sav-zone-colissimo" hidden>
+      <label for="detail-sav-reconditionneur" style="display:block;margin-top:14px">Reconditionneur / ESN</label>
+      <input type="text" id="detail-sav-reconditionneur">
+      <label for="detail-sav-colissimo" style="display:block;margin-top:10px">Suivi Colissimo (un lien par ligne)</label>
+      <textarea id="detail-sav-colissimo" style="min-height:60px;font-family:inherit"></textarea>
+      <button type="button" class="action claire" id="detail-sav-envoyer-email" style="margin-top:8px">📧 Envoyer par email</button>
+    </div>
+
+    <div id="detail-sav-zone-diagnostic" hidden>
+      <label for="detail-sav-probleme-effectif" style="display:block;margin-top:14px">Problème effectif après contrôle</label>
+      <select id="detail-sav-probleme-effectif"></select>
+      <label for="detail-sav-nouveau-numero-serie" style="display:block;margin-top:10px">Nouveau numéro de série (si remplacement)</label>
+      <input type="text" id="detail-sav-nouveau-numero-serie">
+      <label for="detail-sav-notes" style="display:block;margin-top:10px">Notes de résolution</label>
+      <textarea id="detail-sav-notes" style="min-height:60px;font-family:inherit"></textarea>
+    </div>
+
+    <div id="detail-sav-historique" style="margin-top:14px"></div>
+
+    <div id="retour-detail-sav"></div>
+    <div class="pied-modale">
+      <button class="action claire" id="detail-sav-fermer">Fermer</button>
+      <button class="action" id="detail-sav-enregistrer">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modale : conversion d'un devis en facture -->
+<div class="voile-modale" id="modale-conversion" hidden>
+  <div class="modale">
+    <h2>Convertir en facture</h2>
+    <p class="sous-titre">Saisis le numéro de facture depuis ta numérotation habituelle. Le reste du document (structure, produit, montant) est repris automatiquement du devis.</p>
+    <label for="cv-numero">Numéro de facture</label>
+    <input type="text" id="cv-numero" placeholder="ex : 2026-0142">
+    <div id="retour-conversion"></div>
+    <div class="pied-modale">
+      <button class="action claire" id="cv-annuler">Annuler</button>
+      <button class="action" id="cv-confirmer">Convertir</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modale : confirmation de suppression (second avertissement) -->
+<div class="voile-modale" id="modale-ligne-produit" hidden>
+  <div class="modale">
+    <h2 id="titre-modale-ligne-produit">Ajouter un produit</h2>
+    <label for="ligne-produit-select">Produit</label>
+    <select id="ligne-produit-select"></select>
+    <label for="ligne-produit-quantite">Quantité</label>
+    <input type="number" id="ligne-produit-quantite" min="1" step="1" value="1">
+    <div id="retour-ligne-produit"></div>
+    <div class="pied-modale">
+      <button class="action claire" id="ligne-produit-annuler">Annuler</button>
+      <button class="action" id="ligne-produit-enregistrer">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<div class="voile-modale" id="modale-bienvenue" hidden>
+  <div class="modale" style="max-width:480px;text-align:center">
+    <h2 style="font-size:22px">Bienvenue dans le back-office</h2>
+    <p class="sous-titre" style="text-align:left">
+      Avant de commencer, un détour par l'onglet <strong>Réglages</strong> est recommandé :
+      c'est là que se configurent le mot de passe, le dossier Drive, l'email de notification,
+      le nom de la structure affiché en haut de la page, et le fichier de numérotation des
+      factures. Rien d'obligatoire pour démarrer, mais autant le faire une bonne fois pour toutes.
+    </p>
+    <div class="pied-modale" style="justify-content:center">
+      <button class="action claire" id="bienvenue-plus-tard">Plus tard</button>
+      <button class="action" id="bienvenue-aller-reglages">Aller dans Réglages</button>
+    </div>
+  </div>
+</div>
+
+<div class="voile-modale" id="modale-suppression" hidden>
+  <div class="modale">
+    <h2>Confirmer la suppression</h2>
+    <div class="alerte-suppression">
+      Cette action est <strong>définitive</strong>. <span id="suppr-ref"></span> sera retiré(e) du suivi.
+    </div>
+    <div class="pied-modale">
+      <button class="action claire" id="suppr-annuler">Annuler</button>
+      <button class="action" id="suppr-confirmer" style="background:var(--alert)">Confirmer la suppression définitive</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/Core.js"></script>
+<script src="js/Commandes.js"></script>
+<script src="js/Bilan.js"></script>
+<script src="js/Structures.js"></script>
+<script src="js/Produits.js"></script>
+<script src="js/DevisEtReglages.js"></script>
+<script src="js/Factures.js"></script>
+<script src="js/ModalesPartagees.js"></script>
+<script src="js/CodeBackendIntegre.js"></script>
+<script src="js/Installateur.js"></script>
+</body>
+</html>

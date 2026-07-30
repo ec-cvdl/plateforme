@@ -1,0 +1,460 @@
+/* ═══════════════════════════════════════════════════════════
+   CVDL — Feuille de style du formulaire public
+   Modifie ce fichier librement : couleurs, tailles, espacements.
+   Aucun besoin de retoucher commande.html pour un ajustement visuel.
+   ═══════════════════════════════════════════════════════════ */
+
+:root{
+  /* Palette de marque */
+  --ink:#002743;
+  --primaire:#213A8E;
+  --nuit:#272350;
+  --sarcelle:#00ACB0;
+  --jaune:#FECC38;
+  --alerte:#e62460;
+
+  /* Neutres */
+  --papier:#F4F6F8;
+  --carte:#FFFFFF;
+  --trait:#D8DEE4;
+  --gris:#5C6D7C;
+
+  --r:10px;
+}
+
+/* ═══ Base ═══ */
+*{box-sizing:border-box;margin:0;padding:0}
+
+body{
+  font-family:'Space Grotesk', system-ui, sans-serif;
+  background:var(--papier);
+  color:var(--ink);
+  font-size:16px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+  transition:background .25s ease, color .25s ease;
+}
+
+.mono{font-family:'IBM Plex Mono', monospace}
+
+/* ═══ Barre de marque + bascule de mode ═══ */
+.marque-barre{
+  display:flex;align-items:center;justify-content:space-between;
+  max-width:640px;margin:0 auto;padding:22px 20px 0;
+}
+.marque{display:flex;align-items:center;gap:10px}
+.marque img{height:84px;width:auto;display:block}
+.marque .nom-org{
+  font-family:'IBM Plex Mono', monospace;font-size:11px;font-weight:600;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--gris);
+}
+
+.bascule-mode{display:flex;gap:2px;background:var(--carte);border:1px solid var(--trait);border-radius:8px;padding:3px}
+.bascule-mode button{
+  font-family:'IBM Plex Mono', monospace;font-size:10.5px;font-weight:600;
+  letter-spacing:.04em;text-transform:uppercase;
+  background:none;border:none;color:var(--gris);padding:7px 11px;border-radius:6px;cursor:pointer;
+}
+.bascule-mode button.actif{background:var(--ink);color:#fff}
+
+/* ═══ Scène (conteneur de l'étape courante) ═══ */
+.scene-wrap{max-width:820px;margin:0 auto;padding:28px 20px 70px}
+
+.scene{
+  background:var(--carte);
+  border:1px solid var(--trait);
+  border-radius:16px;
+  padding:52px 46px;
+  box-shadow:0 1px 3px rgba(0,39,67,.05);
+  position:relative;
+  overflow:hidden;
+}
+
+.progression{display:flex;gap:5px;margin-bottom:38px;position:relative}
+.segment{height:3px;flex:1;background:var(--trait);border-radius:2px;transition:background .2s}
+.segment.fait{background:var(--primaire)}
+
+.compte{
+  font-family:'IBM Plex Mono', monospace;font-size:11.5px;font-weight:500;
+  color:var(--gris);letter-spacing:.08em;margin-bottom:12px;
+}
+
+.question{
+  font-size:24px;font-weight:600;line-height:1.35;letter-spacing:-.01em;
+  color:var(--ink);margin-bottom:8px;
+}
+.question em{font-style:normal;color:var(--primaire)}
+.sous-question{font-size:14px;color:var(--gris);margin-bottom:28px}
+
+/* ═══ Champs ═══ */
+.champ-texte{
+  width:100%;border:none;border-bottom:2px solid var(--trait);
+  background:transparent;font-family:'Space Grotesk', sans-serif;font-size:21px;
+  color:var(--ink);padding:9px 2px;margin-bottom:8px;
+}
+.champ-texte::placeholder{color:#A8B4BF}
+.champ-texte:focus-visible{outline:none;border-color:var(--primaire)}
+
+.champ-nombre{
+  width:140px;border:2px solid var(--trait);border-radius:9px;
+  font-family:'IBM Plex Mono', monospace;font-size:22px;font-weight:600;text-align:center;
+  color:var(--ink);padding:12px;background:var(--carte);
+}
+.champ-nombre:focus-visible{outline:none;border-color:var(--primaire)}
+
+/* Le spinner natif fait doublon avec les boutons − / + du compteur ci-dessous.
+   Masqué par défaut ; réactivé en mode accessible où la saisie clavier directe prime. */
+.compteur .champ-nombre{-moz-appearance:textfield}
+.compteur .champ-nombre::-webkit-outer-spin-button,
+.compteur .champ-nombre::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.compteur .champ-nombre{pointer-events:none;caret-color:transparent}
+body.mode-accessible .compteur .champ-nombre{
+  -moz-appearance:auto;pointer-events:auto;caret-color:auto;
+}
+body.mode-accessible .compteur .champ-nombre::-webkit-outer-spin-button,
+body.mode-accessible .compteur .champ-nombre::-webkit-inner-spin-button{-webkit-appearance:inner-spin-button;margin:0}
+
+.champ-long{
+  width:100%;border:2px solid var(--trait);border-radius:9px;
+  font-family:'Space Grotesk', sans-serif;font-size:15px;color:var(--ink);
+  padding:13px 14px;min-height:100px;resize:vertical;background:var(--carte);
+}
+.champ-long:focus-visible{outline:none;border-color:var(--primaire)}
+
+/* ═══ Compteur (nombre de personnes) ═══ */
+.compteur{display:flex;align-items:center;gap:0;width:fit-content;margin-top:6px}
+.compteur button{
+  background:var(--carte);color:var(--ink);border:2px solid var(--trait);
+  font-size:20px;font-weight:500;width:48px;height:50px;padding:0;line-height:1;cursor:pointer;
+}
+.compteur button:hover:not(:disabled){background:var(--papier)}
+.compteur button:disabled{color:var(--trait);cursor:not-allowed}
+.compteur button:first-child{border-radius:9px 0 0 9px;border-right:none}
+.compteur button:last-child{border-radius:0 9px 9px 0;border-left:none}
+.compteur .champ-nombre{width:64px;border-radius:0}
+
+/* ═══ Cartes de choix (produits, paiement) ═══ */
+.choix-grille{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
+.carte-choix{
+  border:2px solid var(--trait);border-radius:11px;padding:16px 15px;
+  cursor:pointer;background:var(--carte);display:flex;align-items:center;gap:11px;
+  position:relative;
+}
+.carte-choix:hover{border-color:var(--gris)}
+.carte-choix.selectionne{border-color:var(--primaire);background:#EEF1FB}
+.carte-choix .icone{width:26px;height:26px;flex-shrink:0;color:var(--primaire)}
+.carte-choix .libelle{font-weight:600;font-size:14.5px;color:var(--ink)}
+.carte-choix .specs-produit{
+  font-family:'IBM Plex Mono', monospace;font-size:11px;color:var(--gris);margin-top:3px;letter-spacing:.01em;
+}
+body.mode-sombre .carte-choix .specs-produit{color:rgba(255,255,255,.45)}
+.carte-choix .prix-produit{
+  font-family:'IBM Plex Mono', monospace;font-size:12.5px;font-weight:600;color:var(--primaire);margin-top:5px;
+}
+body.mode-sombre .carte-choix .prix-produit{color:var(--jaune)}
+body.mode-accessible .carte-choix .prix-produit{font-size:14px}
+.carte-choix.epuise{opacity:.5;cursor:not-allowed;background:var(--papier)}
+.carte-choix.epuise:hover{border-color:var(--trait)}
+.carte-choix .message-rupture{
+  font-size:11.5px;color:var(--alerte);margin-top:2px;font-weight:500;
+}
+
+.lien-aide{
+  display:inline-flex;align-items:center;gap:6px;margin-top:22px;
+  font-size:13.5px;color:var(--sarcelle);text-decoration:none;font-weight:500;
+}
+.lien-aide:hover{text-decoration:underline}
+.lien-aide svg{width:15px;height:15px}
+
+/* ═══ Plaque de confirmation (code reconnu) ═══ */
+.plaque{
+  background:var(--ink);color:#fff;border-radius:10px;padding:15px 17px;
+  display:flex;align-items:center;gap:12px;margin-top:16px;border-left:3px solid var(--jaune);
+}
+.plaque .puce{
+  font-family:'IBM Plex Mono', monospace;font-size:10px;font-weight:700;
+  letter-spacing:.08em;color:var(--jaune);border:1px solid rgba(254,204,56,.4);
+  padding:3px 7px;border-radius:4px;flex-shrink:0;
+}
+.plaque .contenu b{display:block;font-size:15px}
+.plaque .contenu span{font-size:11.5px;color:rgba(255,255,255,.55)}
+
+/* ═══ Paiement imposé (RN) ═══ */
+.info-impose{
+  background:#EEF1FB;border:1px solid #BFCDEF;border-left:3px solid var(--primaire);
+  border-radius:9px;padding:14px 16px;font-size:14px;color:var(--ink);margin-top:6px;
+}
+.info-impose b{color:var(--primaire)}
+
+/* ═══ Pièce jointe : lien PDF + attestation + upload ═══ */
+.bloc-pdf{
+  background:var(--papier);border:1px solid var(--trait);border-radius:10px;
+  padding:16px 18px;margin-bottom:18px;
+}
+.bloc-pdf a{
+  display:inline-flex;align-items:center;gap:8px;color:var(--primaire);
+  font-weight:600;font-size:14.5px;text-decoration:none;
+}
+.bloc-pdf a:hover{text-decoration:underline}
+.bloc-pdf p{font-size:13px;color:var(--gris);margin-top:6px}
+
+.case-attestation{
+  display:flex;align-items:flex-start;gap:10px;margin-bottom:22px;cursor:pointer;
+  font-size:14px;color:var(--ink);
+}
+.case-attestation input{margin-top:3px;width:18px;height:18px;flex-shrink:0;accent-color:var(--primaire)}
+
+.zone-upload{margin-bottom:12px}
+.zone-upload label{
+  display:block;font-size:13px;font-weight:600;color:var(--gris);margin-bottom:6px;
+}
+.zone-upload input[type=file]{
+  width:100%;border:2px dashed var(--trait);border-radius:9px;padding:14px;
+  font-family:'Space Grotesk', sans-serif;font-size:13.5px;background:var(--carte);
+}
+.zone-upload.rempli input[type=file]{border-color:var(--sarcelle);border-style:solid}
+
+/* ═══ Navigation entre étapes ═══ */
+.suite{display:flex;align-items:center;gap:14px;margin-top:32px}
+.bouton-principal{
+  background:var(--primaire);color:#fff;border:none;border-radius:9px;
+  font-family:'Space Grotesk', sans-serif;font-weight:700;font-size:15px;
+  padding:14px 28px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;
+}
+.bouton-principal:hover:not(:disabled){background:var(--nuit)}
+.bouton-principal:disabled{background:#B4BCC4;cursor:not-allowed}
+.bouton-retour{
+  background:none;border:none;color:var(--gris);font-family:'Space Grotesk', sans-serif;
+  font-size:14px;font-weight:500;cursor:pointer;padding:14px 6px;
+}
+.bouton-retour:hover{color:var(--ink)}
+.astuce-clavier{font-size:12px;color:var(--gris);margin-top:14px}
+
+/* ═══ Messages ═══ */
+.msg{font-size:14px;padding:12px 14px;border-radius:9px;margin-top:14px;display:flex;gap:9px}
+.msg-erreur{background:#FCE8ED;color:var(--alerte);border:1px solid #F3BCCB}
+.msg-info{background:var(--papier);color:var(--gris);border:1px solid var(--trait)}
+
+/* ═══ Voile de chargement (envoi de la commande) ═══ */
+.voile-envoi{
+  position:absolute;inset:0;background:rgba(255,255,255,.92);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+  border-radius:16px;z-index:20;
+}
+.voile-envoi[hidden]{display:none}
+.spinner{
+  width:46px;height:46px;border-radius:50%;
+  border:4px solid rgba(230,36,96,.18);
+  border-top-color:var(--alerte);
+  animation:tourner .75s linear infinite;
+}
+@keyframes tourner{to{transform:rotate(360deg)}}
+.voile-envoi .texte-voile{
+  font-family:'IBM Plex Mono', monospace;font-size:12.5px;font-weight:600;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--ink);
+}
+.barre-progression-envoi{
+  width:180px;height:6px;border-radius:999px;background:rgba(0,39,67,.1);overflow:hidden;
+}
+.barre-progression-envoi[hidden]{display:none}
+.barre-progression-envoi-remplissage{
+  height:100%;width:0%;border-radius:999px;background:var(--alerte);
+  transition:width .15s ease;
+}
+
+body.mode-sombre .voile-envoi{background:rgba(0,39,67,.9)}
+body.mode-sombre .voile-envoi .texte-voile{color:#fff}
+body.mode-sombre .spinner{border-color:rgba(254,204,56,.2);border-top-color:var(--alerte)}
+body.mode-sombre .barre-progression-envoi{background:rgba(255,255,255,.15)}
+
+body.mode-accessible .voile-envoi{background:rgba(255,255,255,.97)}
+body.mode-accessible .spinner{width:56px;height:56px;border-width:5px}
+body.mode-accessible .texte-voile{font-size:14px}
+
+@media (prefers-reduced-motion: reduce){
+  .spinner{animation-duration:1.6s}
+}
+
+/* ═══ Bannière d'identité persistante ═══ */
+.plaque-persistante{
+  display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--gris);
+  margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--trait);
+}
+.plaque-persistante[hidden]{display:none}
+.puce-mini{
+  display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;
+  background:var(--primaire);color:#fff;border-radius:50%;font-size:10px;flex-shrink:0;
+}
+body.mode-sombre .plaque-persistante{color:rgba(255,255,255,.6);border-color:rgba(255,255,255,.15)}
+body.mode-sombre .puce-mini{background:var(--jaune);color:var(--ink)}
+
+/* ═══ Récapitulatif du prix (étape matériel) ═══ */
+.recap-total{
+  display:flex;align-items:baseline;justify-content:space-between;
+  margin-top:14px;padding:12px 16px;background:var(--papier);border-radius:9px;
+}
+.recap-total:empty{display:none;padding:0;margin:0}
+.recap-total .detail-prix{font-family:'IBM Plex Mono', monospace;font-size:13px;color:var(--gris)}
+.recap-total .total-prix{font-family:'IBM Plex Mono', monospace;font-size:19px;font-weight:700;color:var(--ink)}
+body.mode-sombre .recap-total{background:rgba(255,255,255,.06)}
+body.mode-sombre .recap-total .detail-prix{color:rgba(255,255,255,.55)}
+body.mode-sombre .recap-total .total-prix{color:#fff}
+
+.ligne-produit-ajoutee{
+  display:flex;align-items:center;gap:10px;
+  padding:11px 14px;background:var(--papier);border-radius:9px;margin-bottom:8px;
+}
+.ligne-produit-ajoutee .quantite-ligne{
+  font-family:'IBM Plex Mono', monospace;font-weight:700;color:var(--sarcelle);flex-shrink:0;
+}
+.ligne-produit-ajoutee .libelle-ligne{flex:1;font-weight:600;font-size:14px}
+.ligne-produit-ajoutee .prix-ligne{font-family:'IBM Plex Mono', monospace;font-size:13px;color:var(--gris)}
+.ligne-produit-ajoutee .retirer-ligne{
+  background:none;border:none;cursor:pointer;color:var(--gris);font-size:16px;line-height:1;padding:2px 4px;
+}
+.ligne-produit-ajoutee .retirer-ligne:hover{color:var(--alerte)}
+body.mode-sombre .ligne-produit-ajoutee{background:rgba(255,255,255,.06)}
+body.mode-sombre .ligne-produit-ajoutee .prix-ligne{color:rgba(255,255,255,.55)}
+
+/* ═══ Rappel du prix avant envoi (dernière étape) ═══ */
+.rappel-prix{
+  display:flex;align-items:center;justify-content:space-between;
+  background:rgba(230,36,96,.08);border:1px solid rgba(230,36,96,.3);border-radius:9px;
+  padding:13px 16px;margin:18px 0;
+}
+.rappel-prix:empty{display:none;padding:0;margin:0;border:none}
+.rappel-prix span{font-size:13px;font-weight:600;color:var(--alerte)}
+.rappel-prix b{font-family:'IBM Plex Mono', monospace;font-size:20px;font-weight:700;color:var(--alerte)}
+body.mode-sombre .rappel-prix{background:rgba(230,36,96,.14)}
+
+/* ═══ Confirmation finale ═══ */
+.confirmation{text-align:center;padding:20px 10px}
+.confirmation .ref{
+  font-family:'IBM Plex Mono', monospace;font-size:23px;font-weight:600;letter-spacing:.02em;
+  background:var(--ink);color:var(--jaune);display:inline-block;padding:11px 20px;
+  border-radius:9px;margin:20px 0;
+}
+.confirmation .montant-final{
+  display:flex;flex-direction:column;align-items:center;gap:2px;margin:6px 0 22px;
+}
+.confirmation .montant-final span{
+  font-family:'IBM Plex Mono', monospace;font-size:11.5px;font-weight:600;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--alerte);
+}
+.confirmation .montant-final b{
+  font-family:'IBM Plex Mono', monospace;font-size:34px;font-weight:700;color:var(--alerte);letter-spacing:-.01em;
+}
+body.mode-sombre .confirmation .montant-final span,
+body.mode-sombre .confirmation .montant-final b{color:var(--alerte)}
+.confirmation h2{font-size:23px;font-weight:700;letter-spacing:-.01em;margin-bottom:6px}
+.confirmation p{color:var(--gris);font-size:14.5px;max-width:42ch;margin:0 auto}
+
+.pied{
+  font-family:'IBM Plex Mono', monospace;font-size:11px;color:var(--gris);
+  text-align:center;margin-top:28px;letter-spacing:.03em;
+}
+
+/* ═══════════════════════════════════════════════
+   MODE SOMBRE
+   ═══════════════════════════════════════════════ */
+body.mode-sombre{background:var(--ink);color:#fff}
+body.mode-sombre .marque .nom-org{color:rgba(255,255,255,.55)}
+body.mode-sombre .bascule-mode{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.15)}
+body.mode-sombre .bascule-mode button{color:rgba(255,255,255,.55)}
+body.mode-sombre .bascule-mode button.actif{background:var(--jaune);color:var(--ink)}
+
+body.mode-sombre .scene{
+  background:transparent;border:none;box-shadow:none;padding:52px 4px;
+}
+body.mode-sombre .segment{background:rgba(255,255,255,.15)}
+body.mode-sombre .segment.fait{background:var(--jaune)}
+body.mode-sombre .compte{color:rgba(255,255,255,.5)}
+body.mode-sombre .question{color:#fff}
+body.mode-sombre .question em{color:var(--jaune)}
+body.mode-sombre .sous-question{color:rgba(255,255,255,.55)}
+
+body.mode-sombre .champ-texte{color:#fff;border-color:rgba(255,255,255,.28)}
+body.mode-sombre .champ-texte::placeholder{color:rgba(255,255,255,.35)}
+body.mode-sombre .champ-texte:focus-visible{border-color:var(--jaune)}
+body.mode-sombre .champ-nombre,
+body.mode-sombre .champ-long{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.25);color:#fff}
+body.mode-sombre .champ-long::placeholder{color:rgba(255,255,255,.35)}
+body.mode-sombre .champ-nombre:focus-visible,
+body.mode-sombre .champ-long:focus-visible{border-color:var(--jaune)}
+body.mode-sombre .compteur button{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.25);color:#fff}
+body.mode-sombre .compteur button:hover:not(:disabled){background:rgba(255,255,255,.1)}
+
+body.mode-sombre .carte-choix{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.2)}
+body.mode-sombre .carte-choix .icone{color:var(--jaune)}
+body.mode-sombre .carte-choix .libelle{color:#fff}
+body.mode-sombre .carte-choix.selectionne{border-color:var(--jaune);background:rgba(254,204,56,.1)}
+body.mode-sombre .carte-choix.epuise{background:rgba(255,255,255,.02)}
+
+body.mode-sombre .plaque{background:rgba(255,255,255,.06);border-left-color:var(--jaune)}
+body.mode-sombre .info-impose{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.2);border-left-color:var(--jaune)}
+body.mode-sombre .info-impose b{color:var(--jaune)}
+
+body.mode-sombre .bloc-pdf{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.15)}
+body.mode-sombre .bloc-pdf a{color:var(--jaune)}
+body.mode-sombre .bloc-pdf p{color:rgba(255,255,255,.5)}
+body.mode-sombre .case-attestation{color:#fff}
+body.mode-sombre .zone-upload label{color:rgba(255,255,255,.6)}
+body.mode-sombre .zone-upload input[type=file]{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.25);color:#fff}
+
+body.mode-sombre .bouton-principal{background:var(--jaune);color:var(--ink)}
+body.mode-sombre .bouton-principal:hover:not(:disabled){background:#FFDA6B}
+body.mode-sombre .bouton-retour{color:rgba(255,255,255,.5)}
+body.mode-sombre .bouton-retour:hover{color:#fff}
+body.mode-sombre .astuce-clavier{color:rgba(255,255,255,.4)}
+
+body.mode-sombre .confirmation .ref{background:var(--jaune);color:var(--ink)}
+body.mode-sombre .confirmation p{color:rgba(255,255,255,.55)}
+body.mode-sombre .pied{color:rgba(255,255,255,.35)}
+
+/* ═══════════════════════════════════════════════
+   MODE ACCESSIBLE
+   Priorité absolue : contraste, taille, pas d'animation,
+   navigation clavier explicite. Tout tient sur un seul écran,
+   sans effet "une question à la fois".
+   ═══════════════════════════════════════════════ */
+body.mode-accessible{background:#fff}
+body.mode-accessible .scene-wrap{max-width:720px}
+body.mode-accessible .scene{
+  border:3px solid var(--ink);border-radius:8px;box-shadow:none;padding:36px 32px;
+}
+body.mode-accessible .badge-accessible{
+  display:inline-flex;align-items:center;gap:7px;font-family:'IBM Plex Mono', monospace;
+  font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  background:var(--ink);color:#fff;padding:6px 12px;border-radius:20px;margin-bottom:20px;
+}
+body.mode-accessible .question{font-size:22px}
+body.mode-accessible .champ-texte,
+body.mode-accessible .champ-nombre,
+body.mode-accessible .champ-long{
+  border:3px solid var(--ink);font-size:18px;border-radius:6px;
+}
+body.mode-accessible .champ-texte{border-bottom:3px solid var(--ink);padding:12px 10px}
+body.mode-accessible .carte-choix{border-width:3px;padding:18px}
+body.mode-accessible .carte-choix.selectionne{background:var(--ink);border-color:var(--ink)}
+body.mode-accessible .carte-choix.selectionne .libelle{color:#fff}
+body.mode-accessible .carte-choix.selectionne .icone{color:var(--jaune)}
+body.mode-accessible .bouton-principal{
+  font-size:17px;padding:17px 30px;border:3px solid var(--ink);width:100%;justify-content:center;
+}
+body.mode-accessible .bouton-retour{font-size:15px;text-decoration:underline}
+body.mode-accessible *{scroll-behavior:auto !important}
+body.mode-accessible .segment{height:5px}
+body.mode-accessible :focus-visible{outline:3px solid var(--primaire) !important;outline-offset:3px}
+
+/* Respecte la préférence système de réduction des animations partout */
+@media (prefers-reduced-motion: reduce){
+  *{animation:none !important;transition:none !important}
+}
+
+@media(max-width:520px){
+  .scene{padding:34px 22px}
+  .question{font-size:20px}
+  .choix-grille{grid-template-columns:1fr}
+  .marque-barre{flex-direction:column;align-items:flex-start;gap:14px}
+}

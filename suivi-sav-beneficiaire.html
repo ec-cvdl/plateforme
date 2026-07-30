@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<script>
+// 👉 C'EST ICI, LA LIGNE JUSTE EN DESSOUS ↓↓↓ — remplace UNIQUEMENT le texte entre guillemets
+const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy9-ZwhkG-hhmh7eI1f8NuMGtdofnXixQhgJAQr4gN0Q/exec';
+// 👆 C'ÉTAIT ICI — fais la même chose dans admin.html, commande.html, sav.html, sav-beneficiaire.html et suivi.html
+</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Suivi de ma demande SAV — CVDL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+  .liste-tickets-suivi{display:flex;flex-direction:column;gap:16px;margin-top:20px}
+  .carte-ticket-suivi{background:var(--carte);border:1px solid var(--trait);border-radius:14px;padding:18px 20px}
+  .entete-ts{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .ref-ts{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:15px;color:var(--ink)}
+  .date-ts{font-size:12.5px;color:var(--gris)}
+  .symptome-ts{font-size:13.5px;color:var(--gris);margin-top:6px}
+  .statut-ts{
+    display:inline-block;margin-top:12px;font-size:12px;font-weight:700;color:var(--ink);
+    background:var(--papier);border:1px solid var(--trait);padding:6px 13px;border-radius:20px;
+  }
+  .liens-colissimo-ts{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+  .liens-colissimo-ts a{
+    font-size:12.5px;font-weight:600;color:var(--ink);background:var(--papier);border:1px solid var(--trait);
+    text-decoration:none;padding:6px 12px;border-radius:20px;
+  }
+  .date-resolution-ts{font-size:12px;color:var(--gris);margin-top:10px}
+
+  body.mode-sombre .carte-ticket-suivi{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.15)}
+  body.mode-sombre .ref-ts{color:#fff}
+  body.mode-sombre .statut-ts{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.18);color:#fff}
+  body.mode-sombre .liens-colissimo-ts a{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.18);color:#fff}
+</style>
+</head>
+<body>
+
+<header class="marque-barre">
+  <div class="marque">
+    <img src="logo.png" alt="" onerror="this.style.display='none'">
+    <span class="nom-org">CVDL — Suivi de ma demande SAV</span>
+  </div>
+  <div class="bascule-mode" role="group" aria-label="Apparence de la page">
+    <button type="button" data-mode="clair" class="actif">Clair</button>
+    <button type="button" data-mode="sombre">Sombre</button>
+    <button type="button" data-mode="accessible">Accessible</button>
+  </div>
+</header>
+
+<div class="scene-wrap">
+  <div class="scene" id="scene">
+
+    <!-- Étape : identification -->
+    <section id="etape-numero">
+      <div class="question">Quel est le <em>numéro de série</em> de l'appareil ?</div>
+      <p class="sous-question">
+        Le même numéro que celui utilisé pour signaler la panne. Vous n'avez pas encore fait de
+        demande ? <a href="sav-beneficiaire.html">Signalez une panne ici</a>.
+      </p>
+      <input type="text" class="champ-texte" id="numero-serie" autocomplete="off" spellcheck="false" placeholder="Numéro de série">
+      <div id="retour-numero"></div>
+      <div class="suite">
+        <button type="button" class="bouton-principal" id="btn-voir-tickets">Voir le suivi →</button>
+      </div>
+    </section>
+
+    <!-- Étape : liste des tickets -->
+    <section id="etape-liste" hidden>
+      <div class="question">Suivi de vos demandes</div>
+      <p class="sous-question" id="nb-tickets-texte"></p>
+      <div class="liste-tickets-suivi" id="liste-tickets-suivi"></div>
+      <div class="suite">
+        <button type="button" class="bouton-principal" id="btn-autre-numero" style="background:transparent;color:var(--gris);border:1.5px solid var(--trait)">Consulter un autre numéro</button>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+function appliquerMode(mode){
+  document.body.className = mode === 'clair' ? '' : 'mode-' + mode;
+  document.querySelectorAll('.bascule-mode button').forEach(b => b.classList.toggle('actif', b.dataset.mode === mode));
+  localStorage.setItem('cvdl-mode', mode);
+}
+document.querySelectorAll('.bascule-mode button').forEach(b => {
+  b.addEventListener('click', () => appliquerMode(b.dataset.mode));
+});
+try{
+  const memorise = localStorage.getItem('cvdl-mode');
+  if(memorise) appliquerMode(memorise);
+}catch(e){}
+
+function echapper(s){
+  return String(s ?? '').replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function afficherMsg(id, texte, type){
+  $(id).innerHTML = texte ? `<div class="msg msg-${type}">${echapper(texte)}</div>` : '';
+}
+
+function jsonp(params){
+  return new Promise((resolve, reject) => {
+    const nomCallback = 'cb_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
+    const script = document.createElement('script');
+    const minuteur = setTimeout(() => { nettoyer(); reject(new Error('Délai dépassé')); }, 45000);
+    function nettoyer(){
+      clearTimeout(minuteur);
+      window[nomCallback] = () => {};
+      script.remove();
+    }
+    window[nomCallback] = data => { nettoyer(); resolve(data); };
+    const q = Object.keys(params).map(k => encodeURIComponent(k) + '=' + encodeURIComponent(params[k])).join('&');
+    script.src = API + '?callback=' + nomCallback + '&' + q;
+    script.onerror = () => { nettoyer(); reject(new Error('Requête impossible')); };
+    document.body.appendChild(script);
+  });
+}
+
+function rendreTicketsSuivi(tickets){
+  if(!tickets.length){
+    $('liste-tickets-suivi').innerHTML = `<p class="sous-question">Aucune demande SAV trouvée pour ce numéro de série.</p>`;
+    return;
+  }
+  $('liste-tickets-suivi').innerHTML = tickets.map(t => {
+    const liensColissimo = String(t.colissimo || '').split('\n').map(s => s.trim()).filter(Boolean);
+    return `<div class="carte-ticket-suivi">
+      <div class="entete-ts">
+        <div class="ref-ts">${echapper(t.reference)}</div>
+        <div class="date-ts">${echapper(t.date)}</div>
+      </div>
+      <div class="symptome-ts">${echapper(t.symptome || 'Symptôme non précisé')}</div>
+      <div class="statut-ts">${echapper(t.statut)}</div>
+      ${t.dateResolution ? `<div class="date-resolution-ts">Résolu le ${echapper(t.dateResolution)}</div>` : ''}
+      ${liensColissimo.length ? `<div class="liens-colissimo-ts">${liensColissimo.map(l =>
+          `<a href="${echapper(l)}" target="_blank" rel="noopener">📦 Suivre le colis</a>`).join('')}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+async function chargerTicketsSuivi(){
+  const numeroSerie = $('numero-serie').value.trim();
+  if(!numeroSerie){ afficherMsg('retour-numero', 'Merci de saisir un numéro de série.', 'erreur'); return; }
+
+  $('btn-voir-tickets').disabled = true;
+  $('btn-voir-tickets').textContent = 'Recherche…';
+  afficherMsg('retour-numero', '', 'info');
+
+  try{
+    const r = await jsonp({ action: 'sav-par-numero-serie', numeroSerie: numeroSerie });
+    if(r.ok){
+      $('nb-tickets-texte').textContent = r.tickets.length > 1
+        ? `${r.tickets.length} demandes trouvées`
+        : (r.tickets.length === 1 ? '1 demande trouvée' : '');
+      rendreTicketsSuivi(r.tickets);
+      $('etape-numero').hidden = true;
+      $('etape-liste').hidden = false;
+    }else{
+      afficherMsg('retour-numero', r.erreur || 'Numéro introuvable.', 'erreur');
+    }
+  }catch(e){
+    afficherMsg('retour-numero', 'Connexion impossible. Réessayez dans un instant.', 'erreur');
+  }
+  $('btn-voir-tickets').disabled = false;
+  $('btn-voir-tickets').textContent = 'Voir le suivi →';
+}
+
+$('btn-voir-tickets').addEventListener('click', chargerTicketsSuivi);
+$('numero-serie').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); chargerTicketsSuivi(); } });
+
+$('btn-autre-numero').addEventListener('click', () => {
+  $('numero-serie').value = '';
+  $('retour-numero').innerHTML = '';
+  $('etape-liste').hidden = true;
+  $('etape-numero').hidden = false;
+  $('numero-serie').focus();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<script>
+// 👉 C'EST ICI, LA LIGNE JUSTE EN DESSOUS ↓↓↓ — remplace UNIQUEMENT le texte entre guillemets
+const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy9-ZwhkG-hhmh7eI1f8NuMGtdofnXixQhgJAQr4gN0Q/exec';
+// 👆 C'ÉTAIT ICI — fais la même chose dans admin.html, commande.html, sav.html et sav-beneficiaire.html
+</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Suivi de mes commandes — CVDL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+  .liste-commandes-suivi{display:flex;flex-direction:column;gap:16px;margin-top:20px}
+
+  .carte-commande-suivi{
+    background:var(--carte);border:1px solid var(--trait);border-radius:14px;padding:18px 20px;
+  }
+  .carte-commande-suivi.annulee{opacity:.6}
+  .entete-cs{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .ref-cs{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:15px;color:var(--ink)}
+  .date-cs{font-size:12.5px;color:var(--gris)}
+  .produits-cs{font-size:13.5px;color:var(--gris);margin-top:6px}
+  .badge-annulee-cs{
+    display:inline-block;margin-top:10px;font-size:11.5px;font-weight:700;color:var(--alerte);
+    background:#FCE8ED;border:1px solid #F3BCCB;padding:4px 10px;border-radius:20px;
+  }
+
+  /* Timeline — même principe que le back-office : ronds reliés par un trait, coloré au fil des étapes */
+  .tlc-suivi{margin-top:16px;display:grid;grid-template-columns:repeat(5,1fr)}
+  .tlc-suivi-etape{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px}
+  .tlc-suivi-etape:not(:last-child)::after{
+    content:'';position:absolute;top:5px;left:50%;width:100%;height:2px;background:var(--trait);z-index:0;
+  }
+  .tlc-suivi-etape.fait:not(:last-child)::after{background:var(--sarcelle)}
+  .tlc-suivi-point{position:relative;z-index:1;width:10px;height:10px;border-radius:50%;background:var(--trait)}
+  .tlc-suivi-point.fait{background:var(--sarcelle)}
+  .tlc-suivi-point.actuel{background:var(--ink);width:13px;height:13px;box-shadow:0 0 0 3px #DCE7FA}
+  .tlc-suivi-libelle{font-size:10px;font-weight:600;color:var(--gris);text-align:center;line-height:1.25}
+  .tlc-suivi-libelle.fait{color:var(--sarcelle)}
+  .tlc-suivi-libelle.actuel{color:var(--ink);font-weight:700}
+
+  .pied-cs{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:16px;padding-top:14px;border-top:1px dashed var(--trait);flex-wrap:wrap}
+  .montant-cs{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:17px;color:var(--ink)}
+  .statut-paiement-cs{font-size:12px;font-weight:700;padding:5px 11px;border-radius:20px}
+  .statut-paiement-cs.paye{background:#E2F0EA;color:#1B6B4F}
+  .statut-paiement-cs.non-paye{background:#FFF3DB;color:#8A5A00}
+  .lien-paiement-cs{
+    font-size:13px;font-weight:700;color:#fff;background:var(--primaire);text-decoration:none;
+    padding:8px 16px;border-radius:8px;
+  }
+  .liens-colissimo-cs{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+  .liens-colissimo-cs a{
+    font-size:12.5px;font-weight:600;color:var(--ink);background:var(--papier);border:1px solid var(--trait);
+    text-decoration:none;padding:6px 12px;border-radius:20px;
+  }
+
+  body.mode-sombre .carte-commande-suivi{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.15)}
+  body.mode-sombre .ref-cs{color:#fff}
+  body.mode-sombre .montant-cs{color:#fff}
+  body.mode-sombre .tlc-suivi-point.actuel{box-shadow:0 0 0 3px rgba(254,204,56,.3)}
+  body.mode-sombre .liens-colissimo-cs a{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.18);color:#fff}
+</style>
+</head>
+<body>
+
+<header class="marque-barre">
+  <div class="marque">
+    <img src="logo.png" alt="" onerror="this.style.display='none'">
+    <span class="nom-org">CVDL — Suivi de mes commandes</span>
+  </div>
+  <div class="bascule-mode" role="group" aria-label="Apparence de la page">
+    <button type="button" data-mode="clair" class="actif">Clair</button>
+    <button type="button" data-mode="sombre">Sombre</button>
+    <button type="button" data-mode="accessible">Accessible</button>
+  </div>
+</header>
+
+<div class="scene-wrap">
+  <div class="scene" id="scene">
+
+    <!-- Étape : identification -->
+    <section id="etape-code">
+      <div class="question">Quel est votre <em>code structure</em> ?</div>
+      <p class="sous-question">
+        Ce code vous a été communiqué par mail — le même que pour commander du matériel ou signaler
+        une panne. Vous voulez plutôt <a href="commande.html">commander du matériel</a> ou
+        <a href="sav.html">signaler une panne</a> ?
+      </p>
+      <input type="text" class="champ-texte" id="code-structure" autocomplete="off" spellcheck="false" placeholder="Votre code structure">
+      <div id="retour-code"></div>
+      <div class="suite">
+        <button type="button" class="bouton-principal" id="btn-voir-commandes">Voir mes commandes →</button>
+      </div>
+    </section>
+
+    <!-- Étape : liste des commandes -->
+    <section id="etape-liste" hidden>
+      <div class="question" id="titre-structure"></div>
+      <p class="sous-question" id="nb-commandes-texte"></p>
+      <div class="liste-commandes-suivi" id="liste-commandes-suivi"></div>
+      <div class="suite">
+        <button type="button" class="bouton-principal" id="btn-autre-code" style="background:transparent;color:var(--gris);border:1.5px solid var(--trait)">Consulter un autre code</button>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+/* ─── Mode clair/sombre/accessible (mémorisé), identique aux autres formulaires publics ─── */
+function appliquerMode(mode){
+  document.body.className = mode === 'clair' ? '' : 'mode-' + mode;
+  document.querySelectorAll('.bascule-mode button').forEach(b => b.classList.toggle('actif', b.dataset.mode === mode));
+  localStorage.setItem('cvdl-mode', mode);
+}
+document.querySelectorAll('.bascule-mode button').forEach(b => {
+  b.addEventListener('click', () => appliquerMode(b.dataset.mode));
+});
+try{
+  const memorise = localStorage.getItem('cvdl-mode');
+  if(memorise) appliquerMode(memorise);
+}catch(e){}
+
+function echapper(s){
+  return String(s ?? '').replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function afficherMsg(id, texte, type){
+  $(id).innerHTML = texte ? `<div class="msg msg-${type}">${echapper(texte)}</div>` : '';
+}
+function formaterMontant(montant){
+  return new Intl.NumberFormat('fr-FR', { style:'currency', currency:'EUR', maximumFractionDigits:0 }).format(montant);
+}
+
+function jsonp(params){
+  return new Promise((resolve, reject) => {
+    const nomCallback = 'cb_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
+    const script = document.createElement('script');
+    const minuteur = setTimeout(() => { nettoyer(); reject(new Error('Délai dépassé')); }, 45000);
+    function nettoyer(){
+      clearTimeout(minuteur);
+      window[nomCallback] = () => {};
+      script.remove();
+    }
+    window[nomCallback] = data => { nettoyer(); resolve(data); };
+    const q = Object.keys(params).map(k => encodeURIComponent(k) + '=' + encodeURIComponent(params[k])).join('&');
+    script.src = API + '?callback=' + nomCallback + '&' + q;
+    script.onerror = () => { nettoyer(); reject(new Error('Requête impossible')); };
+    document.body.appendChild(script);
+  });
+}
+
+const ETAPES_TIMELINE = ['Reçue', 'Validée', 'Préparée', 'En cours de livraison', 'Livrée'];
+const LIBELLES_COURTS_TIMELINE = {
+  'Reçue': 'Reçue', 'Validée': 'Validée', 'Préparée': 'Préparée',
+  'En cours de livraison': 'En livraison', 'Livrée': 'Livrée'
+};
+
+function construireTimelineSuivi(statutActuel){
+  const indexActuel = ETAPES_TIMELINE.indexOf(statutActuel);
+  if(indexActuel === -1) return '';
+  const etapes = ETAPES_TIMELINE.map((etape, i) => {
+    const cls = i < indexActuel ? 'fait' : (i === indexActuel ? 'actuel' : '');
+    return `<div class="tlc-suivi-etape ${cls}">
+      <div class="tlc-suivi-point ${cls}"></div>
+      <div class="tlc-suivi-libelle ${cls}">${echapper(LIBELLES_COURTS_TIMELINE[etape] || etape)}</div>
+    </div>`;
+  }).join('');
+  return `<div class="tlc-suivi">${etapes}</div>`;
+}
+
+function rendreCommandesSuivi(commandes){
+  if(!commandes.length){
+    $('liste-commandes-suivi').innerHTML = `<p class="sous-question">Aucune commande enregistrée pour ce code pour le moment.</p>`;
+    return;
+  }
+
+  $('liste-commandes-suivi').innerHTML = commandes.map(c => {
+    const produitsTexte = c.lignes.map(l => `${l.quantite}× ${echapper(l.produit)}`).join(', ');
+    const estAnnulee = c.statutCommande === 'Annulée';
+
+    const liensColissimo = String(c.colissimo || '').split('\n').map(s => s.trim()).filter(Boolean);
+
+    return `<div class="carte-commande-suivi${estAnnulee ? ' annulee' : ''}">
+      <div class="entete-cs">
+        <div class="ref-cs">${echapper(c.reference)}</div>
+        <div class="date-cs">${echapper(c.date)}</div>
+      </div>
+      <div class="produits-cs">${produitsTexte}</div>
+      ${estAnnulee
+        ? `<div class="badge-annulee-cs">Commande annulée</div>`
+        : construireTimelineSuivi(c.statutCommande)}
+      ${liensColissimo.length ? `<div class="liens-colissimo-cs">${liensColissimo.map(l =>
+          `<a href="${echapper(l)}" target="_blank" rel="noopener">📦 Suivre le colis</a>`).join('')}</div>` : ''}
+      ${c.montantEstime != null ? `
+      <div class="pied-cs">
+        <div class="montant-cs">${formaterMontant(c.montantFacture != null ? c.montantFacture : c.montantEstime)}</div>
+        ${c.statutPaiement ? `<div class="statut-paiement-cs ${c.statutPaiement === 'Payé' ? 'paye' : 'non-paye'}">${echapper(c.statutPaiement)}</div>` : ''}
+        ${c.lienPaiement && c.statutPaiement !== 'Payé' ? `<a class="lien-paiement-cs" href="${echapper(c.lienPaiement)}" target="_blank" rel="noopener">Régler cette commande</a>` : ''}
+      </div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+async function chargerCommandesSuivi(){
+  const code = $('code-structure').value.trim();
+  if(!code){ afficherMsg('retour-code', 'Merci de saisir un code.', 'erreur'); return; }
+
+  $('btn-voir-commandes').disabled = true;
+  $('btn-voir-commandes').textContent = 'Vérification…';
+  afficherMsg('retour-code', '', 'info');
+
+  try{
+    const r = await jsonp({ action: 'commandes-par-code', code: code });
+    if(r.ok){
+      $('titre-structure').textContent = r.nomStructure ? `Commandes de ${r.nomStructure}` : 'Vos commandes';
+      $('nb-commandes-texte').textContent = r.commandes.length > 1
+        ? `${r.commandes.length} commandes enregistrées`
+        : (r.commandes.length === 1 ? '1 commande enregistrée' : '');
+      rendreCommandesSuivi(r.commandes);
+      $('etape-code').hidden = true;
+      $('etape-liste').hidden = false;
+    }else{
+      afficherMsg('retour-code', r.erreur || 'Code introuvable.', 'erreur');
+    }
+  }catch(e){
+    afficherMsg('retour-code', 'Connexion impossible. Réessayez dans un instant.', 'erreur');
+  }
+  $('btn-voir-commandes').disabled = false;
+  $('btn-voir-commandes').textContent = 'Voir mes commandes →';
+}
+
+$('btn-voir-commandes').addEventListener('click', chargerCommandesSuivi);
+$('code-structure').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); chargerCommandesSuivi(); } });
+
+$('btn-autre-code').addEventListener('click', () => {
+  $('code-structure').value = '';
+  $('retour-code').innerHTML = '';
+  $('etape-liste').hidden = true;
+  $('etape-code').hidden = false;
+  $('code-structure').focus();
+});
+</script>
+</body>
+</html>
