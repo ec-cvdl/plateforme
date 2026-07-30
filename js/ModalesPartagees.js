@@ -57,6 +57,36 @@ function extraireColonneGCsv(texteCsv){
     .filter(v => v.toLowerCase() !== 'numéro de série' && v.toLowerCase() !== 'numero de serie'); // écarte un éventuel en-tête
 }
 
+/** Extrait marque/modèle/processeur/disque/RAM/système par numéro de série (colonnes K,L,M,O,R,S
+ *  du CSV tec.tech), et renvoie une chaîne "numéro de série: caractéristiques" par ligne — pas
+ *  besoin d'aligner positionnellement avec la liste des numéros de série, chaque ligne se
+ *  retrouve toute seule par son propre numéro. */
+function extraireCaracteristiquesCsv(texteCsv){
+  const lignes = texteCsv.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  if(!lignes.length) return '';
+  const delimiteur = (lignes[0].split(';').length > lignes[0].split(',').length) ? ';' : ',';
+  const nettoyer = v => (v || '').trim().replace(/^"|"$/g, '');
+
+  const resultats = [];
+  lignes.forEach(l => {
+    const colonnes = l.split(delimiteur);
+    const numeroSerie = nettoyer(colonnes[6]); // G
+    if(!numeroSerie || numeroSerie.toLowerCase() === 'numéro de série' || numeroSerie.toLowerCase() === 'numero de serie') return;
+    const modele      = nettoyer(colonnes[10]); // K
+    const marque       = nettoyer(colonnes[11]); // L
+    const processeur   = nettoyer(colonnes[12]); // M
+    const disque       = nettoyer(colonnes[14]); // O
+    const ram          = nettoyer(colonnes[17]); // R
+    const systeme      = nettoyer(colonnes[18]); // S
+
+    const titre = [marque, modele].filter(Boolean).join(' ');
+    const details = [processeur, disque, ram, systeme].filter(Boolean).join(', ');
+    const specs = titre + (details ? ` (${details})` : '');
+    if(specs) resultats.push(`${numeroSerie}: ${specs}`);
+  });
+  return resultats.join('\n');
+}
+
 $('serie-fichier-csv').addEventListener('change', () => {
   $('btn-serie-importer-csv').disabled = !$('serie-fichier-csv').files.length;
   $('retour-import-csv').innerHTML = '';
@@ -72,10 +102,12 @@ $('btn-serie-importer-csv').addEventListener('click', async () => {
   try{
     const [texte, base64] = await Promise.all([lireFichierTexte(fichier), lireFichierBase64(fichier)]);
     const numerosExtraits = extraireColonneGCsv(texte);
+    const caracteristiques = extraireCaracteristiquesCsv(texte);
 
     const r = await poster({
       action: 'commande-importer-csv-tectech', password: motDePasse,
-      ligne: serieLigneCourante, nomFichier: fichier.name, contenuBase64: base64
+      ligne: serieLigneCourante, nomFichier: fichier.name, contenuBase64: base64,
+      caracteristiques: caracteristiques
     });
 
     if(r.ok){
@@ -90,7 +122,7 @@ $('btn-serie-importer-csv').addEventListener('click', async () => {
       </div>`;
       $('serie-lien-csv-existant').innerHTML = `<a href="${echapper(r.url)}" target="_blank" rel="noopener">📄 Ouvrir le fichier CSV importé</a>`;
       const c = commandes.find(x => x.ligne === serieLigneCourante);
-      if(c) c.csvTectech = r.url;
+      if(c){ c.csvTectech = r.url; c.caracteristiquesMateriel = caracteristiques; }
     }else{
       $('retour-import-csv').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur)}</div>`;
     }

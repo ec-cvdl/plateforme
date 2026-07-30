@@ -2,6 +2,9 @@
 
 let factures = [];
 let sav = [];
+const LIMITE_SAV_DEFAUT = 20;
+let limiteSavActuelle = LIMITE_SAV_DEFAUT;
+let totalSav = 0;
 let filtreSav = 'tout';
 let symptomesSav = ['L\'écran ne s\'allume plus', 'L\'appareil ne se charge plus', 'Le clavier ne fonctionne plus ou mal'];
 
@@ -104,11 +107,12 @@ function badgeGarantieSav(annees){
   return '<div class="tsc-garantie avertissement">Acheté il y a plus d\'un an — vérifier la garantie</div>';
 }
 
-async function chargerSav(silencieux){
+async function chargerSav(silencieux, limiteForcee){
   if(!silencieux) etat('Chargement du SAV…', 'chargement');
+  const limite = limiteForcee !== undefined ? limiteForcee : limiteSavActuelle;
   try{
-    const r = await jsonp({action:'sav-list', password:motDePasse});
-    if(r.ok){ sav = r.tickets; rendreSav(); }
+    const r = await jsonp({action:'sav-list', password:motDePasse, limite:limite});
+    if(r.ok){ sav = r.tickets; totalSav = r.total; rendreSav(); }
     if(!silencieux) $('etat').classList.remove('visible');
   }catch(e){ if(!silencieux) etat('Chargement du SAV impossible', 'erreur'); }
 }
@@ -116,6 +120,16 @@ $('btn-recharger-sav').addEventListener('click', () => {
   etat('Actualisation…', 'neutre');
   Promise.all([chargerSav(), chargerStatutsSav()]).then(() => etat('À jour', 'succes'));
 });
+
+async function chargerToutLHistoriqueSav(){
+  etat('Chargement de tout l\'historique SAV…', 'chargement');
+  try{
+    await chargerSav(true, 0);
+    limiteSavActuelle = 0;
+    etat('À jour', 'succes');
+  }catch(e){ etat('Chargement impossible', 'erreur'); }
+}
+$('btn-charger-historique-sav-complet').addEventListener('click', chargerToutLHistoriqueSav);
 $('recherche-sav').addEventListener('input', rendreSav);
 
 function rendreFiltresSav(){
@@ -223,6 +237,15 @@ $('btn-ajouter-statut-sav').addEventListener('click', async () => {
 });
 
 function rendreSav(){
+  const banniereHistoriqueSav = $('bandeau-historique-sav-partiel');
+  if(limiteSavActuelle > 0 && totalSav > sav.length){
+    $('texte-historique-sav-partiel').textContent =
+      `Affichage des ${sav.length} tickets les plus récents sur ${totalSav} au total.`;
+    banniereHistoriqueSav.hidden = false;
+  }else{
+    banniereHistoriqueSav.hidden = true;
+  }
+
   const q = $('recherche-sav').value.trim().toLowerCase();
   const visibles = sav.filter(t => {
     if(filtreSav !== 'tout' && t.statut !== filtreSav) return false;

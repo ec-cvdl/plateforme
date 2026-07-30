@@ -10,7 +10,7 @@ const MOYENS_PAIEMENT = ['Paiement en ligne (CB)','Virement (RN uniquement)','Ch
 /* Chaque statut porte sa teinte */
 const TEINTES = {
   'Reçue':'t-ambre',   'Validée':'t-bleu',   'Préparée':'t-violet',
-  'En cours de livraison':'t-turquoise', 'Livrée':'t-vert',   'Annulée':'t-gris',
+  'En cours de livraison':'t-orange', 'Livrée':'t-vert',   'Annulée':'t-gris',
   'Non payé':'t-rouge','Lien envoyé':'t-ambre','Payé':'t-vert','Remboursé':'t-gris'
 };
 
@@ -160,7 +160,7 @@ function svgIconeSymptome(texte){
 
 let motDePasse = '';
 let commandes  = [];
-const LIMITE_COMMANDES_DEFAUT = 200;
+const LIMITE_COMMANDES_DEFAUT = 20;
 let limiteCommandesActuelle = LIMITE_COMMANDES_DEFAUT; // 0 = tout l'historique, une fois demandé
 let totalCommandes = 0;
 let seuilAlerteImpayee = 30; // valeur de repli tant que /reglages n'a pas encore répondu
