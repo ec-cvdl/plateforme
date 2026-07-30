@@ -7,6 +7,22 @@ const STATUTS_PAIEMENT = ['Non payé','Lien envoyé','Payé','Remboursé'];
 const STATUTS_COMPTABLES = ['Non rapproché','Rapproché','Clôturé'];
 const MOYENS_PAIEMENT = ['Paiement en ligne (CB)','Virement (RN uniquement)','Chèque','Espèces','Paiement mixte','Chorus Pro','Subventions'];
 
+/* Une icône par moyen de paiement, pour les endroits où il s'affiche en lecture seule
+   (un <select> natif ne peut pas contenir d'icône dans ses <option>). */
+const ICONES_MOYEN_PAIEMENT = {
+  'Paiement en ligne (CB)':      '<rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M2.5 9.5h19"/><path d="M6 15h4"/>',
+  'Virement (RN uniquement)':    '<path d="M3 10h18M5 10V19M9 10V19M15 10V19M19 10V19M2.5 21h19M12 3 3 8h18z"/>',
+  'Chèque':                      '<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 15h4"/><path d="M14 15h4"/><circle cx="7" cy="10.5" r="1"/>',
+  'Espèces':                     '<circle cx="12" cy="12" r="9"/><path d="M9 9.5c0-1 1-1.8 2.5-1.8s2.5.6 2.5 1.6c0 2.2-5 1-5 3.2 0 1 1 1.7 2.5 1.7s2.5-.8 2.5-1.8"/><path d="M12 6.5v11"/>',
+  'Paiement mixte':              '<path d="M7 7h11l-2.5-2.5M17 15H6l2.5 2.5"/>',
+  'Chorus Pro':                  '<path d="M4 21V9l8-5 8 5v12"/><path d="M9 21v-6h6v6"/><path d="M9 13h.01M15 13h.01"/>',
+  'Subventions':                 '<path d="M12 2v3M8 3.5 9.5 6M16 3.5 14.5 6"/><path d="M4 9h16l-1.5 11a2 2 0 0 1-2 1.8H7.5a2 2 0 0 1-2-1.8z"/>',
+  'Non applicable (ESN/Interne)':'<circle cx="12" cy="12" r="9"/><path d="M8 12h8"/>'
+};
+function svgMoyenPaiement(moyen){
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;flex-shrink:0;vertical-align:-2.5px;margin-right:5px">${ICONES_MOYEN_PAIEMENT[moyen] || '<circle cx="12" cy="12" r="9"/>'}</svg>`;
+}
+
 /* Chaque statut porte sa teinte */
 const TEINTES = {
   'Reçue':'t-ambre',   'Validée':'t-bleu',   'Préparée':'t-violet',
@@ -161,7 +177,8 @@ function svgIconeSymptome(texte){
 let motDePasse = '';
 let commandes  = [];
 const LIMITE_COMMANDES_DEFAUT = 20;
-let limiteCommandesActuelle = LIMITE_COMMANDES_DEFAUT; // 0 = tout l'historique, une fois demandé
+let limiteCommandesActuelle = LIMITE_COMMANDES_DEFAUT;
+let decalageCommandesActuel = 0;
 let totalCommandes = 0;
 let seuilAlerteImpayee = 30; // valeur de repli tant que /reglages n'a pas encore répondu
 let suppressionSimple = false; // idem
@@ -486,7 +503,7 @@ async function rafraichirSilencieusement(){
   const ongletActif = document.querySelector('.onglets button.actif')?.dataset.vue;
 
   try{
-    const r = await jsonp({action:'list', password:motDePasse, limite:limiteCommandesActuelle});
+    const r = await jsonp({action:'list', password:motDePasse, limite:limiteCommandesActuelle, decalage:decalageCommandesActuel});
     if(r.ok){ commandes = r.commandes; totalCommandes = r.total; rendre(); }
   }catch(e){ /* silencieux — nouvelle tentative au prochain cycle */ }
   try{
@@ -511,7 +528,7 @@ document.querySelector('.onglets').addEventListener('click', e => {
   $('vue-sav').hidden = b.dataset.vue !== 'sav';
   $('vue-comptabilite').hidden = b.dataset.vue !== 'comptabilite';
   $('vue-bilan').hidden = b.dataset.vue !== 'bilan';
-  if(b.dataset.vue === 'bilan'){ rendreBilan(); rendreBilanSav(); }
+  if(b.dataset.vue === 'bilan'){ chargerDonneesBilan().then(() => { rendreBilan(); rendreBilanSav(); }); }
   $('vue-reglages').hidden = b.dataset.vue !== 'reglages';
   if(b.dataset.vue === 'reglages') chargerReglages();
 });

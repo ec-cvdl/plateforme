@@ -3,23 +3,28 @@
 async function recharger(){
   etat('Actualisation…', 'neutre');
   try{
-    const r = await jsonp({action:'list', password:motDePasse, limite:limiteCommandesActuelle});
+    const r = await jsonp({action:'list', password:motDePasse, limite:limiteCommandesActuelle, decalage:decalageCommandesActuel});
     if(r.ok){ commandes = r.commandes; totalCommandes = r.total; rendre(); etat('À jour', 'succes'); }
   }catch(e){ etat('Actualisation impossible', 'erreur'); }
 }
 $('btn-recharger').addEventListener('click', recharger);
 
-async function chargerToutLHistorique(){
-  etat('Chargement de tout l\'historique…', 'chargement');
+async function changerPageCommandes(nouveauDecalage){
+  etat('Chargement…', 'chargement');
   try{
-    const r = await jsonp({action:'list', password:motDePasse, limite:0});
+    const r = await jsonp({action:'list', password:motDePasse, limite:limiteCommandesActuelle, decalage:nouveauDecalage});
     if(r.ok){
-      commandes = r.commandes; totalCommandes = r.total; limiteCommandesActuelle = 0;
+      commandes = r.commandes; totalCommandes = r.total; decalageCommandesActuel = nouveauDecalage;
       rendre(); etat('À jour', 'succes');
     }
   }catch(e){ etat('Chargement impossible', 'erreur'); }
 }
-$('btn-charger-historique-complet').addEventListener('click', chargerToutLHistorique);
+$('btn-page-precedente').addEventListener('click', () => {
+  changerPageCommandes(Math.max(0, decalageCommandesActuel - limiteCommandesActuelle));
+});
+$('btn-page-suivante').addEventListener('click', () => {
+  changerPageCommandes(decalageCommandesActuel + limiteCommandesActuelle);
+});
 
 $('filtres').addEventListener('click', e => {
   const b = e.target.closest('button');
@@ -28,13 +33,34 @@ $('filtres').addEventListener('click', e => {
   document.querySelectorAll('#filtres button').forEach(x => x.classList.toggle('actif', x === b));
   rendre();
 });
-$('recherche').addEventListener('input', rendre);
+let rechercheCommandesActive = false;
+let minuteurRechercheCommandes = null;
+$('recherche').addEventListener('input', () => {
+  clearTimeout(minuteurRechercheCommandes);
+  const terme = $('recherche').value.trim();
+  minuteurRechercheCommandes = setTimeout(async () => {
+    if(!terme){
+      rechercheCommandesActive = false;
+      await changerPageCommandes(decalageCommandesActuel);
+      return;
+    }
+    etat('Recherche…', 'chargement');
+    try{
+      const r = await jsonp({action:'list', password:motDePasse, recherche:terme});
+      if(r.ok){
+        commandes = r.commandes; totalCommandes = r.total; rechercheCommandesActive = true;
+        rendre(); etat('À jour', 'succes');
+      }
+    }catch(e){ etat('Recherche impossible', 'erreur'); }
+  }, 350);
+});
 
 function filtrer(){
   const q = $('recherche').value.trim().toLowerCase();
   return commandes.filter(c => {
     if(filtre === 'impaye'){
       if(c.statutPaiement === 'Payé') return false;
+      if(c.statutCommande === 'Reçue' || c.statutCommande === 'Validée') return false;
       const structureFiltre = structures.find(s => s.code === c.code);
       if(structureFiltre && (structureFiltre.esn || structureFiltre.interne)) return false;
     }
@@ -95,10 +121,13 @@ $('apercu-general').addEventListener('click', e => {
 });
 
 function rendre(){
-  const banniereHistorique = $('bandeau-historique-partiel');
-  if(limiteCommandesActuelle > 0 && totalCommandes > commandes.length){
-    $('texte-historique-partiel').textContent =
-      `Affichage des ${commandes.length} commandes les plus récentes sur ${totalCommandes} au total.`;
+  const banniereHistorique = $('bandeau-pagination');
+  if(!rechercheCommandesActive && limiteCommandesActuelle > 0 && totalCommandes > limiteCommandesActuelle){
+    const pageActuelle = Math.floor(decalageCommandesActuel / limiteCommandesActuelle) + 1;
+    const nbPages = Math.ceil(totalCommandes / limiteCommandesActuelle);
+    $('texte-pagination').textContent = `Page ${pageActuelle} sur ${nbPages} (${totalCommandes} commandes au total)`;
+    $('btn-page-precedente').disabled = decalageCommandesActuel === 0;
+    $('btn-page-suivante').disabled = decalageCommandesActuel + limiteCommandesActuelle >= totalCommandes;
     banniereHistorique.hidden = false;
   }else{
     banniereHistorique.hidden = true;

@@ -1,5 +1,28 @@
 /* ══════════════ BILAN MATÉRIEL ══════════════ */
 
+// Jeux de données dédiés : les statistiques ont besoin de tout l'historique pour être justes,
+// contrairement à l'onglet Commandes/SAV qui ne charge que les 20 plus récentes par défaut —
+// on ne réutilise donc jamais `commandes`/`sav` ici, on les charge à part.
+let commandesBilan = [];
+let savBilan = [];
+let bilanDonneesChargees = false;
+
+async function chargerDonneesBilan(){
+  if(bilanDonneesChargees) return; // déjà chargé une fois cette session : pas la peine de rejouer un gros téléchargement à chaque clic
+  $('bilan-contenu').innerHTML = '<p class="sous-question">Chargement des statistiques…</p>';
+  try{
+    const [rc, rs] = await Promise.all([
+      jsonp({action:'list', password:motDePasse, limite:0}),
+      jsonp({action:'sav-list', password:motDePasse, limite:0})
+    ]);
+    if(rc.ok) commandesBilan = rc.commandes;
+    if(rs.ok) savBilan = rs.tickets;
+    bilanDonneesChargees = true;
+  }catch(e){
+    $('bilan-contenu').innerHTML = '<p class="sous-question">Chargement impossible — réessaie avec le bouton Actualiser.</p>';
+  }
+}
+
 const PALETTE_GRAPHIQUES = [
   '#213A8E', '#00ACB0', '#FECC38', '#e62460', '#8A4FC7',
   '#3AB9B4', '#5B8DEF', '#F0A83C', '#5FCBA0', '#C77DD6'
@@ -87,7 +110,8 @@ function initialiserFiltreBilan(){
 $('btn-bilan-annee-courante').addEventListener('click', () => { initialiserFiltreBilan(); rendreBilan(); rendreBilanSav(); });
 $('btn-recharger-bilan').addEventListener('click', () => {
   etat('Actualisation…', 'neutre');
-  Promise.all([chargerFactures(), chargerStatutsSav().then(chargerSav)]).then(() => {
+  bilanDonneesChargees = false; // force un vrai rechargement, pas la version déjà en mémoire
+  chargerDonneesBilan().then(() => {
     rendreBilan(); rendreBilanSav(); etat('À jour', 'succes');
   });
 });
@@ -120,7 +144,7 @@ function rendreBilan(){
     return true;
   };
 
-  const commandesPeriode = commandes.filter(dansLaPeriode);
+  const commandesPeriode = commandesBilan.filter(dansLaPeriode);
   const facturesPeriode = factures.filter(dansLaPeriode);
 
   const commandesLivrees = commandesPeriode.filter(c => c.statutCommande === 'Livrée');
@@ -251,7 +275,7 @@ function rendreBilanSav(){
     return true;
   };
 
-  const savPeriode = sav.filter(dansLaPeriode);
+  const savPeriode = savBilan.filter(dansLaPeriode);
 
   const compter = (cle) => {
     const compteur = {};

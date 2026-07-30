@@ -4,6 +4,7 @@ let factures = [];
 let sav = [];
 const LIMITE_SAV_DEFAUT = 20;
 let limiteSavActuelle = LIMITE_SAV_DEFAUT;
+let decalageSavActuel = 0;
 let totalSav = 0;
 let filtreSav = 'tout';
 let symptomesSav = ['L\'écran ne s\'allume plus', 'L\'appareil ne se charge plus', 'Le clavier ne fonctionne plus ou mal'];
@@ -111,7 +112,7 @@ async function chargerSav(silencieux, limiteForcee){
   if(!silencieux) etat('Chargement du SAV…', 'chargement');
   const limite = limiteForcee !== undefined ? limiteForcee : limiteSavActuelle;
   try{
-    const r = await jsonp({action:'sav-list', password:motDePasse, limite:limite});
+    const r = await jsonp({action:'sav-list', password:motDePasse, limite:limite, decalage:decalageSavActuel});
     if(r.ok){ sav = r.tickets; totalSav = r.total; rendreSav(); }
     if(!silencieux) $('etat').classList.remove('visible');
   }catch(e){ if(!silencieux) etat('Chargement du SAV impossible', 'erreur'); }
@@ -121,16 +122,43 @@ $('btn-recharger-sav').addEventListener('click', () => {
   Promise.all([chargerSav(), chargerStatutsSav()]).then(() => etat('À jour', 'succes'));
 });
 
-async function chargerToutLHistoriqueSav(){
-  etat('Chargement de tout l\'historique SAV…', 'chargement');
+async function changerPageSav(nouveauDecalage){
+  etat('Chargement…', 'chargement');
   try{
-    await chargerSav(true, 0);
-    limiteSavActuelle = 0;
-    etat('À jour', 'succes');
+    const r = await jsonp({action:'sav-list', password:motDePasse, limite:limiteSavActuelle, decalage:nouveauDecalage});
+    if(r.ok){
+      sav = r.tickets; totalSav = r.total; decalageSavActuel = nouveauDecalage;
+      rendreSav(); etat('À jour', 'succes');
+    }
   }catch(e){ etat('Chargement impossible', 'erreur'); }
 }
-$('btn-charger-historique-sav-complet').addEventListener('click', chargerToutLHistoriqueSav);
-$('recherche-sav').addEventListener('input', rendreSav);
+$('btn-page-precedente-sav').addEventListener('click', () => {
+  changerPageSav(Math.max(0, decalageSavActuel - limiteSavActuelle));
+});
+$('btn-page-suivante-sav').addEventListener('click', () => {
+  changerPageSav(decalageSavActuel + limiteSavActuelle);
+});
+let rechercheSavActive = false;
+let minuteurRechercheSav = null;
+$('recherche-sav').addEventListener('input', () => {
+  clearTimeout(minuteurRechercheSav);
+  const terme = $('recherche-sav').value.trim();
+  minuteurRechercheSav = setTimeout(async () => {
+    if(!terme){
+      rechercheSavActive = false;
+      await changerPageSav(decalageSavActuel);
+      return;
+    }
+    etat('Recherche…', 'chargement');
+    try{
+      const r = await jsonp({action:'sav-list', password:motDePasse, recherche:terme});
+      if(r.ok){
+        sav = r.tickets; totalSav = r.total; rechercheSavActive = true;
+        rendreSav(); etat('À jour', 'succes');
+      }
+    }catch(e){ etat('Recherche impossible', 'erreur'); }
+  }, 350);
+});
 
 function rendreFiltresSav(){
   $('filtres-sav').innerHTML = '<button data-fs="tout" class="actif">Tous</button>' +
@@ -237,10 +265,13 @@ $('btn-ajouter-statut-sav').addEventListener('click', async () => {
 });
 
 function rendreSav(){
-  const banniereHistoriqueSav = $('bandeau-historique-sav-partiel');
-  if(limiteSavActuelle > 0 && totalSav > sav.length){
-    $('texte-historique-sav-partiel').textContent =
-      `Affichage des ${sav.length} tickets les plus récents sur ${totalSav} au total.`;
+  const banniereHistoriqueSav = $('bandeau-pagination-sav');
+  if(!rechercheSavActive && limiteSavActuelle > 0 && totalSav > limiteSavActuelle){
+    const pageActuelle = Math.floor(decalageSavActuel / limiteSavActuelle) + 1;
+    const nbPages = Math.ceil(totalSav / limiteSavActuelle);
+    $('texte-pagination-sav').textContent = `Page ${pageActuelle} sur ${nbPages} (${totalSav} tickets au total)`;
+    $('btn-page-precedente-sav').disabled = decalageSavActuel === 0;
+    $('btn-page-suivante-sav').disabled = decalageSavActuel + limiteSavActuelle >= totalSav;
     banniereHistoriqueSav.hidden = false;
   }else{
     banniereHistoriqueSav.hidden = true;
