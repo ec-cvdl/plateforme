@@ -45,6 +45,60 @@ document.addEventListener('click', async e => {
   }
 });
 
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-bon-orientation-ligne]');
+  if(!b) return;
+  const ligne = parseInt(b.dataset.bonOrientationLigne, 10);
+  b.disabled = true;
+  const contenuInitial = b.innerHTML;
+  b.innerHTML = '<span>Génération…</span>';
+  try{
+    const r = await poster({ action: 'commande-generer-bon-orientation', password: motDePasse, ligne: ligne });
+    if(r.ok){
+      const c = commandes.find(x => x.ligne === ligne);
+      if(c) c.dossier = r.url;
+      rendre();
+      etat('Bon d\'orientation généré', 'succes');
+    }else{
+      etat(r.erreur || 'Génération impossible', 'erreur');
+      b.disabled = false;
+      b.innerHTML = contenuInitial;
+    }
+  }catch(e){
+    etat('Génération impossible', 'erreur');
+    b.disabled = false;
+    b.innerHTML = contenuInitial;
+  }
+});
+
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-attestations-ligne]');
+  if(!b) return;
+  const ligne = parseInt(b.dataset.attestationsLigne, 10);
+  b.disabled = true;
+  const contenuInitial = b.innerHTML;
+  b.innerHTML = '<span>Génération…</span>';
+  try{
+    const r = await poster({ action: 'commande-generer-attestations', password: motDePasse, ligne: ligne });
+    if(r.ok){
+      $('resultat-attestations-' + ligne).innerHTML = `<div class="msg msg-succes" style="margin-top:8px">
+        ${r.attestations.map(a => `<a href="${echapper(a.url)}" target="_blank" rel="noopener" style="display:block">📄 ${echapper(a.nom)}</a>`).join('')}
+      </div>`;
+      etat(r.attestations.length + ' attestation(s) générée(s)', 'succes');
+      b.disabled = false;
+      b.innerHTML = contenuInitial;
+    }else{
+      etat(r.erreur || 'Génération impossible', 'erreur');
+      b.disabled = false;
+      b.innerHTML = contenuInitial;
+    }
+  }catch(e){
+    etat('Génération impossible', 'erreur');
+    b.disabled = false;
+    b.innerHTML = contenuInitial;
+  }
+});
+
 function listeSerieNettoyee(){
   return $('serie-texte').value.split('\n').map(s => s.trim()).filter(Boolean);
 }
