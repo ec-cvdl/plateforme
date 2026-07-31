@@ -364,6 +364,9 @@ a.action.pleine{width:100%;margin-top:4px}
 .btn-icone-fiche.danger:hover{background:var(--t-rouge-f);color:var(--t-rouge-t);border-color:var(--t-rouge-b)}
 
 #liste{display:grid;grid-template-columns:1fr;gap:18px;align-items:start}
+#liste.grille-2{grid-template-columns:repeat(2,1fr)}
+#liste.grille-3{grid-template-columns:repeat(3,1fr)}
+@media(max-width:900px){#liste.grille-2,#liste.grille-3{grid-template-columns:1fr}}
 .fiche-conteneur{position:relative;height:100%}
 
 /* ═══ Carte commande compacte — structure commune aux deux styles (couleur / neumorphisme) ═══ */
@@ -375,8 +378,20 @@ a.action.pleine{width:100%;margin-top:4px}
 .ccm-ref{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:12.5px}
 .ccm-date{font-size:11px;opacity:.75;flex-shrink:0}
 .ccm-nom{font-weight:700;font-size:15px;margin-top:10px;line-height:1.3}
-.ccm-materiel{font-size:12.5px;margin-top:4px;opacity:.85;line-height:1.4}
+.ccm-materiel{font-size:12.5px;margin-top:4px;opacity:.85;line-height:1.4;display:flex;flex-wrap:wrap;align-items:center}
+.ccm-materiel-item{display:inline-flex;align-items:center;gap:5px}
+.ccm-materiel-item .icone-puce{width:14px;height:14px;flex-shrink:0;opacity:.75}
+.ccm-materiel-sep{margin:0 8px;opacity:.35}
 .ccm-devis{margin-top:9px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.barre-progression-cmd{margin-top:12px}
+.barre-progression-cmd-fond{height:5px;border-radius:3px;background:var(--paper);overflow:hidden}
+.barre-progression-cmd-remplissage{height:100%;border-radius:3px;transition:width .2s}
+.barre-progression-cmd-remplissage.t-ambre{background:var(--t-ambre-t)}
+.barre-progression-cmd-remplissage.t-bleu{background:var(--t-bleu-t)}
+.barre-progression-cmd-remplissage.t-violet{background:var(--t-violet-t)}
+.barre-progression-cmd-remplissage.t-orange{background:var(--t-orange-t)}
+.barre-progression-cmd-remplissage.t-vert{background:var(--t-vert-t)}
+.barre-progression-cmd-remplissage.t-gris{background:var(--steel)}
 .ccm-alerte{font-size:11px;font-weight:700;margin-bottom:9px;padding:5px 9px;border-radius:6px;display:inline-block}
 .ccm-pied{display:flex;justify-content:space-between;align-items:center;margin-top:auto;padding-top:16px}
 .ccm-statut{font-size:11.5px;font-weight:700}
@@ -429,11 +444,16 @@ body.carte-style-terminal .ccm-details:hover{border-color:#4FE67A}
 
 /* ─── Style 3 (proposition 1) : pastille de statut géante, bord gauche ─── */
 .ccm-pastille{
-  display:none;position:absolute;left:-14px;top:20px;width:34px;height:34px;border-radius:50%;
-  align-items:center;justify-content:center;color:#fff;box-shadow:0 3px 9px rgba(0,0,0,.18);z-index:2;
+  display:none;position:absolute;left:-28px;top:50%;transform:translateY(-50%);width:68px;height:68px;border-radius:50%;
+  align-items:center;justify-content:center;color:#fff;box-shadow:0 4px 12px rgba(0,0,0,.2);z-index:2;
 }
-.ccm-pastille svg{width:17px;height:17px}
-body.carte-style-pastille .carte-cmd-mini{padding-left:34px;background:#fff;box-shadow:0 2px 10px rgba(0,39,67,.05)}
+.ccm-pastille svg{width:34px;height:34px}
+body.carte-style-pastille .carte-cmd-mini{padding-left:52px;background:#fff;box-shadow:0 2px 10px rgba(0,39,67,.05);position:relative;overflow:hidden}
+body.carte-style-pastille .carte-cmd-mini::before{
+  content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:linear-gradient(90deg, var(--teinte-degrade, transparent) 0%, transparent 55%);opacity:.14;
+}
+body.carte-style-pastille .carte-cmd-mini > *{position:relative;z-index:1}
 body.carte-style-pastille .ccm-pastille{display:flex}
 body.carte-style-pastille .ccm-pastille.t-ambre{background:var(--t-ambre-t)}
 body.carte-style-pastille .ccm-pastille.t-bleu{background:var(--t-bleu-t)}
@@ -441,6 +461,12 @@ body.carte-style-pastille .ccm-pastille.t-violet{background:var(--t-violet-t)}
 body.carte-style-pastille .ccm-pastille.t-orange{background:var(--t-orange-t)}
 body.carte-style-pastille .ccm-pastille.t-vert{background:var(--t-vert-t)}
 body.carte-style-pastille .ccm-pastille.t-gris{background:var(--steel)}
+body.carte-style-pastille .carte-cmd-mini.t-ambre{--teinte-degrade:var(--t-ambre-t)}
+body.carte-style-pastille .carte-cmd-mini.t-bleu{--teinte-degrade:var(--t-bleu-t)}
+body.carte-style-pastille .carte-cmd-mini.t-violet{--teinte-degrade:var(--t-violet-t)}
+body.carte-style-pastille .carte-cmd-mini.t-orange{--teinte-degrade:var(--t-orange-t)}
+body.carte-style-pastille .carte-cmd-mini.t-vert{--teinte-degrade:var(--t-vert-t)}
+body.carte-style-pastille .carte-cmd-mini.t-gris{--teinte-degrade:var(--steel)}
 body.carte-style-pastille .ccm-statut.t-ambre{color:var(--t-ambre-t)}
 body.carte-style-pastille .ccm-statut.t-bleu{color:var(--t-bleu-t)}
 body.carte-style-pastille .ccm-statut.t-violet{color:var(--t-violet-t)}
@@ -453,10 +479,9 @@ body.carte-style-pastille .ccm-alerte{background:#FBE1DD;color:var(--t-rouge-t, 
 
 /* ─── Style 4 (proposition 6) : icône produit géante façon météo ─── */
 .ccm-meteo{
-  display:none;width:46px;height:46px;border-radius:14px;background:var(--paper);
-  align-items:center;justify-content:center;flex-shrink:0;margin-bottom:12px;
+  display:none;width:52px;height:52px;border-radius:16px;background:var(--paper);
+  align-items:center;justify-content:center;flex-shrink:0;margin-bottom:12px;font-size:28px;line-height:1;
 }
-.ccm-meteo svg{width:24px;height:24px;color:var(--ink)}
 body.carte-style-meteo .carte-cmd-mini{background:#fff;box-shadow:0 2px 10px rgba(0,39,67,.05)}
 body.carte-style-meteo .ccm-meteo{display:flex}
 body.carte-style-meteo .ccm-statut.t-ambre{color:var(--t-ambre-t)}

@@ -200,7 +200,6 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
           <button type="button" class="action claire" id="btn-copier-lien-formulaire" title="Copier le lien du formulaire public">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;vertical-align:-2px;margin-right:5px"><path d="M9 15l6-6M10 8l1.5-1.5a3 3 0 0 1 4.2 4.2L14 12M14 16l-1.5 1.5a3 3 0 0 1-4.2-4.2L10 12"/></svg>Lien du formulaire
           </button>
-          <button type="button" class="bouton-mode-admin" id="btn-mode-sombre-admin" title="Mode sombre">🌙</button>
           <button type="button" class="action claire" id="btn-deconnexion">Déconnexion</button>
         </div>
       </div>
@@ -247,6 +246,11 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
           <button type="button" data-style-carte="terminal" title="Terminal rétro">⌨</button>
           <button type="button" data-style-carte="pastille" title="Pastille de statut">●</button>
           <button type="button" data-style-carte="meteo" title="Icône produit">▢</button>
+        </div>
+        <div class="selecteur-style-carte" id="selecteur-grille-carte" role="group" aria-label="Disposition des cartes commande">
+          <button type="button" data-grille-carte="1" class="actif" title="1 par ligne">▬</button>
+          <button type="button" data-grille-carte="2" title="2 par ligne">▦</button>
+          <button type="button" data-grille-carte="3" title="3 par ligne">▨</button>
         </div>
         <button class="action claire" id="btn-recharger">Actualiser</button>
         <button class="action" id="btn-nouvelle-commande">+ Nouvelle commande</button>
@@ -910,6 +914,25 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
     <div class="pied-modale">
       <button class="action claire" id="commentaire-annuler">Annuler</button>
       <button class="action" id="commentaire-enregistrer">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modale : clôture d'un ticket SAV (obligatoire dès qu'on choisit un statut terminal) -->
+<div class="voile-modale" id="modale-cloture-sav" hidden>
+  <div class="modale">
+    <h2>Clôturer ce ticket SAV</h2>
+    <p class="sous-titre" id="modale-cloture-sav-statut"></p>
+    <div class="msg msg-info" style="margin-bottom:12px">
+      ⚠️ Ce message sera visible par la structure et le bénéficiaire dans leur page de suivi —
+      rédige-le en conséquence (pas de notes internes ici).
+    </div>
+    <label for="cloture-sav-texte">Actions réalisées et décision finale</label>
+    <textarea id="cloture-sav-texte" style="min-height:120px" placeholder="Ex : diagnostic effectué, pièce remplacée, appareil testé et fonctionnel — retourné le 12/08."></textarea>
+    <div id="retour-cloture-sav"></div>
+    <div class="pied-modale">
+      <button class="action claire" id="cloture-sav-annuler">Annuler</button>
+      <button class="action" id="cloture-sav-confirmer">Confirmer la clôture</button>
     </div>
   </div>
 </div>

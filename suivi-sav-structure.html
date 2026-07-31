@@ -34,6 +34,17 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
     text-decoration:none;padding:6px 12px;border-radius:20px;
   }
   .date-resolution-ts{font-size:12px;color:var(--gris);margin-top:10px}
+  .notes-resolution-ts{
+    font-size:13px;color:var(--ink);background:var(--papier);border:1px solid var(--trait);
+    border-radius:10px;padding:12px 14px;margin-top:12px;line-height:1.5;
+  }
+  .btn-historique-ts{
+    font-size:12px;font-weight:600;color:var(--gris);background:none;border:none;
+    text-decoration:underline;cursor:pointer;padding:10px 0 0;
+  }
+  .historique-ts{margin-top:8px;padding-left:14px;border-left:2px solid var(--trait)}
+  .historique-ts-ligne{font-size:12px;color:var(--gris);padding:4px 0}
+  .historique-ts-date{font-family:'IBM Plex Mono',monospace;margin-right:8px;color:var(--ink)}
 
   body.mode-sombre .carte-ticket-suivi{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.15)}
   body.mode-sombre .ref-ts{color:#fff}
@@ -51,7 +62,6 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
   </div>
   <div class="bascule-mode" role="group" aria-label="Apparence de la page">
     <button type="button" data-mode="clair" class="actif">Clair</button>
-    <button type="button" data-mode="sombre">Sombre</button>
     <button type="button" data-mode="accessible">Accessible</button>
   </div>
 </header>
@@ -100,7 +110,7 @@ document.querySelectorAll('.bascule-mode button').forEach(b => {
 });
 try{
   const memorise = localStorage.getItem('cvdl-mode');
-  if(memorise) appliquerMode(memorise);
+  if(memorise) appliquerMode(memorise === 'sombre' ? 'clair' : memorise); // le mode sombre a été retiré (à retravailler plus tard) : quelqu'un qui l'avait choisi avant repasse en clair, plutôt que de rester coincé sans bouton pour en sortir
 }catch(e){}
 
 function echapper(s){
@@ -143,12 +153,28 @@ let statutsSavPublic = [];
 
 function construireAnneauSav(statutActuel){
   if(!statutsSavPublic.length) return '';
-  const indexActuel = statutsSavPublic.findIndex(s => s.statut === statutActuel);
-  if(indexActuel === -1) return '';
-  const teinte = TEINTES_SAV[statutsSavPublic[indexActuel].couleur] || TEINTES_SAV['t-gris'];
-  const total = statutsSavPublic.length;
+  const statutCourant = statutsSavPublic.find(s => s.statut === statutActuel);
+  if(!statutCourant) return '';
+  const teinte = TEINTES_SAV[statutCourant.couleur] || TEINTES_SAV['t-gris'];
   const circonference = 2 * Math.PI * 24;
-  const progression = (indexActuel + 1) / total;
+
+  const parcours = statutsSavPublic.filter(s => !s.terminal || s.finCycle);
+  const estSortieAlternative = statutCourant.terminal && !statutCourant.finCycle;
+
+  let progression, libellePct;
+  if(estSortieAlternative){
+    progression = 1;
+    libellePct = '—';
+  }else if(statutCourant.finCycle){
+    progression = 1;
+    libellePct = '✓';
+  }else{
+    const indexActuel = parcours.findIndex(s => s.statut === statutActuel);
+    const total = parcours.length;
+    progression = total ? (indexActuel + 1) / total : 0;
+    libellePct = `${indexActuel + 1}/${total}`;
+  }
+
   const decalage = circonference * (1 - progression);
   return `<div class="anneau-sav-wrap">
     <svg width="56" height="56" viewBox="0 0 56 56">
@@ -157,7 +183,7 @@ function construireAnneauSav(statutActuel){
         stroke-dasharray="${circonference.toFixed(1)}" stroke-dashoffset="${decalage.toFixed(1)}"
         stroke-linecap="round" transform="rotate(-90 28 28)"/>
     </svg>
-    <div class="anneau-sav-pct">${indexActuel + 1}/${total}</div>
+    <div class="anneau-sav-pct">${libellePct}</div>
   </div>`;
 }
 
@@ -166,8 +192,9 @@ function rendreTicketsSuivi(tickets){
     $('liste-tickets-suivi').innerHTML = `<p class="sous-question">Aucune demande SAV enregistrée pour ce code pour le moment.</p>`;
     return;
   }
-  $('liste-tickets-suivi').innerHTML = tickets.map(t => {
+  $('liste-tickets-suivi').innerHTML = tickets.map((t, i) => {
     const liensColissimo = String(t.colissimo || '').split('\n').map(s => s.trim()).filter(Boolean);
+    const historique = t.historique || [];
     return `<div class="carte-ticket-suivi">
       <div class="entete-ts">
         <div class="ref-ts">${echapper(t.reference)}</div>
@@ -180,10 +207,24 @@ function rendreTicketsSuivi(tickets){
         <div class="statut-ts">${echapper(t.statut)}</div>
       </div>
       ${t.dateResolution ? `<div class="date-resolution-ts">Résolu le ${echapper(t.dateResolution)}</div>` : ''}
+      ${t.notesResolution ? `<div class="notes-resolution-ts"><strong>Message de l'équipe :</strong><br>${echapper(t.notesResolution)}</div>` : ''}
       ${liensColissimo.length ? `<div class="liens-colissimo-ts">${liensColissimo.map(l =>
           `<a href="${echapper(l)}" target="_blank" rel="noopener">📦 Suivre le colis</a>`).join('')}</div>` : ''}
+      ${historique.length ? `
+        <button type="button" class="btn-historique-ts" data-toggle-historique="${i}">Voir l'historique (${historique.length})</button>
+        <div class="historique-ts" id="historique-ts-${i}" hidden>
+          ${historique.map(h => `<div class="historique-ts-ligne"><span class="historique-ts-date">${echapper(h.date)}</span>${echapper(h.statut)}</div>`).join('')}
+        </div>` : ''}
     </div>`;
   }).join('');
+
+  document.querySelectorAll('[data-toggle-historique]').forEach(b => {
+    b.addEventListener('click', () => {
+      const bloc = $('historique-ts-' + b.dataset.toggleHistorique);
+      bloc.hidden = !bloc.hidden;
+      b.textContent = (bloc.hidden ? 'Voir' : 'Masquer') + ' l\'historique (' + (bloc.children.length) + ')';
+    });
+  });
 }
 
 async function chargerTicketsSuivi(){

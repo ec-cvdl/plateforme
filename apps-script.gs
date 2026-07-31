@@ -2252,7 +2252,7 @@ const ENTETES_SAV = [
    Colissimo/Diagnostic est coché, ce champ reste affiché pour tous les statuts suivants
    (jamais un champ qui réapparaît puis disparaît en avançant dans le déroulé). */
 const ONGLET_STATUTS_SAV = 'StatutsSAV';
-const ENTETES_STATUTS_SAV = ['Ordre', 'Statut', 'Couleur', 'Afficher Colissimo', 'Afficher Diagnostic', 'Terminal', 'Départ du délai'];
+const ENTETES_STATUTS_SAV = ['Ordre', 'Statut', 'Couleur', 'Afficher Colissimo', 'Afficher Diagnostic', 'Terminal', 'Départ du délai', 'Fin de cycle (anneau)'];
 const COULEURS_SAV_DISPONIBLES = ['t-ambre', 't-bleu', 't-violet', 't-turquoise', 't-vert', 't-rouge', 't-gris'];
 
 const STATUTS_SAV_DEFAUT = [
@@ -2308,7 +2308,8 @@ function listerStatutsSavInterne() {
       colissimo: lignes[i][3] === true || lignes[i][3] === 'TRUE' || lignes[i][3] === 'true',
       diagnostic: lignes[i][4] === true || lignes[i][4] === 'TRUE' || lignes[i][4] === 'true',
       terminal: lignes[i][5] === true || lignes[i][5] === 'TRUE' || lignes[i][5] === 'true',
-      departDelai: lignes[i][6] === true || lignes[i][6] === 'TRUE' || lignes[i][6] === 'true'
+      departDelai: lignes[i][6] === true || lignes[i][6] === 'TRUE' || lignes[i][6] === 'true',
+      finCycle: lignes[i][7] === true || lignes[i][7] === 'TRUE' || lignes[i][7] === 'true'
     });
   }
   statuts.sort(function(a, b) { return a.ordre - b.ordre; });
@@ -2324,7 +2325,7 @@ function listerStatutsSav(password) {
  *  page de suivi bénéficiaire de dessiner une timeline même sans être connecté à l'admin. */
 function listerStatutsSavPublic() {
   const statuts = listerStatutsSavInterne().map(function(s) {
-    return { statut: s.statut, ordre: s.ordre, couleur: s.couleur, terminal: !!s.terminal };
+    return { statut: s.statut, ordre: s.ordre, couleur: s.couleur, terminal: !!s.terminal, finCycle: !!s.finCycle };
   });
   return { ok: true, statuts: statuts };
 }
@@ -2342,20 +2343,20 @@ function ajouterStatutSav(data) {
   const ordreMax = statuts.length ? Math.max.apply(null, statuts.map(function(s) { return s.ordre; })) : 0;
   feuille.appendRow([
     ordreMax + 1, nom, COULEURS_SAV_DISPONIBLES.indexOf(data.couleur) !== -1 ? data.couleur : 't-gris',
-    !!data.colissimo, !!data.diagnostic, !!data.terminal, !!data.departDelai
+    !!data.colissimo, !!data.diagnostic, !!data.terminal, !!data.departDelai, !!data.finCycle
   ]);
   return { ok: true };
 }
 
 function majStatutSav(data) {
   if (data.password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
-  const colonnes = { statut: 2, couleur: 3, colissimo: 4, diagnostic: 5, terminal: 6, departDelai: 7 };
+  const colonnes = { statut: 2, couleur: 3, colissimo: 4, diagnostic: 5, terminal: 6, departDelai: 7, finCycle: 8 };
   const colonne = colonnes[data.champ];
   if (!colonne) return { ok: false, erreur: 'Champ non modifiable' };
 
   let valeur = data.valeur;
   if (data.champ === 'couleur' && COULEURS_SAV_DISPONIBLES.indexOf(valeur) === -1) valeur = 't-gris';
-  if (data.champ === 'colissimo' || data.champ === 'diagnostic' || data.champ === 'terminal' || data.champ === 'departDelai') {
+  if (data.champ === 'colissimo' || data.champ === 'diagnostic' || data.champ === 'terminal' || data.champ === 'departDelai' || data.champ === 'finCycle') {
     valeur = (valeur === true || valeur === 'true');
   }
   if (data.champ === 'statut') valeur = String(valeur || '').trim();
@@ -2497,7 +2498,9 @@ function listerTicketsSavParNumeroSerie(data) {
       symptome:       l[7],
       statut:         l[12],
       dateResolution: l[15] ? Utilities.formatDate(new Date(l[15]), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '',
-      colissimo:      l[17] || ''
+      colissimo:      l[17] || '',
+      notesResolution: l[14] || '',
+      historique:     lireHistoriqueSav(l[0])
     });
   }
 
@@ -2533,7 +2536,9 @@ function listerTicketsSavParCode(data) {
       symptome:       l[7],
       statut:         l[12],
       dateResolution: l[15] ? Utilities.formatDate(new Date(l[15]), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '',
-      colissimo:      l[17] || ''
+      colissimo:      l[17] || '',
+      notesResolution: l[14] || '',
+      historique:     lireHistoriqueSav(l[0])
     });
   }
 
