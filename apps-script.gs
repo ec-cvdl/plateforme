@@ -40,6 +40,10 @@ const CLES_CONFIG = {
   RESPONSABLE_TELEPHONE: 'CONFIG_RESPONSABLE_TELEPHONE',
   RESPONSABLE_EMAIL: 'CONFIG_RESPONSABLE_EMAIL',
   MODELE_FACTURATION: 'CONFIG_MODELE_FACTURATION',
+  MODELE_BON_LIVRAISON: 'CONFIG_MODELE_BON_LIVRAISON',
+  MODELE_BON_ORIENTATION: 'CONFIG_MODELE_BON_ORIENTATION',
+  MODELE_ATTESTATION_PAIEMENT: 'CONFIG_MODELE_ATTESTATION_PAIEMENT',
+  DOSSIER_ATTESTATIONS: 'CONFIG_DOSSIER_ATTESTATIONS',
   QUANTITE_MAX_DEFAUT: 'CONFIG_QUANTITE_MAX_DEFAUT',
   QUANTITE_MAX_DEFAUT_ESN: 'CONFIG_QUANTITE_MAX_DEFAUT_ESN',
   BADGE_NOUVELLE_JOURS: 'CONFIG_BADGE_NOUVELLE_JOURS',
@@ -147,6 +151,10 @@ Cordialement,
 const EMAIL_MODELE_SAV = obtenirConfig('EMAIL_MODELE_SAV', EMAIL_MODELE_SAV_DEFAUT);
 const ONGLETS_MASQUES = obtenirConfig('ONGLETS_MASQUES', '');
 const MODELE_FACTURATION = obtenirConfig('MODELE_FACTURATION', '1buUwl_I6t2MXw96FWbXRVF8wLkVGZwZasM4xsDIqDGw'); // ID du Sheets modèle de facturation
+const MODELE_BON_LIVRAISON = obtenirConfig('MODELE_BON_LIVRAISON', ''); // ID du Sheets modèle de bon de livraison
+const MODELE_BON_ORIENTATION = obtenirConfig('MODELE_BON_ORIENTATION', ''); // ID du Sheets modèle de bon d'orientation
+const MODELE_ATTESTATION_PAIEMENT = obtenirConfig('MODELE_ATTESTATION_PAIEMENT', ''); // ID du Sheets modèle d'attestation de paiement (par personne)
+const DOSSIER_ATTESTATIONS = obtenirConfig('DOSSIER_ATTESTATIONS', ''); // Dossier Drive où déposer les attestations générées
 const QUANTITE_MAX_DEFAUT = parseInt(obtenirConfig('QUANTITE_MAX_DEFAUT', '5'), 10) || 5; // par produit, sauf réglage propre au produit
 const QUANTITE_MAX_DEFAUT_ESN = parseInt(obtenirConfig('QUANTITE_MAX_DEFAUT_ESN', '5'), 10) || 5; // idem, pour les structures ESN
 const BADGE_NOUVELLE_JOURS = parseFloat(obtenirConfig('BADGE_NOUVELLE_JOURS', '1.5')) || 1.5; // en jours ouvrés
@@ -179,6 +187,10 @@ function obtenirReglages(data) {
     responsableTelephone: RESPONSABLE_TELEPHONE,
     responsableEmail: RESPONSABLE_EMAIL,
     modeleFacturation: MODELE_FACTURATION,
+    modeleBonLivraison: MODELE_BON_LIVRAISON,
+    modeleBonOrientation: MODELE_BON_ORIENTATION,
+    modeleAttestationPaiement: MODELE_ATTESTATION_PAIEMENT,
+    dossierAttestations: DOSSIER_ATTESTATIONS,
     quantiteMaxDefaut: QUANTITE_MAX_DEFAUT,
     quantiteMaxDefautEsn: QUANTITE_MAX_DEFAUT_ESN,
     badgeNouvelleJours: BADGE_NOUVELLE_JOURS,
@@ -334,6 +346,42 @@ function definirReglages(data) {
     definirConfig('MODELE_FACTURATION', id);
   }
 
+  if (data.modeleBonLivraison !== undefined) {
+    const id = extraireIdFichier(data.modeleBonLivraison);
+    if (id) {
+      try { SpreadsheetApp.openById(id); }
+      catch (e) { return { ok: false, erreur: 'Ce modèle de bon de livraison est introuvable ou inaccessible avec ce compte Google' }; }
+    }
+    definirConfig('MODELE_BON_LIVRAISON', id);
+  }
+
+  if (data.modeleBonOrientation !== undefined) {
+    const id = extraireIdFichier(data.modeleBonOrientation);
+    if (id) {
+      try { SpreadsheetApp.openById(id); }
+      catch (e) { return { ok: false, erreur: 'Ce modèle de bon d\'orientation est introuvable ou inaccessible avec ce compte Google' }; }
+    }
+    definirConfig('MODELE_BON_ORIENTATION', id);
+  }
+
+  if (data.modeleAttestationPaiement !== undefined) {
+    const id = extraireIdFichier(data.modeleAttestationPaiement);
+    if (id) {
+      try { SpreadsheetApp.openById(id); }
+      catch (e) { return { ok: false, erreur: 'Ce modèle d\'attestation de paiement est introuvable ou inaccessible avec ce compte Google' }; }
+    }
+    definirConfig('MODELE_ATTESTATION_PAIEMENT', id);
+  }
+
+  if (data.dossierAttestations !== undefined) {
+    const id = extraireIdDossierDrive(data.dossierAttestations);
+    if (id) {
+      try { DriveApp.getFolderById(id); }
+      catch (e) { return { ok: false, erreur: 'Ce dossier Drive d\'attestations est introuvable ou inaccessible avec ce compte Google' }; }
+    }
+    definirConfig('DOSSIER_ATTESTATIONS', id);
+  }
+
   if (data.quantiteMaxDefaut !== undefined) {
     const q = parseInt(data.quantiteMaxDefaut, 10);
     if (!q || q < 1) return { ok: false, erreur: 'La quantité max par défaut doit être un nombre supérieur à 0' };
@@ -435,7 +483,8 @@ const ENTETES_COMMANDES = [
   'Adresse', 'Produit', 'Quantité', 'Moyen de paiement', 'Bon d\'orientation',
   'Statut commande', 'Statut paiement', 'Lien de paiement', 'Commentaire', 'Numéros de série',
   'Nombre de fichiers', 'Référence devis', 'Référence facture', 'Statut comptable', 'Numéro de dépôt',
-  'Devis demandé', 'Suivi Colissimo', 'Date de livraison', 'Fichier CSV tec.tech'
+  'Devis demandé', 'Suivi Colissimo', 'Date de livraison', 'Fichier CSV tec.tech',
+  'Caractéristiques matériel', 'Bon de livraison', 'Personnes bénéficiaires'
 ];
 
 const STATUTS_COMPTABLES = ['Non rapproché', 'Rapproché', 'Clôturé'];
@@ -454,6 +503,71 @@ const ENTETES_FACTURES = [
   'Référence facture', 'Date', 'Référence commande', 'Nom structure', 'Email', 'Adresse',
   'Produit', 'Quantité', 'Moyen de paiement', 'Prix unitaire', 'Montant total', 'Commentaire'
 ];
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Cache — la pagination réduit ce qui est renvoyé au navigateur, mais sans
+   ça, le serveur relisait TOUJOURS les feuilles Commandes/LignesCommande/
+   Factures en entier à chaque page. Ici : le résultat déjà construit est
+   gardé en cache (découpé en morceaux, la limite Apps Script étant de
+   100 Ko par entrée), invalidé automatiquement dès qu'une écriture a lieu.
+   Un échec de cache (quota, corruption) ne bloque jamais rien : la fonction
+   appelante recalcule simplement à partir des feuilles, comme avant.
+   ═══════════════════════════════════════════════════════════════════════ */
+const CACHE_TTL_LISTES = 300; // 5 minutes : largement assez pour absorber des clics de pagination rapprochés
+const TAILLE_CHUNK_CACHE = 90000; // marge de sécurité sous la limite de 100 Ko par entrée
+
+function versionCache(nom) {
+  const v = CacheService.getScriptCache().get('version_' + nom);
+  return v || '0';
+}
+
+function invaliderCache(nom) {
+  try {
+    const v = (parseInt(CacheService.getScriptCache().get('version_' + nom), 10) || 0) + 1;
+    CacheService.getScriptCache().put('version_' + nom, String(v), 21600); // 6h, le plafond du cache Apps Script
+  } catch (e) {
+    // Le cache est un confort de performance, jamais une dépendance — un échec ici ne doit
+    // jamais empêcher l'écriture elle-même de réussir.
+  }
+}
+function invaliderCacheCommandes() { invaliderCache('commandes'); }
+function invaliderCacheSav() { invaliderCache('sav'); }
+
+function mettreEnCacheDecoupe(cle, objet) {
+  try {
+    const texte = JSON.stringify(objet);
+    const nbChunks = Math.max(1, Math.ceil(texte.length / TAILLE_CHUNK_CACHE));
+    const valeurs = {};
+    for (let i = 0; i < nbChunks; i++) {
+      valeurs[cle + '_' + i] = texte.slice(i * TAILLE_CHUNK_CACHE, (i + 1) * TAILLE_CHUNK_CACHE);
+    }
+    valeurs[cle + '_n'] = String(nbChunks);
+    CacheService.getScriptCache().putAll(valeurs, CACHE_TTL_LISTES);
+  } catch (e) {
+    // Idem : jamais bloquant, juste pas de cache pour cette fois.
+  }
+}
+
+function lireCacheDecoupe(cle) {
+  try {
+    const cache = CacheService.getScriptCache();
+    const nbChunksTexte = cache.get(cle + '_n');
+    if (!nbChunksTexte) return null;
+    const nbChunks = parseInt(nbChunksTexte, 10);
+    const cles = [];
+    for (let i = 0; i < nbChunks; i++) cles.push(cle + '_' + i);
+    const valeurs = cache.getAll(cles);
+    let texte = '';
+    for (let i = 0; i < nbChunks; i++) {
+      const morceau = valeurs[cle + '_' + i];
+      if (morceau === undefined) return null; // un morceau a expiré entre-temps : on ne recolle pas une donnée tronquée, on recalcule tout
+      texte += morceau;
+    }
+    return JSON.parse(texte);
+  } catch (e) {
+    return null;
+  }
+}
 
 /**
  * CVDL — Backend commandes matériel (source : Routeur.gs, 2 sur 8 — doGet/doPost, aiguillage des actions)
@@ -481,6 +595,10 @@ function doGet(e) {
       res = listerCommandesParCode(p);
     } else if (p.action === 'sav-par-numero-serie') {
       res = listerTicketsSavParNumeroSerie(p);
+    } else if (p.action === 'sav-par-code') {
+      res = listerTicketsSavParCode(p);
+    } else if (p.action === 'sav-statuts-public') {
+      res = listerStatutsSavPublic();
     } else if (p.action === 'produits-public') {
       res = listerProduitsPublic(p.code);
     } else if (p.action === 'sav-verifier-numero-serie') {
@@ -488,7 +606,7 @@ function doGet(e) {
     } else if (p.action === 'login') {
       res = seConnecter(p.password);
     } else if (p.action === 'list') {
-      res = listerCommandes(p.password);
+      res = listerCommandes(p.password, p.limite, p.decalage, p.recherche);
     } else if (p.action === 'structures') {
       res = listerStructures(p.password);
     } else if (p.action === 'produits') {
@@ -500,7 +618,7 @@ function doGet(e) {
     } else if (p.action === 'comptabilite') {
       res = listerComptabilite(p.password);
     } else if (p.action === 'sav-list') {
-      res = listerSav(p.password);
+      res = listerSav(p.password, p.limite, p.decalage, p.recherche);
     } else if (p.action === 'sav-statuts-list') {
       res = listerStatutsSav(p.password);
     } else if (p.action === 'devis-modele') {
@@ -599,6 +717,14 @@ function doPost(e) {
       res = majCommande(data);
     } else if (data.action === 'commande-importer-csv-tectech') {
       res = importerCsvTectech(data);
+    } else if (data.action === 'commande-generer-bon-livraison') {
+      res = genererBonLivraisonPdf(data);
+    } else if (data.action === 'commande-generer-bon-orientation') {
+      res = genererBonOrientationPdf(data);
+    } else if (data.action === 'commande-generer-attestations') {
+      res = genererAttestationsPaiement(data);
+    } else if (data.action === 'stock-synchroniser-tectech') {
+      res = synchroniserStockTectech(data);
     } else if (data.action === 'commande-ligne-modifier') {
       res = modifierLigneCommande(data);
     } else if (data.action === 'commande-ligne-ajouter') {
@@ -901,6 +1027,18 @@ function listerProduitsPublic(code) {
   };
 }
 
+/** ⚠️ STUB EN ATTENTE D'ACCÈS API — ne fait rien de réel pour l'instant.
+ *  Une fois l'API Tech.tec disponible : remplacer le contenu de ce bloc par un appel
+ *  UrlFetchApp.fetch(...) vers leur endpoint stock, mettre à jour la colonne Stock de
+ *  chaque produit correspondant, puis renvoyer la liste à jour comme listerProduits().
+ *  Volontairement déclenché uniquement par un bouton dédié (jamais en tâche de fond) :
+ *  l'API étant en lecture seule côté Tech.tec, il n'y a aucune notion de "temps réel" —
+ *  ce que l'admin verra est une photo prise au moment du clic, pas un flux continu. */
+function synchroniserStockTectech(data) {
+  if (data.password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
+  return { ok: false, erreur: 'Synchronisation Tech.tec pas encore disponible — accès API en attente.' };
+}
+
 function listerProduits(password) {
   if (password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
   return { ok: true, produits: Object.values(lireProduits()) };
@@ -1090,7 +1228,7 @@ function creerCommande(data) {
   else if (data.fichier && data.fichier.base64) fichiers = [data.fichier]; // compatibilité ancien envoi
 
   const infosResumees = resumerLignes(lignesValidees);
-  const resultat = inserer(structure, infosResumees.resume, infosResumees.total, data.moyenPaiement, fichiers, data.commentaire, null, null, null, !!data.demandeDevis);
+  const resultat = inserer(structure, infosResumees.resume, infosResumees.total, data.moyenPaiement, fichiers, data.commentaire, null, null, null, !!data.demandeDevis, data.personnes);
 
   // Écrit le détail des lignes, puis décrémente le stock — chacun en un seul appel Sheets,
   // quel que soit le nombre de produits différents dans la commande.
@@ -1110,7 +1248,7 @@ function creerCommande(data) {
     Logger.log('Échec envoi notification email admin pour ' + resultat.reference + ' : ' + e);
   }
   try {
-    notifierStructureNouvelleCommande(resultat.reference, structure, infosResumees.resume, montant, data.urlSuivi);
+    notifierStructureNouvelleCommande(resultat.reference, structure, infosResumees.resume, montant, data.urlSuivi, data.urlPortail);
   } catch (e) {
     Logger.log('Échec envoi confirmation email structure pour ' + resultat.reference + ' : ' + e);
   }
@@ -1177,7 +1315,7 @@ function creerCommandeManuelle(data) {
     if (calcul) montant += calcul.prixUnitaire * l.quantite;
   });
   try {
-    notifierStructureNouvelleCommande(resultat.reference, structure, infosResumees.resume, montant, data.urlSuivi);
+    notifierStructureNouvelleCommande(resultat.reference, structure, infosResumees.resume, montant, data.urlSuivi, data.urlPortail);
   } catch (e) {
     Logger.log('Échec envoi confirmation email structure pour ' + resultat.reference + ' : ' + e);
   }
@@ -1206,7 +1344,7 @@ function definirModeleCommande(data) {
  *  de Commandes à partir d'un résumé texte et d'une quantité totale déjà calculés par
  *  l'appelant. Ne touche plus au stock elle-même : chaque appelant décrémente lui-même,
  *  produit par produit, puisqu'une commande peut désormais en contenir plusieurs. */
-function inserer(structure, resumeProduits, quantiteTotale, moyenPaiement, fichiers, commentaire, dateForcee, statutCommande, statutPaiement, devisDemande) {
+function inserer(structure, resumeProduits, quantiteTotale, moyenPaiement, fichiers, commentaire, dateForcee, statutCommande, statutPaiement, devisDemande, personnes) {
   const feuille  = feuilleCommandes();
   const annee    = (dateForcee || new Date()).getFullYear();
   const numero   = feuille.getLastRow();
@@ -1246,9 +1384,15 @@ function inserer(structure, resumeProduits, quantiteTotale, moyenPaiement, fichi
     '',
     '',
     devisDemande ? 'Oui' : '',
-    ''
+    '', // Suivi Colissimo
+    '', // Date de livraison
+    '', // Fichier CSV tec.tech
+    '', // Caractéristiques matériel
+    '', // Bon de livraison
+    (personnes && personnes.length) ? personnes.filter(function(p){ return String(p || '').trim(); }).join('\n') : ''
   ]);
 
+  invaliderCacheCommandes();
   return { reference: reference };
 }
 
@@ -1256,7 +1400,7 @@ function inserer(structure, resumeProduits, quantiteTotale, moyenPaiement, fichi
  *  confirmation admin à faire), best-effort comme la notification interne ci-dessus.
  *  urlSuivi est fourni par le front (dérivé de sa propre URL, cf. urlFormulairePublic côté
  *  admin.html) : le backend ne connaît pas l'adresse à laquelle il est hébergé. */
-function notifierStructureNouvelleCommande(reference, structure, resumeProduit, montant, urlSuivi) {
+function notifierStructureNouvelleCommande(reference, structure, resumeProduit, montant, urlSuivi, urlPortail) {
   const email = String(structure.email || '').trim();
   if (!email) return;
 
@@ -1264,6 +1408,9 @@ function notifierStructureNouvelleCommande(reference, structure, resumeProduit, 
   const ligneMontant = estEsnOuInterne ? '' : ('Montant estimé : ' + Math.round(montant) + ' €\n');
   const ligneSuivi = urlSuivi
     ? ('\nVous pouvez suivre son avancement à tout moment avec votre code structure, ici :\n' + urlSuivi + '\n')
+    : '';
+  const lignePortail = urlPortail
+    ? ('\nPour retrouver l\'ensemble de votre espace (commander, suivre, signaler une panne), votre portail structure :\n' + urlPortail + '\n')
     : '';
 
   MailApp.sendEmail({
@@ -1273,7 +1420,8 @@ function notifierStructureNouvelleCommande(reference, structure, resumeProduit, 
       'Bonjour,\n\n' +
       'Nous avons bien reçu votre commande ' + reference + ' (' + resumeProduit + ').\n' +
       ligneMontant +
-      ligneSuivi + '\n' +
+      ligneSuivi +
+      lignePortail + '\n' +
       'Cordialement,\n' + NOM_ORGANISATION
   });
 }
@@ -1332,6 +1480,195 @@ function enregistrerFichiers(fichiers, reference, nomStructure, date) {
  *  (config DOSSIER_TECTECH), et lien persistant écrit sur la ligne de la commande. Le
  *  parsing de la colonne G (numéros de série) se fait côté client, avant l'appel — ici
  *  on ne fait que conserver le fichier et son lien. */
+/** Même principe que genererFacturePdf/genererDevisPdf : copie d'un modèle Sheets dédié avec
+ *  jetons remplacés. L'URL de la copie est écrite sur la commande elle-même (colonne 27),
+ *  ce qui la rend retrouvable ensuite dans l'admin et dans le suivi structure. */
+function genererBonLivraisonPdf(data) {
+  if (data.password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
+  if (!MODELE_BON_LIVRAISON) return { ok: false, erreur: 'Aucun modèle de bon de livraison configuré (Réglages)' };
+
+  const ligne = parseInt(data.ligne, 10);
+  if (!ligne) return { ok: false, erreur: 'Commande introuvable' };
+
+  const feuille = feuilleCommandes();
+  const c = feuille.getRange(ligne, 1, 1, ENTETES_COMMANDES.length).getValues()[0];
+  const [reference, dateCommande, codeStructure, nomStructure, email, telephone, adresse,
+         resumeProduit, quantiteTotale] = c;
+  if (!reference) return { ok: false, erreur: 'Commande introuvable' };
+
+  const numerosSerie = String(c[15] || '').trim();
+
+  const jetons = Object.assign(jetonsProduitsNumerotes(reference, resumeProduit, quantiteTotale, codeStructure), {
+    '{{STRUCTURE}}': nomStructure || '',
+    '{{ADRESSE}}': adresse || '',
+    '{{EMAIL}}': email || '',
+    '{{TELEPHONE}}': telephone || '',
+    '{{REFERENCE_COMMANDE}}': reference,
+    '{{DATE}}': Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy'),
+    '{{NUMEROS_SERIE}}': numerosSerie,
+    '{{RESPONSABLE_NOM}}': RESPONSABLE_NOM,
+    '{{RESPONSABLE_TELEPHONE}}': RESPONSABLE_TELEPHONE,
+    '{{RESPONSABLE_EMAIL}}': RESPONSABLE_EMAIL
+  });
+
+  const nomFichier = 'Bon de livraison ' + reference;
+
+  let copie;
+  try {
+    const modeleFichier = DriveApp.getFileById(MODELE_BON_LIVRAISON);
+    copie = modeleFichier.makeCopy(nomFichier, DriveApp.getRootFolder());
+  } catch (e) {
+    return { ok: false, erreur: 'Copie du modèle impossible : ' + e.message };
+  }
+
+  const classeurCopie = SpreadsheetApp.openById(copie.getId());
+  classeurCopie.getSheets().forEach(function(f) {
+    Object.keys(jetons).forEach(function(jeton) {
+      f.createTextFinder(jeton).matchEntireCell(false).replaceAllWith(jetons[jeton]);
+    });
+  });
+  SpreadsheetApp.flush();
+
+  feuille.getRange(ligne, 27).setValue(copie.getUrl());
+  return { ok: true, url: copie.getUrl() };
+}
+
+/** Bon d'orientation — depuis que les personnes ne joignent plus leur propre document mais
+ *  saisissent juste leur nom, c'est nous qui remplissons le document officiel à partir de
+ *  cette liste. Même principe de copie de modèle que le bon de livraison. */
+function genererBonOrientationPdf(data) {
+  if (data.password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
+  if (!MODELE_BON_ORIENTATION) return { ok: false, erreur: 'Aucun modèle de bon d\'orientation configuré (Réglages)' };
+
+  const ligne = parseInt(data.ligne, 10);
+  if (!ligne) return { ok: false, erreur: 'Commande introuvable' };
+
+  const feuille = feuilleCommandes();
+  const c = feuille.getRange(ligne, 1, 1, ENTETES_COMMANDES.length).getValues()[0];
+  const [reference, , codeStructure, nomStructure, email, telephone, adresse, resumeProduit, quantiteTotale] = c;
+  if (!reference) return { ok: false, erreur: 'Commande introuvable' };
+
+  const personnes = String(c[27] || '').split('\n').map(function(s) { return s.trim(); }).filter(Boolean);
+
+  const jetons = Object.assign(jetonsProduitsNumerotes(reference, resumeProduit, quantiteTotale, codeStructure), {
+    '{{STRUCTURE}}': nomStructure || '',
+    '{{ADRESSE}}': adresse || '',
+    '{{EMAIL}}': email || '',
+    '{{TELEPHONE}}': telephone || '',
+    '{{REFERENCE_COMMANDE}}': reference,
+    '{{DATE}}': Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy'),
+    '{{PERSONNES}}': personnes.join('\n'),
+    '{{NOMBRE_PERSONNES}}': String(personnes.length),
+    '{{RESPONSABLE_NOM}}': RESPONSABLE_NOM,
+    '{{RESPONSABLE_TELEPHONE}}': RESPONSABLE_TELEPHONE,
+    '{{RESPONSABLE_EMAIL}}': RESPONSABLE_EMAIL
+  });
+
+  const nomFichier = 'Bon orientation ' + reference;
+
+  let copie;
+  try {
+    const modeleFichier = DriveApp.getFileById(MODELE_BON_ORIENTATION);
+    copie = modeleFichier.makeCopy(nomFichier, DriveApp.getRootFolder());
+  } catch (e) {
+    return { ok: false, erreur: 'Copie du modèle impossible : ' + e.message };
+  }
+
+  const classeurCopie = SpreadsheetApp.openById(copie.getId());
+  classeurCopie.getSheets().forEach(function(f) {
+    Object.keys(jetons).forEach(function(jeton) {
+      f.createTextFinder(jeton).matchEntireCell(false).replaceAllWith(jetons[jeton]);
+    });
+  });
+  SpreadsheetApp.flush();
+
+  feuille.getRange(ligne, 11).setValue(copie.getUrl()); // colonne 11 = Bon d'orientation
+  return { ok: true, url: copie.getUrl() };
+}
+
+/** Une attestation par personne — appariée avec les numéros de série et leurs
+ *  caractéristiques (colonnes 16 et 26) par position dans la liste : la Nème personne
+ *  saisie correspond au Nème numéro de série renseigné. C'est une approximation
+ *  raisonnable (pas de lien strict en base entre une personne et un appareil précis),
+ *  à vérifier visuellement avant envoi — pas quelque chose à automatiser à l'aveugle.
+ *  Le prix est le montant moyen de la commande (montant total / quantité), faute de
+ *  prix unitaire par ligne individuelle attaché à chaque personne. */
+function genererAttestationsPaiement(data) {
+  if (data.password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
+  if (!MODELE_ATTESTATION_PAIEMENT) return { ok: false, erreur: 'Aucun modèle d\'attestation de paiement configuré (Réglages)' };
+  if (!DOSSIER_ATTESTATIONS) return { ok: false, erreur: 'Aucun dossier Drive d\'attestations configuré (Réglages)' };
+
+  const ligne = parseInt(data.ligne, 10);
+  if (!ligne) return { ok: false, erreur: 'Commande introuvable' };
+
+  const feuille = feuilleCommandes();
+  const c = feuille.getRange(ligne, 1, 1, ENTETES_COMMANDES.length).getValues()[0];
+  const [reference, dateCommande, codeStructure] = c;
+  if (!reference) return { ok: false, erreur: 'Commande introuvable' };
+
+  const personnes = String(c[27] || '').split('\n').map(function(s) { return s.trim(); }).filter(Boolean);
+  if (!personnes.length) return { ok: false, erreur: 'Aucune personne renseignée pour cette commande' };
+
+  const numerosSerie = String(c[15] || '').split('\n').map(function(s) { return s.trim(); }).filter(Boolean);
+  const caracteristiquesBrutes = String(c[25] || '').split('\n').map(function(s) { return s.trim(); }).filter(Boolean);
+  const specsParSerie = {};
+  caracteristiquesBrutes.forEach(function(ligneSpec) {
+    const sep = ligneSpec.indexOf(':');
+    if (sep === -1) return;
+    specsParSerie[ligneSpec.slice(0, sep).trim()] = ligneSpec.slice(sep + 1).trim();
+  });
+
+  const quantiteTotale = parseInt(c[8], 10) || personnes.length;
+  const structure = lireStructures()[String(codeStructure || '').trim()];
+  let montantEstime = 0;
+  const detailLignes = lireLignesCommande(reference, c[7], quantiteTotale);
+  detailLignes.forEach(function(l) {
+    const calcul = calculerPrixUnitaire(codeStructure, l.produit);
+    if (calcul) montantEstime += calcul.prixUnitaire * l.quantite;
+  });
+  const prixMoyenParPersonne = personnes.length ? Math.round((montantEstime / personnes.length) * 100) / 100 : 0;
+
+  const dateVente = dateCommande ? Utilities.formatDate(new Date(dateCommande), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '';
+
+  let dossier;
+  try { dossier = DriveApp.getFolderById(DOSSIER_ATTESTATIONS); }
+  catch (e) { return { ok: false, erreur: 'Le dossier Drive d\'attestations est introuvable ou inaccessible' }; }
+
+  const modeleFichier = DriveApp.getFileById(MODELE_ATTESTATION_PAIEMENT);
+  const resultats = [];
+
+  personnes.forEach(function(nomComplet, i) {
+    const numeroSerie = numerosSerie[i] || '';
+    const specs = specsParSerie[numeroSerie] || '';
+
+    const jetons = {
+      '{{NOM_COMPLET}}': nomComplet,
+      '{{STRUCTURE}}': structure ? structure.nom : '',
+      '{{REFERENCE_COMMANDE}}': reference,
+      '{{PRIX}}': formaterMontantPourModele(prixMoyenParPersonne),
+      '{{MARQUE_MODELE}}': specs,
+      '{{DATE_VENTE}}': dateVente,
+      '{{NUMERO_SERIE}}': numeroSerie,
+      '{{RESPONSABLE_NOM}}': RESPONSABLE_NOM,
+      '{{RESPONSABLE_TELEPHONE}}': RESPONSABLE_TELEPHONE,
+      '{{RESPONSABLE_EMAIL}}': RESPONSABLE_EMAIL
+    };
+
+    const nomFichier = 'Attestation de paiement - ' + nomComplet;
+    const copie = modeleFichier.makeCopy(nomFichier, dossier);
+    const classeurCopie = SpreadsheetApp.openById(copie.getId());
+    classeurCopie.getSheets().forEach(function(f) {
+      Object.keys(jetons).forEach(function(jeton) {
+        f.createTextFinder(jeton).matchEntireCell(false).replaceAllWith(jetons[jeton]);
+      });
+    });
+    resultats.push({ nom: nomComplet, url: copie.getUrl() });
+  });
+  SpreadsheetApp.flush();
+
+  return { ok: true, attestations: resultats };
+}
+
 function importerCsvTectech(data) {
   if (data.password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
 
@@ -1364,12 +1701,55 @@ function importerCsvTectech(data) {
 
   const url = fichier.getUrl();
   feuille.getRange(ligne, 25).setValue(url); // colonne 25 = Fichier CSV tec.tech
+  if (data.caracteristiques) {
+    feuille.getRange(ligne, 26).setValue(String(data.caracteristiques)); // colonne 26 = Caractéristiques matériel
+  }
   return { ok: true, url: url };
 }
 
-function listerCommandes(password) {
+/** limite : nombre max de commandes renvoyées (les plus récentes), pour ne pas resservir tout
+ *  l'historique à chaque connexion — passer 0 ou omettre pour tout renvoyer (bouton "Charger
+ *  tout l'historique" côté admin). total indique toujours le vrai nombre, limité ou non, pour
+ *  que le front sache s'il manque des commandes plus anciennes. */
+function listerCommandes(password, limite, decalage, recherche) {
   if (password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
 
+  const cleCache = 'commandes_v' + versionCache('commandes');
+  let baseCommandes = lireCacheDecoupe(cleCache);
+
+  if (!baseCommandes) {
+    baseCommandes = construireBaseCommandes();
+    mettreEnCacheDecoupe(cleCache, baseCommandes);
+  }
+
+  const toutes = baseCommandes.toutes;
+  const aLivrer = baseCommandes.aLivrer;
+  const nombreNouvelles = baseCommandes.nombreNouvelles;
+  const nombreImpayees = baseCommandes.nombreImpayees;
+
+  const termeRecherche = String(recherche || '').trim().toLowerCase();
+
+  if (termeRecherche) {
+    // La recherche porte toujours sur l'historique complet, jamais seulement sur la page
+    // affichée — sinon une commande plus ancienne que la pagination en cours serait
+    // introuvable alors qu'elle existe bel et bien.
+    const resultats = toutes.filter(function(c) {
+      const cible = (c.reference + ' ' + c.nom + ' ' + c.email + ' ' + c.produit + ' ' + (c.numerosSerie || '')).toLowerCase();
+      return cible.includes(termeRecherche);
+    });
+    return { ok: true, commandes: resultats.slice(0, 200), total: toutes.length, recherche: true, aLivrer: aLivrer, nombreNouvelles: nombreNouvelles, nombreImpayees: nombreImpayees };
+  }
+
+  const limiteNombre = parseInt(limite, 10) || 0;
+  const decalageNombre = parseInt(decalage, 10) || 0;
+  const limitees = limiteNombre > 0 ? toutes.slice(decalageNombre, decalageNombre + limiteNombre) : toutes;
+  return { ok: true, commandes: limitees, total: toutes.length, aLivrer: aLivrer, nombreNouvelles: nombreNouvelles, nombreImpayees: nombreImpayees };
+}
+
+/** Le vrai travail coûteux de listerCommandes — isolé pour pouvoir être mis en cache.
+ *  Relit les 3 feuilles (Commandes, LignesCommande, Factures) et construit la liste
+ *  complète enrichie, une seule fois, plutôt qu'à chaque page demandée. */
+function construireBaseCommandes() {
   const montantsParFacture = {};
   const lignesFactures = feuilleFactures().getDataRange().getValues();
   for (let i = 1; i < lignesFactures.length; i++) {
@@ -1418,7 +1798,6 @@ function listerCommandes(password) {
       if (p) montantEstime += (estRN ? p.prixRN : p.prixStandard) * ligneDetail.quantite;
     });
 
-    const referenceFactureActuelle = l[18] || '';
     commandes.push({
       ligne:          i + 1,
       reference:      l[0],
@@ -1449,11 +1828,39 @@ function listerCommandes(password) {
       devisDemande:    l[21] || '',
       colissimo:       l[22] || '',
       dateLivraison:   l[23] ? Utilities.formatDate(new Date(l[23]), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '',
-      csvTectech:      l[24] || ''
+      csvTectech:      l[24] || '',
+      caracteristiquesMateriel: l[25] || '',
+      bonLivraison: l[26] || '',
+      personnes: l[27] || ''
     });
   }
 
-  return { ok: true, commandes: commandes.reverse() };
+  const toutes = commandes.reverse();
+
+  // Agrégats pour le bandeau d'en-tête — toujours calculés sur tout l'historique, jamais
+  // sur la seule page renvoyée, sinon ils changeraient selon la page affichée (ce qui n'a
+  // aucun sens pour un total censé représenter la réalité complète).
+  const aLivrer = {};
+  let nombreNouvelles = 0;
+  let nombreImpayees = 0;
+  toutes.forEach(function(c) {
+    if (c.statutCommande === 'Reçue') nombreNouvelles++;
+
+    if (['Reçue', 'Validée'].includes(c.statutCommande)) {
+      (c.lignes || []).forEach(function(l) {
+        const qte = parseInt(l.quantite, 10) || 0;
+        if (!qte || !l.produit) return;
+        aLivrer[l.produit] = (aLivrer[l.produit] || 0) + qte;
+      });
+    }
+
+    if (c.statutCommande === 'Livrée' && c.statutPaiement !== 'Payé' && c.statutPaiement !== 'Remboursé') {
+      const structureCmd = structuresCache[String(c.code || '').trim()];
+      if (!(structureCmd && (structureCmd.esn || structureCmd.interne))) nombreImpayees++;
+    }
+  });
+
+  return { toutes: toutes, aLivrer: aLivrer, nombreNouvelles: nombreNouvelles, nombreImpayees: nombreImpayees };
 }
 
 /** Vue publique pour une structure — protégée par son code, jamais par le mot de passe admin.
@@ -1521,7 +1928,8 @@ function listerCommandesParCode(data) {
       montantFacture:  estEsnOuInterne ? null : (referenceFacture && montantsParFacture[referenceFacture] != null ? montantsParFacture[referenceFacture] : null),
       moyenPaiement:   estEsnOuInterne ? null : l[9],
       statutPaiement:  estEsnOuInterne ? null : l[12],
-      lienPaiement:    estEsnOuInterne ? '' : (l[13] || '')
+      lienPaiement:    estEsnOuInterne ? '' : (l[13] || ''),
+      bonLivraison:    l[26] || ''
     });
   }
 
@@ -1531,6 +1939,7 @@ function listerCommandesParCode(data) {
 function supprimerCommande(data) {
   if (data.password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
   feuilleCommandes().deleteRow(data.ligne);
+  invaliderCacheCommandes();
   return { ok: true };
 }
 
@@ -1549,7 +1958,8 @@ function majCommande(data) {
     devisDemande:     22,
     colissimo:        23,
     dateLivraison:    24,
-    csvTectech:       25
+    csvTectech:       25,
+    caracteristiquesMateriel: 26
   };
 
   const colonne = colonnes[data.champ];
@@ -1572,6 +1982,7 @@ function majCommande(data) {
   }
 
   feuille.getRange(data.ligne, colonne).setValue(data.valeur);
+  invaliderCacheCommandes();
 
   // Date de livraison auto-remplie une seule fois au passage en "Livrée"
   if (data.champ === 'statutCommande' && data.valeur === 'Livrée') {
@@ -1676,6 +2087,7 @@ function modifierLigneCommande(data) {
 
   feuilleLignes.getRange(ligneDetail, 2, 1, 2).setValues([[nouveauProduitNom, nouvelleQuantite]]);
   recalculerResumeCommande(ligneCommande, referenceCommande);
+  invaliderCacheCommandes();
 
   return { ok: true, ligne: ligneDetail };
 }
@@ -1722,6 +2134,7 @@ function ajouterLigneCommande(data) {
 
   feuilleLignes.appendRow([referenceCommande, nomProduit, quantite]);
   recalculerResumeCommande(ligneCommande, referenceCommande);
+  invaliderCacheCommandes();
 
   return { ok: true };
 }
@@ -1752,6 +2165,7 @@ function supprimerLigneCommande(data) {
 
   feuilleLignes.deleteRow(ligneDetail);
   recalculerResumeCommande(ligneCommande, referenceCommande);
+  invaliderCacheCommandes();
 
   return { ok: true };
 }
@@ -1904,6 +2318,15 @@ function listerStatutsSavInterne() {
 function listerStatutsSav(password) {
   if (password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
   return { ok: true, statuts: listerStatutsSavInterne() };
+}
+
+/** Version publique — seulement nom/ordre/couleur, aucune info sensible, pour permettre à la
+ *  page de suivi bénéficiaire de dessiner une timeline même sans être connecté à l'admin. */
+function listerStatutsSavPublic() {
+  const statuts = listerStatutsSavInterne().map(function(s) {
+    return { statut: s.statut, ordre: s.ordre, couleur: s.couleur, terminal: !!s.terminal };
+  });
+  return { ok: true, statuts: statuts };
 }
 
 function ajouterStatutSav(data) {
@@ -2085,6 +2508,38 @@ function listerTicketsSavParNumeroSerie(data) {
   return { ok: true, tickets: tickets.reverse() };
 }
 
+/** Même principe pour une structure — protégée par son code, tous ses tickets (pas un seul
+ *  numéro de série à la fois), avec le nom de la structure pour l'affichage. */
+function listerTicketsSavParCode(data) {
+  const code = String(data.code || '').trim();
+  if (!code) return { ok: false, erreur: 'Code vide' };
+
+  const structure = lireStructures()[code];
+  if (!structure) {
+    journaliserEvenementSecurite('Code structure invalide (suivi SAV)', code);
+    return { ok: false, erreur: 'Code inconnu' };
+  }
+
+  const lignes = feuilleSav().getDataRange().getValues();
+  const tickets = [];
+  for (let i = 1; i < lignes.length; i++) {
+    const l = lignes[i];
+    if (!l[0]) continue;
+    if (String(l[2] || '').trim() !== code) continue;
+    tickets.push({
+      reference:      l[0],
+      date:           l[1] ? Utilities.formatDate(new Date(l[1]), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '',
+      numeroSerie:    l[4] || '',
+      symptome:       l[7],
+      statut:         l[12],
+      dateResolution: l[15] ? Utilities.formatDate(new Date(l[15]), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '',
+      colissimo:      l[17] || ''
+    });
+  }
+
+  return { ok: true, nomStructure: structure.nom, tickets: tickets.reverse() };
+}
+
 function creerTicketSav(data) {
   const nom = String(data.nom || '').trim();
   if (!nom) return { ok: false, erreur: 'Merci d\'indiquer un nom (structure ou personne)' };
@@ -2136,6 +2591,7 @@ function creerTicketSav(data) {
     String(data.telephone || '').trim()
   ]);
   ajouterHistoriqueSav(reference, statutInitial);
+  invaliderCacheSav();
 
   return { ok: true, reference: reference, commandeTrouvee: !!correspondance };
 }
@@ -2191,9 +2647,38 @@ function creerTicketSavManuel(data) {
   return { ok: true, reference: reference };
 }
 
-function listerSav(password) {
+function listerSav(password, limite, decalage, recherche) {
   if (password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
 
+  const cleCache = 'sav_v' + versionCache('sav');
+  let baseSav = lireCacheDecoupe(cleCache);
+
+  if (!baseSav) {
+    baseSav = construireBaseSav();
+    mettreEnCacheDecoupe(cleCache, baseSav);
+  }
+
+  const toutes = baseSav.toutes;
+  const nombreEnAttente = baseSav.nombreEnAttente;
+
+  const termeRecherche = String(recherche || '').trim().toLowerCase();
+
+  if (termeRecherche) {
+    const resultats = toutes.filter(function(t) {
+      const cible = (t.reference + ' ' + t.nom + ' ' + t.numeroSerie + ' ' + t.referenceCommande + ' ' + t.referenceFacture).toLowerCase();
+      return cible.includes(termeRecherche);
+    });
+    return { ok: true, tickets: resultats.slice(0, 200), total: toutes.length, recherche: true, nombreEnAttente: nombreEnAttente };
+  }
+
+  const limiteNombre = parseInt(limite, 10) || 0;
+  const decalageNombre = parseInt(decalage, 10) || 0;
+  const limitees = limiteNombre > 0 ? toutes.slice(decalageNombre, decalageNombre + limiteNombre) : toutes;
+  return { ok: true, tickets: limitees, total: toutes.length, nombreEnAttente: nombreEnAttente };
+}
+
+/** Le vrai travail coûteux de listerSav — isolé pour pouvoir être mis en cache. */
+function construireBaseSav() {
   // Historique chargé une seule fois, groupé par référence, plutôt qu'une lecture par ticket
   const historiqueParReference = {};
   const lignesHisto = feuilleHistoriqueSav().getDataRange().getValues();
@@ -2243,7 +2728,15 @@ function listerSav(password) {
       historique:          historiqueParReference[l[0]] || []
     });
   }
-  return { ok: true, tickets: tickets.reverse() };
+  const toutes = tickets.reverse();
+
+  // Même principe que pour les commandes : ce total ne doit jamais dépendre de la page
+  // affichée, sinon le bandeau d'en-tête changerait selon la pagination en cours.
+  const statutsOrdonnes = listerStatutsSavInterne();
+  const premierStatut = statutsOrdonnes.length ? statutsOrdonnes[0].statut : null;
+  const nombreEnAttente = premierStatut ? toutes.filter(function(t) { return t.statut === premierStatut; }).length : 0;
+
+  return { toutes: toutes, nombreEnAttente: nombreEnAttente };
 }
 
 function majSav(data) {
@@ -2272,12 +2765,14 @@ function majSav(data) {
   }
 
   feuille.getRange(data.ligne, colonne).setValue(String(data.valeur ?? ''));
+  invaliderCacheSav();
   return { ok: true };
 }
 
 function supprimerSav(data) {
   if (data.password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
   feuilleSav().deleteRow(data.ligne);
+  invaliderCacheSav();
   return { ok: true };
 }
 
@@ -2290,10 +2785,33 @@ function supprimerSav(data) {
 function construireEmailColissimoCommande(l) {
   const reference = l[0], nom = l[3], colissimo = String(l[22] || '').trim();
   const liens = colissimo.split('\n').map(function(s) { return s.trim(); }).filter(Boolean).join('\n');
+
+  // Caractéristiques matériel (colonne 26) : une ligne "numéro de série: caractéristiques" par
+  // appareil, importées depuis le CSV tec.tech — on les rattache ici au bon numéro de série
+  // (colonne 16) pour enrichir le mail, sans jamais bloquer l'envoi si l'info manque.
+  const numerosSerie = String(l[15] || '').split('\n').map(function(s) { return s.trim(); }).filter(Boolean);
+  const caracteristiquesBrutes = String(l[25] || '').split('\n').map(function(s) { return s.trim(); }).filter(Boolean);
+  const specsParSerie = {};
+  caracteristiquesBrutes.forEach(function(ligneSpec) {
+    const sep = ligneSpec.indexOf(':');
+    if (sep === -1) return;
+    specsParSerie[ligneSpec.slice(0, sep).trim()] = ligneSpec.slice(sep + 1).trim();
+  });
+
+  let blocMateriel = '';
+  if (numerosSerie.length && Object.keys(specsParSerie).length) {
+    blocMateriel = '\n' + numerosSerie.map(function(n) {
+      return specsParSerie[n] ? (n + ' (' + specsParSerie[n] + ')') : n;
+    }).join('\n') + '\n';
+  }
+
+  const bonLivraison = String(l[26] || '').trim();
+  const blocBonLivraison = bonLivraison ? ('\nVotre bon de livraison :\n' + bonLivraison + '\n') : '';
+
   return {
     sujet: 'Suivi de votre commande ' + reference,
-    corps: 'Bonjour ' + nom + ',\n\nVoici le suivi de votre colis pour la commande ' + reference + ' :\n\n' +
-      liens + '\n\nCordialement,\n' + NOM_ORGANISATION
+    corps: 'Bonjour ' + nom + ',\n\nVoici le suivi de votre colis pour la commande ' + reference + ' :\n' +
+      blocMateriel + blocBonLivraison + '\n' + liens + '\n\nCordialement,\n' + NOM_ORGANISATION
   };
 }
 
