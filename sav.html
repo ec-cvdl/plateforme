@@ -34,6 +34,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
 </style>
 </head>
 <body>
+<a href="#contenu-principal" class="lien-evitement">Aller au contenu</a>
 
 <header class="marque-barre">
   <div class="marque">
@@ -47,7 +48,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
   </div>
 </header>
 
-<div class="scene-wrap">
+<div class="scene-wrap" id="contenu-principal">
   <div class="scene" id="scene">
 
     <div class="voile-envoi" id="voile-envoi" hidden>
@@ -65,9 +66,10 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
     <section class="etape" data-etape="identification">
       <div class="compte">ÉTAPE <span class="num-actuel">1</span> SUR <span class="num-total">–</span></div>
       <div class="question">Quel est votre <em>code structure</em> ?</div>
-      <p class="sous-question">Ce code vous a été communiqué par mail. Vous êtes bénéficiaire sans code ? <a href="sav-beneficiaire.html">Cliquez ici</a>. Vous voulez plutôt suivre une commande ? <a href="suivi.html">Cliquez ici</a>.</p>
+      <p class="sous-question">Ce code vous a été communiqué par mail. Vous êtes bénéficiaire sans code ? <a href="sav-beneficiaire.html">Cliquez ici</a>. Vous voulez plutôt suivre une commande ? <a href="suivi.html">Cliquez ici</a>. Ou suivre une demande SAV déjà envoyée ? <a href="suivi-sav-structure.html">Cliquez ici</a>.</p>
+      <label for="id-code" class="sr-only">Code structure</label>
       <input type="text" class="champ-texte" id="id-code" autocomplete="off" spellcheck="false" placeholder="Votre code structure">
-      <div id="retour-id-code"></div>
+      <div id="retour-id-code" aria-live="polite"></div>
       <div class="suite">
         <button type="button" class="bouton-principal" id="btn-verifier-code">Continuer →</button>
       </div>
@@ -78,15 +80,16 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
       <div class="compte">ÉTAPE <span class="num-actuel">2</span> SUR <span class="num-total">–</span></div>
       <div class="question">À quel <em>nom</em> ?</div>
       <p class="sous-question">Le nom de votre structure, ou votre prénom et nom si vous êtes bénéficiaire.</p>
+      <label for="nom-personne" class="sr-only">Nom de la structure ou de la personne</label>
       <input type="text" class="champ-texte" id="nom-personne" autocomplete="off" placeholder="Nom de la structure, ou Prénom Nom">
 
-      <label class="champ" style="display:block;font-size:13px;font-weight:600;color:var(--gris);margin:20px 0 8px">Adresse email</label>
+      <label for="email-personne" class="champ" style="display:block;font-size:13px;font-weight:600;color:var(--gris);margin:20px 0 8px">Adresse email</label>
       <input type="email" class="champ-texte" id="email-personne" autocomplete="off" placeholder="Pour qu'on puisse vous recontacter">
 
-      <label class="champ" style="display:block;font-size:13px;font-weight:600;color:var(--gris);margin:20px 0 8px">Date d'achat ou de don du matériel</label>
+      <label for="date-achat-sav" class="champ" style="display:block;font-size:13px;font-weight:600;color:var(--gris);margin:20px 0 8px">Date d'achat ou de don du matériel</label>
       <input type="date" class="champ-texte" id="date-achat-sav" lang="fr">
 
-      <div id="retour-nom"></div>
+      <div id="retour-nom" aria-live="polite"></div>
       <div class="suite">
         <button type="button" class="bouton-retour" data-retour>← Retour</button>
         <button type="button" class="bouton-principal" id="btn-nom-suivant">Continuer →</button>
@@ -100,11 +103,11 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
       <div class="grille-symptomes" id="grille-symptomes"></div>
 
       <div id="bloc-numero-serie-symptome" style="margin-top:22px">
-        <label class="champ" style="display:block;font-size:13px;font-weight:600;color:var(--gris);margin-bottom:8px">Numéro de série de l'appareil</label>
+        <label for="numero-serie-symptome" style="display:block;font-size:13px;font-weight:600;color:var(--gris);margin-bottom:8px">Numéro de série de l'appareil</label>
         <input type="text" class="champ-texte" id="numero-serie-symptome" autocomplete="off" spellcheck="false" placeholder="Si vous le trouvez sur l'appareil">
       </div>
 
-      <div id="retour-symptome"></div>
+      <div id="retour-symptome" aria-live="polite"></div>
       <div class="suite">
         <button type="button" class="bouton-retour" data-retour>← Retour</button>
         <button type="button" class="bouton-principal" id="btn-symptome-suivant" disabled>Continuer →</button>
@@ -115,6 +118,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
     <section class="etape" data-etape="details" hidden>
       <div class="compte">ÉTAPE <span class="num-actuel">4</span> SUR <span class="num-total">–</span></div>
       <div class="question">Décrivez-nous <em>le problème</em></div>
+      <label for="commentaire-sav" class="sr-only">Description du problème</label>
       <textarea class="champ-long" id="commentaire-sav" maxlength="1000" placeholder="Décrivez votre problème…"></textarea>
 
       <div class="zone-photo-video">
@@ -128,7 +132,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
         </div>
       </div>
 
-      <div id="retour-details"></div>
+      <div id="retour-details" aria-live="polite"></div>
       <div class="suite">
         <button type="button" class="bouton-retour" data-retour>← Retour</button>
         <button type="button" class="bouton-principal" id="btn-details-suivant">Continuer →</button>
@@ -146,7 +150,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
         <span>Je certifie que les informations transmises dans ce formulaire sont exactes.</span>
       </label>
 
-      <div id="retour-envoi-sav"></div>
+      <div id="retour-envoi-sav" aria-live="assertive"></div>
       <div class="suite">
         <button type="button" class="bouton-retour" data-retour>← Retour</button>
         <button type="button" class="bouton-principal" id="btn-envoyer-sav" disabled>Envoyer la demande</button>

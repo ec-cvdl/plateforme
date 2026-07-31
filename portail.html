@@ -10,6 +10,12 @@
 <style>
   :root{ --ink:#002743; --sarcelle:#00ACB0; }
   *{box-sizing:border-box}
+  a:focus-visible, button:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+  .lien-evitement{
+    position:absolute;left:-9999px;top:0;z-index:200;background:var(--ink);color:#fff;
+    padding:12px 20px;border-radius:0 0 8px 0;font-weight:600;text-decoration:none;
+  }
+  .lien-evitement:focus{left:0}
   body{
     margin:0;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;
     font-family:'Archivo',system-ui,sans-serif;background:#F4F6F8;padding:24px;
@@ -46,8 +52,9 @@
 </style>
 </head>
 <body>
+<a href="#contenu-principal" class="lien-evitement">Aller au contenu</a>
 
-<div class="conteneur">
+<div class="conteneur" id="contenu-principal">
   <div class="entete">
     <img src="logo.png" alt="" onerror="this.style.display='none'">
     <h1>Qui êtes-vous ?</h1>

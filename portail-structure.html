@@ -10,6 +10,12 @@
 <style>
   :root{ --ink:#002743; --sarcelle:#00ACB0; }
   *{box-sizing:border-box}
+  a:focus-visible, button:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+  .lien-evitement{
+    position:absolute;left:-9999px;top:0;z-index:200;background:var(--ink);color:#fff;
+    padding:12px 20px;border-radius:0 0 8px 0;font-weight:600;text-decoration:none;
+  }
+  .lien-evitement:focus{left:0}
   body{
     margin:0;min-height:100vh;font-family:'Archivo',system-ui,sans-serif;background:#F4F6F8;
     padding:24px;
@@ -39,6 +45,7 @@
   .commande .icone svg{color:var(--ink)}
   .suivi .icone svg{color:#213A8E}
   .sav .icone svg{color:var(--sarcelle)}
+  .suivi-sav .icone svg{color:#6B2E8C}
 
   div.carte.desactivee{opacity:.5;cursor:not-allowed;position:relative}
   .carte.desactivee .icone{background:#E2E6EA}
@@ -56,8 +63,9 @@
 </style>
 </head>
 <body>
+<a href="#contenu-principal" class="lien-evitement">Aller au contenu</a>
 
-<div class="conteneur">
+<div class="conteneur" id="contenu-principal">
   <div class="fil-ariane"><a href="portail.html">← Retour</a></div>
   <div class="entete">
     <img src="logo.png" alt="" onerror="this.style.display='none'">
@@ -86,6 +94,13 @@
       </div>
       <div class="label">Signaler une panne</div>
       <div class="sous">Ouvrir un ticket SAV, avec votre code structure</div>
+    </a>
+    <a class="carte suivi-sav" href="suivi-sav-structure.html">
+      <div class="icone">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
+      </div>
+      <div class="label">Suivre mes demandes SAV</div>
+      <div class="sous">Avancement de vos tickets SAV, avec votre code structure</div>
     </a>
     <div class="carte desactivee" title="Bientôt disponible" aria-disabled="true">
       <span class="badge-bientot">Bientôt</span>

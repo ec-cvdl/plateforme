@@ -4,11 +4,11 @@
 <script>
 // 👉 C'EST ICI, LA LIGNE JUSTE EN DESSOUS ↓↓↓ — remplace UNIQUEMENT le texte entre guillemets
 const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy9-ZwhkG-hhmh7eI1f8NuMGtdofnXixQhgJAQr4gN0Q/exec';
-// 👆 C'ÉTAIT ICI — fais la même chose dans admin.html, commande.html, sav.html, sav-beneficiaire.html et suivi.html
+// 👆 C'ÉTAIT ICI — fais la même chose dans admin.html, commande.html, sav.html, sav-beneficiaire.html, suivi.html et suivi-sav-beneficiaire.html
 </script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Suivi de ma demande SAV — CVDL</title>
+<title>Suivi de mes demandes SAV — CVDL</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -20,6 +20,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
   .ref-ts{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:15px;color:var(--ink)}
   .date-ts{font-size:12.5px;color:var(--gris)}
   .symptome-ts{font-size:13.5px;color:var(--gris);margin-top:6px}
+  .serie-ts{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--gris);margin-top:3px}
   .anneau-sav-wrap{position:relative;width:56px;height:56px;flex-shrink:0}
   .anneau-sav-pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:11px;color:var(--ink)}
 
@@ -46,7 +47,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
 <header class="marque-barre">
   <div class="marque">
     <img src="logo.png" alt="" onerror="this.style.display='none'">
-    <span class="nom-org">CVDL — Suivi de ma demande SAV</span>
+    <span class="nom-org">CVDL — Suivi SAV structure</span>
   </div>
   <div class="bascule-mode" role="group" aria-label="Apparence de la page">
     <button type="button" data-mode="clair" class="actif">Clair</button>
@@ -59,15 +60,15 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
   <div class="scene" id="scene">
 
     <!-- Étape : identification -->
-    <section id="etape-numero">
-      <div class="question">Quel est le <em>numéro de série</em> de l'appareil ?</div>
+    <section id="etape-code">
+      <div class="question">Quel est votre <em>code structure</em> ?</div>
       <p class="sous-question">
-        Le même numéro que celui utilisé pour signaler la panne. Vous n'avez pas encore fait de
-        demande ? <a href="sav-beneficiaire.html">Signalez une panne ici</a>.
+        Le même code que pour commander ou suivre une commande. Vous êtes bénéficiaire sans code ?
+        <a href="suivi-sav-beneficiaire.html">Suivez votre demande ici</a>.
       </p>
-      <label for="numero-serie" class="sr-only">Numéro de série de l'appareil</label>
-      <input type="text" class="champ-texte" id="numero-serie" autocomplete="off" spellcheck="false" placeholder="Numéro de série">
-      <div id="retour-numero" aria-live="polite"></div>
+      <label for="code-structure" class="sr-only">Code structure</label>
+      <input type="text" class="champ-texte" id="code-structure" autocomplete="off" spellcheck="false" placeholder="Votre code structure">
+      <div id="retour-code" aria-live="polite"></div>
       <div class="suite">
         <button type="button" class="bouton-principal" id="btn-voir-tickets">Voir le suivi →</button>
       </div>
@@ -75,11 +76,11 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
 
     <!-- Étape : liste des tickets -->
     <section id="etape-liste" hidden>
-      <div class="question">Suivi de vos demandes</div>
+      <div class="question" id="titre-structure"></div>
       <p class="sous-question" id="nb-tickets-texte"></p>
       <div class="liste-tickets-suivi" id="liste-tickets-suivi"></div>
       <div class="suite">
-        <button type="button" class="bouton-principal" id="btn-autre-numero" style="background:transparent;color:var(--gris);border:1.5px solid var(--trait)">Consulter un autre numéro</button>
+        <button type="button" class="bouton-principal" id="btn-autre-code" style="background:transparent;color:var(--gris);border:1.5px solid var(--trait)">Consulter un autre code</button>
       </div>
     </section>
 
@@ -162,7 +163,7 @@ function construireAnneauSav(statutActuel){
 
 function rendreTicketsSuivi(tickets){
   if(!tickets.length){
-    $('liste-tickets-suivi').innerHTML = `<p class="sous-question">Aucune demande SAV trouvée pour ce numéro de série.</p>`;
+    $('liste-tickets-suivi').innerHTML = `<p class="sous-question">Aucune demande SAV enregistrée pour ce code pour le moment.</p>`;
     return;
   }
   $('liste-tickets-suivi').innerHTML = tickets.map(t => {
@@ -173,6 +174,7 @@ function rendreTicketsSuivi(tickets){
         <div class="date-ts">${echapper(t.date)}</div>
       </div>
       <div class="symptome-ts">${echapper(t.symptome || 'Symptôme non précisé')}</div>
+      ${t.numeroSerie ? `<div class="serie-ts">N° série : ${echapper(t.numeroSerie)}</div>` : ''}
       <div style="display:flex;align-items:center;gap:14px;margin-top:12px">
         ${construireAnneauSav(t.statut)}
         <div class="statut-ts">${echapper(t.statut)}</div>
@@ -185,45 +187,46 @@ function rendreTicketsSuivi(tickets){
 }
 
 async function chargerTicketsSuivi(){
-  const numeroSerie = $('numero-serie').value.trim();
-  if(!numeroSerie){ afficherMsg('retour-numero', 'Merci de saisir un numéro de série.', 'erreur'); return; }
+  const code = $('code-structure').value.trim();
+  if(!code){ afficherMsg('retour-code', 'Merci de saisir un code.', 'erreur'); return; }
 
   $('btn-voir-tickets').disabled = true;
   $('btn-voir-tickets').textContent = 'Recherche…';
-  afficherMsg('retour-numero', '', 'info');
+  afficherMsg('retour-code', '', 'info');
 
   try{
     const [r, rStatuts] = await Promise.all([
-      jsonp({ action: 'sav-par-numero-serie', numeroSerie: numeroSerie }),
+      jsonp({ action: 'sav-par-code', code: code }),
       statutsSavPublic.length ? Promise.resolve({ ok: true, statuts: statutsSavPublic }) : jsonp({ action: 'sav-statuts-public' })
     ]);
     if(rStatuts.ok) statutsSavPublic = rStatuts.statuts.sort((a, b) => a.ordre - b.ordre);
     if(r.ok){
+      $('titre-structure').textContent = r.nomStructure ? `Demandes SAV de ${r.nomStructure}` : 'Vos demandes SAV';
       $('nb-tickets-texte').textContent = r.tickets.length > 1
         ? `${r.tickets.length} demandes trouvées`
         : (r.tickets.length === 1 ? '1 demande trouvée' : '');
       rendreTicketsSuivi(r.tickets);
-      $('etape-numero').hidden = true;
+      $('etape-code').hidden = true;
       $('etape-liste').hidden = false;
     }else{
-      afficherMsg('retour-numero', r.erreur || 'Numéro introuvable.', 'erreur');
+      afficherMsg('retour-code', r.erreur || 'Code introuvable.', 'erreur');
     }
   }catch(e){
-    afficherMsg('retour-numero', 'Connexion impossible. Réessayez dans un instant.', 'erreur');
+    afficherMsg('retour-code', 'Connexion impossible. Réessayez dans un instant.', 'erreur');
   }
   $('btn-voir-tickets').disabled = false;
   $('btn-voir-tickets').textContent = 'Voir le suivi →';
 }
 
 $('btn-voir-tickets').addEventListener('click', chargerTicketsSuivi);
-$('numero-serie').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); chargerTicketsSuivi(); } });
+$('code-structure').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); chargerTicketsSuivi(); } });
 
-$('btn-autre-numero').addEventListener('click', () => {
-  $('numero-serie').value = '';
-  $('retour-numero').innerHTML = '';
+$('btn-autre-code').addEventListener('click', () => {
+  $('code-structure').value = '';
+  $('retour-code').innerHTML = '';
   $('etape-liste').hidden = true;
-  $('etape-numero').hidden = false;
-  $('numero-serie').focus();
+  $('etape-code').hidden = false;
+  $('code-structure').focus();
 });
 </script>
 </body>

@@ -42,6 +42,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
 </style>
 </head>
 <body>
+<a href="#contenu-principal" class="lien-evitement">Aller au contenu</a>
 
 <header class="marque-barre">
   <div class="marque">
@@ -55,7 +56,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
   </div>
 </header>
 
-<div class="scene-wrap">
+<div class="scene-wrap" id="contenu-principal">
   <div class="scene" id="scene">
 
     <div class="voile-envoi" id="voile-envoi" hidden>
@@ -74,8 +75,9 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
       <div class="compte">ÉTAPE <span class="num-actuel">1</span> SUR <span class="num-total">–</span></div>
       <div class="question">Quel est le <em>numéro de série</em> de l'appareil ?</div>
       <p class="sous-question">Vous le trouverez généralement sous l'appareil (S/N ou Serial Number), dans les paramètres système ou juste votre attestation de paiement. Vous êtes une structure avec un code ? <a href="sav.html">Cliquez ici</a>. Vous voulez plutôt suivre une demande déjà envoyée ? <a href="suivi-sav-beneficiaire.html">Cliquez ici</a>.</p>
+      <label for="id-numero-serie" class="sr-only">Numéro de série de l'appareil</label>
       <input type="text" class="champ-texte" id="id-numero-serie" autocomplete="off" spellcheck="false" placeholder="Numéro de série de l'appareil">
-      <div id="retour-id-serie"></div>
+      <div id="retour-id-serie" aria-live="polite"></div>
       <div class="suite">
         <button type="button" class="bouton-principal" id="btn-verifier-serie">Continuer →</button>
       </div>
@@ -92,26 +94,27 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
       <div class="compte">ÉTAPE <span class="num-actuel">2</span> SUR <span class="num-total">–</span></div>
       <div class="question">À quel <em>nom</em> ?</div>
       <p class="sous-question">Votre prénom et nom.</p>
+      <label for="nom-personne" class="sr-only">Prénom et nom</label>
       <input type="text" class="champ-texte" id="nom-personne" autocomplete="off" placeholder="Prénom Nom">
 
-      <label class="champ" style="display:block;font-size:13px;font-weight:600;color:var(--gris);margin:20px 0 8px">Adresse email</label>
+      <label for="email-personne" class="champ" style="display:block;font-size:13px;font-weight:600;color:var(--gris);margin:20px 0 8px">Adresse email</label>
       <input type="email" class="champ-texte" id="email-personne" autocomplete="off" placeholder="Afin que nous puissions vous contacter">
 
-      <label class="champ" style="display:block;font-size:13px;font-weight:600;color:var(--gris);margin:20px 0 8px">Confirmez votre adresse email</label>
+      <label for="email-personne-confirmation" class="champ" style="display:block;font-size:13px;font-weight:600;color:var(--gris);margin:20px 0 8px">Confirmez votre adresse email</label>
       <input type="email" class="champ-texte" id="email-personne-confirmation" autocomplete="off" placeholder="Retapez la même adresse"
         onpaste="return false" oncopy="return false" oncut="return false" ondrop="return false" autocorrect="off" autocapitalize="off" spellcheck="false">
-      <p class="sous-question" id="retour-email-confirmation" style="margin-top:6px"></p>
+      <p class="sous-question" id="retour-email-confirmation" aria-live="polite" style="margin-top:6px"></p>
 
-      <label class="champ" style="display:block;font-size:13px;font-weight:600;color:var(--gris);margin:20px 0 8px">Numéro de téléphone</label>
+      <label for="telephone-personne" class="champ" style="display:block;font-size:13px;font-weight:600;color:var(--gris);margin:20px 0 8px">Numéro de téléphone</label>
       <input type="tel" class="champ-texte" id="telephone-personne" autocomplete="off" placeholder="06 12 34 56 78">
 
-      <label class="champ" style="display:block;font-size:13px;font-weight:600;color:var(--gris);margin:20px 0 8px">Date d'achat ou de don du matériel</label>
+      <label for="date-achat-sav" class="champ" style="display:block;font-size:13px;font-weight:600;color:var(--gris);margin:20px 0 8px">Date d'achat ou de don du matériel</label>
       <input type="date" class="champ-texte" id="date-achat-sav" lang="fr">
 
-      <label class="champ" style="display:block;font-size:13px;font-weight:600;color:var(--gris);margin:20px 0 8px">Auprès de quelle structure avez-vous obtenu ce matériel ?</label>
+      <label for="structure-origine-sav" class="champ" style="display:block;font-size:13px;font-weight:600;color:var(--gris);margin:20px 0 8px">Auprès de quelle structure avez-vous obtenu ce matériel ?</label>
       <input type="text" class="champ-texte" id="structure-origine-sav" autocomplete="off" placeholder="Nom de la structure (si vous le connaissez)">
 
-      <div id="retour-nom"></div>
+      <div id="retour-nom" aria-live="polite"></div>
       <div class="suite">
         <button type="button" class="bouton-retour" data-retour>← Retour</button>
         <button type="button" class="bouton-principal" id="btn-nom-suivant">Continuer →</button>
@@ -124,7 +127,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
       <div class="question">Quel <em>symptôme</em> observez-vous ?</div>
       <div class="grille-symptomes" id="grille-symptomes"></div>
 
-      <div id="retour-symptome"></div>
+      <div id="retour-symptome" aria-live="polite"></div>
       <div class="suite">
         <button type="button" class="bouton-retour" data-retour>← Retour</button>
         <button type="button" class="bouton-principal" id="btn-symptome-suivant" disabled>Continuer →</button>
@@ -135,6 +138,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
     <section class="etape" data-etape="details" hidden>
       <div class="compte">ÉTAPE <span class="num-actuel">4</span> SUR <span class="num-total">–</span></div>
       <div class="question">Décrivez-nous <em>le problème</em></div>
+      <label for="commentaire-sav" class="sr-only">Description du problème</label>
       <textarea class="champ-long" id="commentaire-sav" maxlength="1000" placeholder="Décrivez votre problème…"></textarea>
 
       <div class="zone-photo-video">
@@ -148,7 +152,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
         </div>
       </div>
 
-      <div id="retour-details"></div>
+      <div id="retour-details" aria-live="polite"></div>
       <div class="suite">
         <button type="button" class="bouton-retour" data-retour>← Retour</button>
         <button type="button" class="bouton-principal" id="btn-details-suivant">Continuer →</button>
@@ -166,7 +170,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
         <span>Je certifie que les informations transmises dans ce formulaire sont exactes.</span>
       </label>
 
-      <div id="retour-envoi-sav"></div>
+      <div id="retour-envoi-sav" aria-live="assertive"></div>
       <div class="suite">
         <button type="button" class="bouton-retour" data-retour>← Retour</button>
         <button type="button" class="bouton-principal" id="btn-envoyer-sav" disabled>Envoyer la demande</button>

@@ -73,6 +73,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
 </style>
 </head>
 <body>
+<a href="#contenu-principal" class="lien-evitement">Aller au contenu</a>
 
 <header class="marque-barre">
   <div class="marque">
@@ -86,7 +87,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
   </div>
 </header>
 
-<div class="scene-wrap">
+<div class="scene-wrap" id="contenu-principal">
   <div class="scene" id="scene">
 
     <!-- Étape : identification -->
@@ -97,8 +98,9 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
         une panne. Vous voulez plutôt <a href="commande.html">commander du matériel</a> ou
         <a href="sav.html">signaler une panne</a> ?
       </p>
+      <label for="code-structure" class="sr-only">Code structure</label>
       <input type="text" class="champ-texte" id="code-structure" autocomplete="off" spellcheck="false" placeholder="Votre code structure">
-      <div id="retour-code"></div>
+      <div id="retour-code" aria-live="polite"></div>
       <div class="suite">
         <button type="button" class="bouton-principal" id="btn-voir-commandes">Voir mes commandes →</button>
       </div>
@@ -208,6 +210,7 @@ function rendreCommandesSuivi(commandes){
           <span class="libelle-numeros-serie-cs">${numerosSerie.length > 1 ? 'Numéros de série' : 'Numéro de série'}</span>
           ${numerosSerie.map(n => `<span class="pilule-numero-serie-cs">${echapper(n)}</span>`).join('')}
         </div>` : ''}
+      ${c.bonLivraison ? `<div class="liens-colissimo-cs"><a href="${echapper(c.bonLivraison)}" target="_blank" rel="noopener">📄 Bon de livraison</a></div>` : ''}
       ${liensColissimo.length ? `<div class="liens-colissimo-cs">${liensColissimo.map(l =>
           `<a href="${echapper(l)}" target="_blank" rel="noopener">📦 Suivre le colis</a>`).join('')}</div>` : ''}
       ${c.montantEstime != null ? `
