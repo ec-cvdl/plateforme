@@ -363,7 +363,7 @@ a.action.pleine{width:100%;margin-top:4px}
 .btn-icone-fiche:hover{background:#fff;color:var(--ink);border-color:var(--steel)}
 .btn-icone-fiche.danger:hover{background:var(--t-rouge-f);color:var(--t-rouge-t);border-color:var(--t-rouge-b)}
 
-#liste{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;align-items:start}
+#liste{display:grid;grid-template-columns:1fr;gap:18px;align-items:start}
 .fiche-conteneur{position:relative;height:100%}
 
 /* ═══ Carte commande compacte — structure commune aux deux styles (couleur / neumorphisme) ═══ */
@@ -403,27 +403,72 @@ body.carte-style-couleur .ccm-alerte{background:rgba(0,0,0,.22);color:#fff}
 body.carte-style-couleur .ccm-details{background:rgba(255,255,255,.22);color:#fff}
 body.carte-style-couleur .ccm-details:hover{background:rgba(255,255,255,.34)}
 
-/* ─── Style 2 : neumorphisme (soft UI) ─── */
-body.carte-style-neumorphisme{background:#E8ECF1}
-body.carte-style-neumorphisme #liste,
-body.carte-style-neumorphisme .wrap{background:transparent}
-body.carte-style-neumorphisme .carte-cmd-mini{
-  background:#E8ECF1;box-shadow:8px 8px 18px #c8ccd1, -8px -8px 18px #ffffff;color:var(--ink);
+/* ─── Style 2 : terminal rétro (remplace l'ancien neumorphisme) ─── */
+body.carte-style-terminal{background:#0A0F0A}
+body.carte-style-terminal #liste,
+body.carte-style-terminal .wrap{background:transparent}
+body.carte-style-terminal .carte-cmd-mini{
+  background:#0F1710;border:1px solid #1F3A1F;color:#4FE67A;font-family:'IBM Plex Mono',monospace;
 }
-body.carte-style-neumorphisme .ccm-ref{color:#5A6472}
-body.carte-style-neumorphisme .ccm-materiel{color:var(--steel)}
-body.carte-style-neumorphisme .ccm-statut.t-ambre, body.carte-style-neumorphisme .carte-cmd-mini.t-ambre .ccm-statut{color:var(--t-ambre-t)}
-body.carte-style-neumorphisme .carte-cmd-mini.t-bleu .ccm-statut{color:var(--t-bleu-t)}
-body.carte-style-neumorphisme .carte-cmd-mini.t-violet .ccm-statut{color:var(--t-violet-t)}
-body.carte-style-neumorphisme .carte-cmd-mini.t-orange .ccm-statut{color:var(--t-orange-t)}
-body.carte-style-neumorphisme .carte-cmd-mini.t-vert .ccm-statut{color:var(--t-vert-t)}
-body.carte-style-neumorphisme .carte-cmd-mini.t-gris .ccm-statut{color:var(--steel)}
-body.carte-style-neumorphisme .ccm-devis{color:var(--t-violet-t)}
-body.carte-style-neumorphisme .ccm-alerte{background:#F3D9D3;color:var(--t-rouge-t, #A32F1C)}
-body.carte-style-neumorphisme .ccm-details{
-  background:#E8ECF1;color:var(--ink);box-shadow:3px 3px 6px #c8ccd1, -3px -3px 6px #ffffff;
+body.carte-style-terminal .carte-cmd-mini:hover{border-color:#4FE67A}
+body.carte-style-terminal .ccm-ref{color:#fff}
+body.carte-style-terminal .ccm-date{color:#2D8A4A;opacity:1}
+body.carte-style-terminal .ccm-materiel{color:#8FE6A8;opacity:1}
+body.carte-style-terminal .ccm-statut.t-ambre, body.carte-style-terminal .carte-cmd-mini.t-ambre .ccm-statut{color:#FFA458}
+body.carte-style-terminal .carte-cmd-mini.t-bleu .ccm-statut{color:#5B8DEF}
+body.carte-style-terminal .carte-cmd-mini.t-violet .ccm-statut{color:#C77DD6}
+body.carte-style-terminal .carte-cmd-mini.t-orange .ccm-statut{color:#FFA458}
+body.carte-style-terminal .carte-cmd-mini.t-vert .ccm-statut{color:#4FE67A}
+body.carte-style-terminal .carte-cmd-mini.t-gris .ccm-statut{color:#6C7A89}
+body.carte-style-terminal .ccm-devis{color:#4FE67A}
+body.carte-style-terminal .ccm-alerte{background:transparent;border:1px solid #FF6B6B;color:#FF6B6B}
+body.carte-style-terminal .ccm-details{
+  background:transparent;border:1px solid #1F3A1F;color:#4FE67A;
 }
-body.carte-style-neumorphisme .ccm-details:hover{box-shadow:inset 2px 2px 5px #c8ccd1, inset -2px -2px 5px #ffffff}
+body.carte-style-terminal .ccm-details:hover{border-color:#4FE67A}
+
+/* ─── Style 3 (proposition 1) : pastille de statut géante, bord gauche ─── */
+.ccm-pastille{
+  display:none;position:absolute;left:-14px;top:20px;width:34px;height:34px;border-radius:50%;
+  align-items:center;justify-content:center;color:#fff;box-shadow:0 3px 9px rgba(0,0,0,.18);z-index:2;
+}
+.ccm-pastille svg{width:17px;height:17px}
+body.carte-style-pastille .carte-cmd-mini{padding-left:34px;background:#fff;box-shadow:0 2px 10px rgba(0,39,67,.05)}
+body.carte-style-pastille .ccm-pastille{display:flex}
+body.carte-style-pastille .ccm-pastille.t-ambre{background:var(--t-ambre-t)}
+body.carte-style-pastille .ccm-pastille.t-bleu{background:var(--t-bleu-t)}
+body.carte-style-pastille .ccm-pastille.t-violet{background:var(--t-violet-t)}
+body.carte-style-pastille .ccm-pastille.t-orange{background:var(--t-orange-t)}
+body.carte-style-pastille .ccm-pastille.t-vert{background:var(--t-vert-t)}
+body.carte-style-pastille .ccm-pastille.t-gris{background:var(--steel)}
+body.carte-style-pastille .ccm-statut.t-ambre{color:var(--t-ambre-t)}
+body.carte-style-pastille .ccm-statut.t-bleu{color:var(--t-bleu-t)}
+body.carte-style-pastille .ccm-statut.t-violet{color:var(--t-violet-t)}
+body.carte-style-pastille .ccm-statut.t-orange{color:var(--t-orange-t)}
+body.carte-style-pastille .ccm-statut.t-vert{color:var(--t-vert-t)}
+body.carte-style-pastille .ccm-statut.t-gris{color:var(--steel)}
+body.carte-style-pastille .ccm-details{background:var(--paper);color:var(--ink)}
+body.carte-style-pastille .ccm-details:hover{background:var(--line)}
+body.carte-style-pastille .ccm-alerte{background:#FBE1DD;color:var(--t-rouge-t, #A32F1C)}
+
+/* ─── Style 4 (proposition 6) : icône produit géante façon météo ─── */
+.ccm-meteo{
+  display:none;width:46px;height:46px;border-radius:14px;background:var(--paper);
+  align-items:center;justify-content:center;flex-shrink:0;margin-bottom:12px;
+}
+.ccm-meteo svg{width:24px;height:24px;color:var(--ink)}
+body.carte-style-meteo .carte-cmd-mini{background:#fff;box-shadow:0 2px 10px rgba(0,39,67,.05)}
+body.carte-style-meteo .ccm-meteo{display:flex}
+body.carte-style-meteo .ccm-statut.t-ambre{color:var(--t-ambre-t)}
+body.carte-style-meteo .ccm-statut.t-bleu{color:var(--t-bleu-t)}
+body.carte-style-meteo .ccm-statut.t-violet{color:var(--t-violet-t)}
+body.carte-style-meteo .ccm-statut.t-orange{color:var(--t-orange-t)}
+body.carte-style-meteo .ccm-statut.t-vert{color:var(--t-vert-t)}
+body.carte-style-meteo .ccm-statut.t-gris{color:var(--steel)}
+body.carte-style-meteo .ccm-details{background:var(--paper);color:var(--ink)}
+body.carte-style-meteo .ccm-details:hover{background:var(--line)}
+body.carte-style-meteo .ccm-alerte{background:#FBE1DD;color:var(--t-rouge-t, #A32F1C)}
+
 
 .selecteur-style-carte{display:flex;gap:2px;background:var(--paper);border-radius:8px;padding:3px}
 .selecteur-style-carte button{
@@ -1171,81 +1216,3 @@ select.statut option{background:#fff;color:var(--ink);font-weight:500}
   .barre .haut{flex-direction:column;align-items:flex-start}
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
-   Thèmes de carte alternatifs pour l'onglet Commandes — mêmes informations,
-   juste une autre peau. Activés en ajoutant .theme-couleur ou .theme-douceur
-   sur #liste (voir le sélecteur dans la barre d'outils + Commandes.js).
-   ═══════════════════════════════════════════════════════════════════════ */
-
-/* ─── Thème "Couleur" : la carte entière prend la couleur du statut ─── */
-#liste.theme-couleur .fiche{border:none;color:#fff}
-#liste.theme-couleur .fiche.en-attente{background:var(--t-ambre-t)}
-#liste.theme-couleur .fiche.cours{background:var(--t-bleu-t)}
-#liste.theme-couleur .fiche.preparee{background:var(--t-violet-t)}
-#liste.theme-couleur .fiche.en-livraison{background:var(--t-orange-t)}
-#liste.theme-couleur .fiche.close{background:var(--t-vert-t)}
-#liste.theme-couleur .fiche.annulee{background:var(--steel)}
-#liste.theme-couleur .fiche:hover{box-shadow:0 8px 22px rgba(0,0,0,.18)}
-#liste.theme-couleur .ref,#liste.theme-couleur .heure{color:#fff}
-#liste.theme-couleur .date{color:rgba(255,255,255,.75)}
-#liste.theme-couleur .rappel-montant-commande{color:#fff}
-#liste.theme-couleur .badge-statut{background:rgba(255,255,255,.22)!important;color:#fff!important;border-color:rgba(255,255,255,.4)!important}
-#liste.theme-couleur .materiel-ligne{color:rgba(255,255,255,.95)}
-#liste.theme-couleur .materiel-ligne svg{color:rgba(255,255,255,.8)}
-#liste.theme-couleur .bloc-structure .nom{color:#fff}
-#liste.theme-couleur .coords-resume,#liste.theme-couleur .coords-resume a{color:rgba(255,255,255,.8)}
-#liste.theme-couleur .pilule-action{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.28);color:#fff}
-#liste.theme-couleur .pilule-action:hover{border-color:rgba(255,255,255,.5)}
-#liste.theme-couleur .pilule-action svg{color:rgba(255,255,255,.85)}
-#liste.theme-couleur .pilule-action.pilule-remplie svg,
-#liste.theme-couleur .pilule-colissimo.pilule-remplie svg,
-#liste.theme-couleur .pilule-serie.pilule-remplie svg{color:#fff}
-#liste.theme-couleur .pilule-vide{color:rgba(255,255,255,.65)}
-#liste.theme-couleur .pilule-badge{background:rgba(255,255,255,.25);color:#fff}
-#liste.theme-couleur .btn-modifier-ligne-produit,#liste.theme-couleur .btn-retirer-ligne-produit,#liste.theme-couleur .btn-ajouter-ligne-produit{filter:brightness(0) invert(1)}
-#liste.theme-couleur .btn-ouvrir-modale{background:rgba(255,255,255,.16);color:#fff;box-shadow:none}
-#liste.theme-couleur .btn-ouvrir-modale.style-paiement{background:rgba(255,255,255,.16)}
-#liste.theme-couleur .btn-ouvrir-modale:hover{background:rgba(255,255,255,.26)}
-#liste.theme-couleur .btn-ouvrir-modale .sous-statut{color:rgba(255,255,255,.75)}
-#liste.theme-couleur .btn-icone-fiche{background:rgba(255,255,255,.14);color:#fff;border-color:rgba(255,255,255,.28)}
-#liste.theme-couleur .btn-icone-fiche:hover{background:rgba(255,255,255,.26);color:#fff;border-color:rgba(255,255,255,.5)}
-#liste.theme-couleur .btn-icone-fiche.danger:hover{background:rgba(230,36,96,.35);color:#fff;border-color:rgba(230,36,96,.6)}
-#liste.theme-couleur .timeline-commande .tlc-point{background:rgba(255,255,255,.3)}
-#liste.theme-couleur .timeline-commande .tlc-point.fait{background:#fff}
-#liste.theme-couleur .timeline-commande .tlc-point.actuel{background:#fff;box-shadow:0 0 0 3px rgba(255,255,255,.35)}
-#liste.theme-couleur .timeline-commande .tlc-etape:not(:last-child)::after{background:rgba(255,255,255,.3)}
-#liste.theme-couleur .timeline-commande .tlc-etape.fait:not(:last-child)::after{background:#fff}
-#liste.theme-couleur .timeline-commande .tlc-libelle{color:rgba(255,255,255,.6)}
-#liste.theme-couleur .timeline-commande .tlc-libelle.fait,
-#liste.theme-couleur .timeline-commande .tlc-libelle.actuel{color:#fff}
-#liste.theme-couleur .alerte-impayee,#liste.theme-couleur .alerte-facture-manquante{background:rgba(0,0,0,.2);color:#fff}
-#liste.theme-couleur .badge-devis-demande{background:rgba(255,255,255,.2);color:#fff}
-
-/* ─── Thème "Douceur" : neumorphisme, tout en relief doux sur fond gris ─── */
-#liste.theme-douceur{background:#E8ECF1;padding:22px;border-radius:18px}
-#liste.theme-douceur .fiche{
-  background:#E8ECF1;border:none;
-  box-shadow:8px 8px 18px #c8ccd1, -8px -8px 18px #ffffff;
-}
-#liste.theme-douceur .fiche:hover{box-shadow:6px 6px 14px #c8ccd1, -6px -6px 14px #ffffff}
-#liste.theme-douceur .fiche.annulee{box-shadow:inset 4px 4px 10px #c8ccd1, inset -4px -4px 10px #ffffff}
-#liste.theme-douceur .badge-statut{background:#E8ECF1!important;border:none!important;box-shadow:inset 2px 2px 5px #c8ccd1, inset -2px -2px 5px #ffffff}
-#liste.theme-douceur .pilule-action{background:#E8ECF1;border:none;box-shadow:3px 3px 8px #c8ccd1, -3px -3px 8px #ffffff}
-#liste.theme-douceur .pilule-action:hover{box-shadow:inset 2px 2px 5px #c8ccd1, inset -2px -2px 5px #ffffff}
-#liste.theme-douceur .btn-ouvrir-modale{
-  background:#E8ECF1;color:var(--ink);box-shadow:3px 3px 8px #c8ccd1, -3px -3px 8px #ffffff;
-}
-#liste.theme-douceur .btn-ouvrir-modale .sous-statut{color:var(--steel)}
-#liste.theme-douceur .btn-ouvrir-modale:hover{box-shadow:inset 2px 2px 5px #c8ccd1, inset -2px -2px 5px #ffffff}
-#liste.theme-douceur .btn-icone-fiche{background:#E8ECF1;border:none;box-shadow:2px 2px 5px #c8ccd1, -2px -2px 5px #ffffff}
-#liste.theme-douceur .btn-icone-fiche:hover{box-shadow:inset 2px 2px 5px #c8ccd1, inset -2px -2px 5px #ffffff}
-#liste.theme-douceur .timeline-commande .tlc-point{box-shadow:1px 1px 3px #c8ccd1, -1px -1px 3px #ffffff}
-#liste.theme-douceur .rappel-montant-commande{background:#E8ECF1;box-shadow:inset 2px 2px 5px #c8ccd1, inset -2px -2px 5px #ffffff}
-
-/* ─── Sélecteur de thème ─── */
-.selecteur-theme-carte{display:inline-flex;gap:2px;background:var(--paper);border-radius:9px;padding:3px}
-.selecteur-theme-carte button{
-  font-family:inherit;font-size:12px;font-weight:600;color:var(--steel);
-  background:transparent;border:none;border-radius:7px;padding:7px 12px;cursor:pointer;
-}
-.selecteur-theme-carte button.actif{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,39,67,.12)}

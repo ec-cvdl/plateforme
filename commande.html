@@ -15,6 +15,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+<a href="#contenu-principal" class="lien-evitement">Aller au contenu</a>
 
 <header class="marque-barre">
   <div class="marque">
@@ -29,7 +30,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
   </div>
 </header>
 
-<div class="scene-wrap">
+<div class="scene-wrap" id="contenu-principal">
   <div class="scene" id="scene">
 
     <div class="voile-envoi" id="voile-envoi" hidden>
@@ -48,8 +49,9 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
       <div class="compte">ÉTAPE <span class="num-actuel">1</span> SUR <span class="num-total">–</span></div>
       <div class="question">Quel est votre <em>code structure</em> ?</div>
       <p class="sous-question">Ce code vous a été communiqué par mail. Vous voulez plutôt suivre une commande déjà passée ? <a href="suivi.html">Cliquez ici</a>.</p>
+      <label for="code" class="sr-only">Code structure</label>
       <input type="text" class="champ-texte" id="code" autocomplete="off" spellcheck="false" placeholder="Saisissez votre code">
-      <div id="retour-code"></div>
+      <div id="retour-code" aria-live="polite"></div>
       <div class="suite">
         <button type="button" class="bouton-principal" id="btn-verifier">Continuer →</button>
       </div>
@@ -70,7 +72,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9.2"/><path d="M9.3 9.3a2.7 2.7 0 1 1 3.7 2.5c-.9.4-1.4 1-1.4 2v.4"/><circle cx="12" cy="17" r=".3" fill="currentColor" stroke="none"/></svg>
           Besoin d'aide pour choisir ?
         </a>
-        <div id="retour-produit"></div>
+        <div id="retour-produit" aria-live="polite"></div>
 
         <div id="bloc-quantite" hidden>
           <label class="champ" style="display:block;font-size:13px;font-weight:600;color:var(--gris);margin:26px 0 8px">Quantité pour ce produit</label>
@@ -108,7 +110,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
         <label class="carte-choix"><input type="radio" name="paiement" value="Chèque" style="display:none"><span class="libelle">Chèque</span></label>
         <label class="carte-choix"><input type="radio" name="paiement" value="Espèces" style="display:none"><span class="libelle">Espèces</span></label>
       </div>
-      <div id="retour-paiement"></div>
+      <div id="retour-paiement" aria-live="polite"></div>
       <div class="suite">
         <button type="button" class="bouton-retour" data-retour>← Retour</button>
         <button type="button" class="bouton-principal" id="btn-paiement-suivant" disabled>Continuer →</button>
@@ -118,22 +120,28 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
     <!-- Étape : pièce jointe (PDF + attestation + upload adaptatif) — sautée pour les structures RN -->
     <section class="etape" data-etape="piece-jointe" hidden>
       <div class="compte">ÉTAPE <span class="num-actuel">4</span> SUR <span class="num-total">–</span></div>
-      <div class="question">Un dernier <em>document</em> à joindre par personne</div>
+      <div class="question">Qui va <em>recevoir</em> ce matériel ?</div>
+      <p class="sous-question">Un nom complet par appareil commandé — ça nous sert à préparer le bon d'orientation et l'attestation de chaque personne, vous n'avez plus de document à remplir vous-même.</p>
 
-      <div class="bloc-pdf">
-        <a href="#" target="_blank" rel="noopener" id="lien-pdf-modele">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="width:17px;height:17px"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5z"/><path d="M14 3v5h5"/></svg>
-          Télécharger le document à remplir
-        </a>
-        <p>Remplissez-le, enregistrez-le, puis déposez-le ci-dessous.</p>
-      </div>
-
-      <div id="zone-uploads"></div>
-      <div id="retour-upload"></div>
+      <div id="zone-personnes"></div>
+      <div id="retour-personnes" aria-live="polite"></div>
 
       <div class="suite">
         <button type="button" class="bouton-retour" data-retour>← Retour</button>
-        <button type="button" class="bouton-principal" id="btn-upload-suivant" disabled>Continuer →</button>
+        <button type="button" class="bouton-principal" id="btn-personnes-suivant">Continuer →</button>
+      </div>
+    </section>
+
+    <!-- Étape : date de livraison souhaitée (structures Interne uniquement) -->
+    <section class="etape" data-etape="date-livraison" hidden>
+      <div class="compte">ÉTAPE <span class="num-actuel">–</span> SUR <span class="num-total">–</span></div>
+      <div class="question">Date de livraison <em>maximum</em> souhaitée</div>
+      <p class="sous-question">Facultatif — laisse vide si tu n'as pas de contrainte de date particulière.</p>
+      <label for="date-livraison-souhaitee" class="sr-only">Date de livraison maximum souhaitée</label>
+      <input type="date" class="champ-texte" id="date-livraison-souhaitee">
+      <div class="suite">
+        <button type="button" class="bouton-retour" data-retour>← Retour</button>
+        <button type="button" class="bouton-principal" id="btn-date-livraison-suivant">Continuer →</button>
       </div>
     </section>
 
@@ -142,6 +150,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
       <div class="compte">ÉTAPE <span class="num-actuel">5</span> SUR <span class="num-total">–</span></div>
       <div class="question">Une <em>précision</em> à ajouter ?</div>
       <p class="sous-question">Facultatif.</p>
+      <label for="commentaire" class="sr-only">Précision ou commentaire</label>
       <textarea class="champ-long" id="commentaire" maxlength="1000"></textarea>
       <div class="rappel-prix" id="rappel-prix"></div>
 
@@ -150,7 +159,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
         <span>Je certifie que les informations transmises dans ce formulaire sont exactes.</span>
       </label>
 
-      <div id="retour-envoi"></div>
+      <div id="retour-envoi" aria-live="assertive"></div>
       <div class="suite">
         <button type="button" class="bouton-retour" data-retour>← Retour</button>
         <button type="button" class="bouton-principal" id="btn-envoyer" disabled>Envoyer la commande</button>
@@ -191,6 +200,21 @@ function urlSuiviCommandes(){
     const url = new URL(href);
     const segments = url.pathname.split('/');
     segments[segments.length - 1] = 'suivi.html';
+    url.pathname = segments.join('/');
+    url.search = ''; url.hash = '';
+    return url.toString();
+  }catch(e){ return ''; }
+}
+
+/** Même principe, pour le portail structure — inclus dans l'email de confirmation, pour
+ *  que la structure retrouve facilement l'ensemble de son espace (pas seulement le suivi). */
+function urlPortailStructure(){
+  const href = window.location.href;
+  if(href.includes('commande.html')) return href.split('?')[0].split('#')[0].replace('commande.html', 'portail-structure.html');
+  try{
+    const url = new URL(href);
+    const segments = url.pathname.split('/');
+    segments[segments.length - 1] = 'portail-structure.html';
     url.pathname = segments.join('/');
     url.search = ''; url.hash = '';
     return url.toString();
@@ -307,15 +331,16 @@ try{
 }catch(e){}
 
 /* Machine à étapes */
-const etapes = ['code','materiel','paiement','piece-jointe','commentaire'];
+const etapes = ['code','materiel','paiement','piece-jointe','date-livraison','commentaire'];
 let indexEtape = 0;
 let moyenImpose = null;
 let estEsn = false;
+let estInterne = false;
 
 const etat = {
   code: '', nomStructure: '',
   lignes: [], moyenPaiement: '',
-  demandeDevis: false, commentaire: ''
+  demandeDevis: false, commentaire: '', dateLivraisonSouhaitee: ''
 };
 
 /** Quantité totale tous produits confondus — sert au nombre de documents à joindre. */
@@ -327,6 +352,7 @@ function etapesActives(){
   return etapes.filter(function(e){
     if(e === 'paiement' && (moyenImpose || estEsn)) return false;
     if(e === 'piece-jointe' && (moyenImpose || estEsn)) return false; // RN : pas de bon d'orientation à joindre — ESN : ni paiement ni pièce jointe
+    if(e === 'date-livraison' && !estInterne) return false; // uniquement pour les commandes passées en interne
     return true;
   });
 }
@@ -399,6 +425,7 @@ async function verifierCode(){
       etat.nomStructure = r.nom;
       moyenImpose = r.moyenImpose || null;
       estEsn = !!r.esn || !!r.interne;
+      estInterne = !!r.interne;
       $('demande-devis').closest('.case-attestation').hidden = estEsn;
       if(estEsn) $('demande-devis').checked = false;
 
@@ -554,7 +581,7 @@ $('btn-ajouter-ligne').addEventListener('click', function(){
 });
 
 $('btn-materiel-suivant').addEventListener('click', function(){
-  construireZoneUploads();
+  construireZonePersonnes();
   suivant();
 });
 
@@ -569,36 +596,40 @@ $$('.etape[data-etape="paiement"] input[type=radio]').forEach(function(input){
 });
 $('btn-paiement-suivant').addEventListener('click', suivant);
 
-/* Étape 5 : pièce jointe */
-$('lien-pdf-modele').href = LIEN_PDF_MODELE;
-
-function construireZoneUploads(){
+/* Étape 5 : personnes bénéficiaires (remplace l'ancien upload de bon d'orientation) */
+function construireZonePersonnes(){
   const n = quantiteTotaleLignes();
   let html = '';
   for(let i = 1; i <= n; i++){
-    html += '<div class="zone-upload" data-index="' + i + '">' +
-      '<label for="fichier-' + i + '">' + (n > 1 ? ('Document — Personne ' + i) : 'Document à joindre') + '</label>' +
-      '<input type="file" id="fichier-' + i + '" accept=".pdf,.jpg,.jpeg,.png"></div>';
+    html += '<div class="zone-personne" data-index="' + i + '">' +
+      '<label for="personne-' + i + '">' + (n > 1 ? ('Nom complet — Personne ' + i) : 'Nom complet de la personne') + '</label>' +
+      '<input type="text" class="champ-texte" id="personne-' + i + '" placeholder="Prénom Nom" autocomplete="off"></div>';
   }
-  $('zone-uploads').innerHTML = html;
-  $$('#zone-uploads input[type=file]').forEach(function(input){
-    input.addEventListener('change', verifierEtatUpload);
+  $('zone-personnes').innerHTML = html;
+  $$('#zone-personnes input[type=text]').forEach(function(input){
+    input.addEventListener('input', verifierEtatPersonnes);
   });
-  verifierEtatUpload();
+  verifierEtatPersonnes();
 }
 
-function verifierEtatUpload(){
-  const inputs = $$('#zone-uploads input[type=file]');
-  const tousRemplis = inputs.every(function(i){ return i.files[0]; });
-
-  inputs.forEach(function(i){ i.closest('.zone-upload').classList.toggle('rempli', !!i.files[0]); });
-
-  const tropLourd = inputs.some(function(i){ return i.files[0] && i.files[0].size > MAX_FICHIER_MO * 1024 * 1024; });
-  afficherMsg('retour-upload', tropLourd ? ('Un fichier dépasse ' + MAX_FICHIER_MO + ' Mo. Compressez-le puis réessayez.') : '', 'erreur');
-
-  $('btn-upload-suivant').disabled = !(tousRemplis && !tropLourd);
+function listePersonnesSaisies(){
+  return $$('#zone-personnes input[type=text]').map(function(i){ return i.value.trim(); });
 }
-$('btn-upload-suivant').addEventListener('click', suivant);
+
+function verifierEtatPersonnes(){
+  const noms = listePersonnesSaisies();
+  const tousRemplis = noms.every(function(n){ return n.length > 1; });
+  afficherMsg('retour-personnes', '', 'erreur');
+  $('btn-personnes-suivant').disabled = false; // facultatif : on n'empêche pas de continuer sans nom, juste on prévient
+  if(noms.length && !tousRemplis){
+    afficherMsg('retour-personnes', 'Un nom manquant ou trop court sera laissé vide — vous pourrez le compléter plus tard auprès de nous si besoin.', 'info');
+  }
+}
+$('btn-personnes-suivant').addEventListener('click', suivant);
+$('btn-date-livraison-suivant').addEventListener('click', function(){
+  etat.dateLivraisonSouhaitee = $('date-livraison-souhaitee').value;
+  suivant();
+});
 
 /* La case de certification finale (juste avant l'envoi) gate le bouton d'envoi, façon signature */
 $('attestation-finale').addEventListener('change', function(){
@@ -632,13 +663,6 @@ $('btn-envoyer').addEventListener('click', async function(){
   voile.hidden = false;
 
   try{
-    // Les structures RN et ESN n'ont jamais vu l'étape de pièce jointe : rien à lire dans ce cas
-    const inputs = (moyenImpose || estEsn) ? [] : $$('#zone-uploads input[type=file]');
-    if(inputs.length){
-      texteVoile.textContent = inputs.length > 1 ? 'Lecture des documents…' : 'Lecture du document…';
-    }
-    const fichiers = await Promise.all(inputs.map(function(i){ return lireFichier(i.files[0]); }));
-
     texteVoile.textContent = 'Envoi de la commande…';
     const barreProgression = $('barre-progression-envoi');
     const remplissage = $('barre-progression-envoi-remplissage');
@@ -650,10 +674,11 @@ $('btn-envoyer').addEventListener('click', async function(){
       code: etat.code,
       lignes: etat.lignes.map(function(l){ return { produit: l.produit, quantite: l.quantite }; }),
       moyenPaiement: moyenImpose || (estEsn ? 'Non applicable (ESN/Interne)' : etat.moyenPaiement),
-      fichiers: fichiers,
+      personnes: (moyenImpose || estEsn) ? [] : listePersonnesSaisies(),
       demandeDevis: etat.demandeDevis,
-      commentaire: $('commentaire').value.trim(),
-      urlSuivi: urlSuiviCommandes()
+      commentaire: (etat.dateLivraisonSouhaitee ? ('Date de livraison max. souhaitée : ' + etat.dateLivraisonSouhaitee.split('-').reverse().join('/') + '\n\n') : '') + $('commentaire').value.trim(),
+      urlSuivi: urlSuiviCommandes(),
+      urlPortail: urlPortailStructure()
     };
 
     const r = await posterAvecProgression(donnees, function(pourcentage){

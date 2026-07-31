@@ -243,15 +243,12 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
         </div>
         <input type="text" id="recherche" placeholder="Structure, référence, numéro de série…">
         <div class="selecteur-style-carte" id="selecteur-style-carte" role="group" aria-label="Style des cartes commande">
-          <button type="button" data-style-carte="couleur" title="Style aplat de couleur">🎨</button>
-          <button type="button" data-style-carte="neumorphisme" class="actif" title="Style neumorphisme">◐</button>
+          <button type="button" data-style-carte="couleur" class="actif" title="Aplat de couleur">🎨</button>
+          <button type="button" data-style-carte="terminal" title="Terminal rétro">⌨</button>
+          <button type="button" data-style-carte="pastille" title="Pastille de statut">●</button>
+          <button type="button" data-style-carte="meteo" title="Icône produit">▢</button>
         </div>
         <button class="action claire" id="btn-recharger">Actualiser</button>
-        <div class="selecteur-theme-carte" id="selecteur-theme-carte">
-          <button type="button" data-theme="classique" class="actif">Classique</button>
-          <button type="button" data-theme="couleur">Couleur</button>
-          <button type="button" data-theme="douceur">Douceur</button>
-        </div>
         <button class="action" id="btn-nouvelle-commande">+ Nouvelle commande</button>
       </div>
       <div id="bandeau-pagination" class="msg msg-info" hidden style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
@@ -278,6 +275,12 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
     <!-- Vue produits -->
     <section id="vue-produits" hidden>
       <div class="bandeau-stock" id="recap-stock"></div>
+
+      <div class="msg msg-info" id="avertissement-sync-tectech" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <span>⚠️ Les stocks affichés ici sont saisis à la main et peuvent ne pas refléter la réalité du terrain — pense à synchroniser avec Tech.tec avant de valider des commandes sensibles.</span>
+        <button type="button" class="action claire" id="btn-synchroniser-tectech">Synchroniser le stock avec Tech.tec</button>
+      </div>
+      <div id="retour-sync-tectech"></div>
 
       <div class="outils" style="justify-content:flex-end">
         <button class="action claire" id="btn-recharger-produits">Actualiser</button>
@@ -579,6 +582,59 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
           <button type="button" class="action claire" id="btn-modele-facturation-enregistrer">Enregistrer</button>
         </div>
         <div id="retour-modele-facturation"></div>
+      </div>
+
+      <div class="carte-reglage">
+        <h3>Modèle de bon de livraison (PDF)</h3>
+        <p class="reglage-texte">
+          Le Google Sheets utilisé comme modèle pour générer un bon de livraison depuis une commande.
+          Jetons disponibles : <code>{{STRUCTURE}}</code>, <code>{{ADRESSE}}</code>, <code>{{REFERENCE_COMMANDE}}</code>,
+          <code>{{NUMEROS_SERIE}}</code>, <code>{{PRODUIT_1}}</code>, <code>{{QUANTITE_1}}</code>, etc.
+        </p>
+        <div class="ligne-reglage">
+          <input type="text" id="modele-bon-livraison-input" placeholder="URL ou ID du Sheets modèle">
+          <button type="button" class="action claire" id="btn-modele-bon-livraison-enregistrer">Enregistrer</button>
+        </div>
+        <div id="retour-modele-bon-livraison"></div>
+      </div>
+
+      <div class="carte-reglage">
+        <h3>Modèle de bon d'orientation (PDF)</h3>
+        <p class="reglage-texte">
+          Depuis que les personnes ne joignent plus leur propre document mais saisissent juste leur
+          nom à la commande, ce modèle sert à générer le bon d'orientation officiel à leur place.
+          Jetons disponibles : <code>{{STRUCTURE}}</code>, <code>{{REFERENCE_COMMANDE}}</code>,
+          <code>{{PERSONNES}}</code>, <code>{{NOMBRE_PERSONNES}}</code>, <code>{{PRODUIT_1}}</code>, etc.
+        </p>
+        <div class="ligne-reglage">
+          <input type="text" id="modele-bon-orientation-input" placeholder="URL ou ID du Sheets modèle">
+          <button type="button" class="action claire" id="btn-modele-bon-orientation-enregistrer">Enregistrer</button>
+        </div>
+        <div id="retour-modele-bon-orientation"></div>
+      </div>
+
+      <div class="carte-reglage">
+        <h3>Modèle d'attestation de paiement (PDF)</h3>
+        <p class="reglage-texte">
+          Une attestation est générée par personne (appariée par ordre de saisie avec les numéros de
+          série renseignés). Jetons disponibles : <code>{{NOM_COMPLET}}</code>, <code>{{STRUCTURE}}</code>,
+          <code>{{PRIX}}</code>, <code>{{MARQUE_MODELE}}</code>, <code>{{DATE_VENTE}}</code>, <code>{{NUMERO_SERIE}}</code>.
+        </p>
+        <div class="ligne-reglage">
+          <input type="text" id="modele-attestation-input" placeholder="URL ou ID du Sheets modèle">
+          <button type="button" class="action claire" id="btn-modele-attestation-enregistrer">Enregistrer</button>
+        </div>
+        <div id="retour-modele-attestation"></div>
+      </div>
+
+      <div class="carte-reglage">
+        <h3>Dossier Drive des attestations</h3>
+        <p class="reglage-texte">Où déposer les attestations de paiement générées (un fichier par personne).</p>
+        <div class="ligne-reglage">
+          <input type="text" id="dossier-attestations-input" placeholder="URL ou ID du dossier Drive">
+          <button type="button" class="action claire" id="btn-dossier-attestations-enregistrer">Enregistrer</button>
+        </div>
+        <div id="retour-dossier-attestations"></div>
       </div>
 
       <div class="carte-reglage">
