@@ -232,7 +232,7 @@ async function chargerTicketsSuivi(){
   if(!code){ afficherMsg('retour-code', 'Merci de saisir un code.', 'erreur'); return; }
 
   $('btn-voir-tickets').disabled = true;
-  $('btn-voir-tickets').textContent = 'Recherche…';
+  $('btn-voir-tickets').innerHTML = '<span class="spinner-inline"></span>Recherche…';
   afficherMsg('retour-code', '', 'info');
 
   try{

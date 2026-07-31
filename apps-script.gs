@@ -1228,7 +1228,16 @@ function creerCommande(data) {
   else if (data.fichier && data.fichier.base64) fichiers = [data.fichier]; // compatibilité ancien envoi
 
   const infosResumees = resumerLignes(lignesValidees);
-  const resultat = inserer(structure, infosResumees.resume, infosResumees.total, data.moyenPaiement, fichiers, data.commentaire, null, null, null, !!data.demandeDevis, data.personnes);
+
+  // Détection de doublon — ne bloque jamais l'envoi (un vrai échec de connexion suivi d'un
+  // second essai légitime ne doit jamais être empêché), juste un signal pour l'admin à vérifier
+  // manuellement : même structure, même contenu, dans les 5 dernières minutes.
+  const commentaireDoublon = detecterCommandeDoublonRecente(structure.code, infosResumees.resume)
+    ? '⚠️ DOUBLON POTENTIEL DÉTECTÉ : une commande très similaire de cette structure a été reçue il y a moins de 5 minutes — vérifier avant de traiter les deux.\n\n'
+    : '';
+  const commentaireFinal = commentaireDoublon + String(data.commentaire || '');
+
+  const resultat = inserer(structure, infosResumees.resume, infosResumees.total, data.moyenPaiement, fichiers, commentaireFinal, null, null, null, !!data.demandeDevis, data.personnes);
 
   // Écrit le détail des lignes, puis décrémente le stock — chacun en un seul appel Sheets,
   // quel que soit le nombre de produits différents dans la commande.
@@ -1344,6 +1353,28 @@ function definirModeleCommande(data) {
  *  de Commandes à partir d'un résumé texte et d'une quantité totale déjà calculés par
  *  l'appelant. Ne touche plus au stock elle-même : chaque appelant décrémente lui-même,
  *  produit par produit, puisqu'une commande peut désormais en contenir plusieurs. */
+/** Doublon potentiel : même structure, même résumé produit, commande reçue il y a moins de
+ *  5 minutes. Sert uniquement à prévenir l'admin (jamais à bloquer) — le cas typique est une
+ *  connexion qui plante côté navigateur après que la commande a pourtant bien été enregistrée,
+ *  poussant la structure à réessayer en pensant que rien n'est parti. */
+function detecterCommandeDoublonRecente(codeStructure, resumeProduit) {
+  const FENETRE_MINUTES = 5;
+  const maintenant = new Date();
+  const lignes = feuilleCommandes().getDataRange().getValues();
+
+  for (let i = lignes.length - 1; i >= 1; i--) {
+    const l = lignes[i];
+    if (!l[0]) continue;
+    if (String(l[2] || '').trim() !== codeStructure) continue;
+    const dateCommande = l[1] ? new Date(l[1]) : null;
+    if (!dateCommande) continue;
+    const ecartMinutes = (maintenant - dateCommande) / 60000;
+    if (ecartMinutes > FENETRE_MINUTES) break; // les lignes sont dans l'ordre chronologique : au-delà, inutile de continuer
+    if (String(l[7] || '').trim() === resumeProduit) return true;
+  }
+  return false;
+}
+
 function inserer(structure, resumeProduits, quantiteTotale, moyenPaiement, fichiers, commentaire, dateForcee, statutCommande, statutPaiement, devisDemande, personnes) {
   const feuille  = feuilleCommandes();
   const annee    = (dateForcee || new Date()).getFullYear();
@@ -1863,6 +1894,18 @@ function construireBaseCommandes() {
   return { toutes: toutes, aLivrer: aLivrer, nombreNouvelles: nombreNouvelles, nombreImpayees: nombreImpayees };
 }
 
+/** Convertit le lien d'édition d'un Google Sheets en lien de téléchargement PDF direct —
+ *  pour le suivi structure : on ne veut pas ouvrir l'éditeur collaboratif, juste proposer un
+ *  fichier à télécharger. L'admin, lui, garde le lien éditable classique (utile pour corriger
+ *  une coquille), seule cette version publique est transformée. */
+function urlExportPdfDepuisUrlSheets(url) {
+  const propre = String(url || '').trim();
+  if (!propre) return '';
+  const correspondance = propre.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  if (!correspondance) return propre; // pas reconnu comme un lien Sheets : on renvoie tel quel plutôt que de casser le lien
+  return 'https://docs.google.com/spreadsheets/d/' + correspondance[1] + '/export?format=pdf';
+}
+
 /** Vue publique pour une structure — protégée par son code, jamais par le mot de passe admin.
  *  Ne renvoie que ses propres commandes, avec uniquement les champs pertinents pour elle
  *  (rien sur les autres structures, rien de purement comptable/interne comme le numéro de
@@ -1929,7 +1972,8 @@ function listerCommandesParCode(data) {
       moyenPaiement:   estEsnOuInterne ? null : l[9],
       statutPaiement:  estEsnOuInterne ? null : l[12],
       lienPaiement:    estEsnOuInterne ? '' : (l[13] || ''),
-      bonLivraison:    l[26] || ''
+      bonLivraison:    urlExportPdfDepuisUrlSheets(l[26]),
+      commentaire:     l[11] === 'Annulée' ? (l[14] || '') : ''
     });
   }
 
@@ -1969,6 +2013,15 @@ function majCommande(data) {
 
   // Rendu du stock si la commande passe en "Annulée", repris si elle en ressort —
   // boucle sur toutes les lignes de la commande (elle peut contenir plusieurs produits).
+  // Date de livraison obligatoire avant de passer en "Livrée" — refusé plutôt qu'auto-rempli,
+  // pour que ce soit une vraie date choisie et non une date du jour mise par défaut.
+  if (data.champ === 'statutCommande' && data.valeur === 'Livrée') {
+    const dateLivraisonActuelle = feuille.getRange(data.ligne, 24).getValue();
+    if (!dateLivraisonActuelle) {
+      return { ok: false, erreur: 'Renseigne d\'abord la date de livraison avant de passer cette commande en Livrée.' };
+    }
+  }
+
   if (data.champ === 'statutCommande') {
     const ligneActuelle = feuille.getRange(data.ligne, 1, 1, ENTETES_COMMANDES.length).getValues()[0];
     const ancienStatut = ligneActuelle[11];
@@ -1983,14 +2036,6 @@ function majCommande(data) {
 
   feuille.getRange(data.ligne, colonne).setValue(data.valeur);
   invaliderCacheCommandes();
-
-  // Date de livraison auto-remplie une seule fois au passage en "Livrée"
-  if (data.champ === 'statutCommande' && data.valeur === 'Livrée') {
-    const dateLivraisonActuelle = feuille.getRange(data.ligne, 24).getValue();
-    if (!dateLivraisonActuelle) {
-      feuille.getRange(data.ligne, 24).setValue(new Date());
-    }
-  }
 
   // Devis automatique au passage en "Validée" — uniquement si la structure l'a demandé
   // depuis le formulaire public. Sinon, le devis reste à créer manuellement si besoin.
@@ -3363,6 +3408,16 @@ function listerFactures(password) {
       ligne:             i + 1,
       referenceFacture:  lignes[i][0],
       date:              lignes[i][1] ? Utilities.formatDate(new Date(lignes[i][1]), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '',
+      referenceCommande: lignes[i][2] || '',
+      nomStructure:      lignes[i][3] || '',
+      email:             lignes[i][4] || '',
+      adresse:           lignes[i][5] || '',
+      produit:           lignes[i][6] || '',
+      quantite:          lignes[i][7] || '',
+      moyenPaiement:     lignes[i][8] || '',
+      prixUnitaire:      lignes[i][9] || 0,
+      montantTotal:      lignes[i][10] || 0,
+      commentaire:       lignes[i][11] || ''
     });
   }
   return { ok: true, factures: factures.reverse() };

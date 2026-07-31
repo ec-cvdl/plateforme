@@ -215,33 +215,11 @@ body.mode-accessible .carte-choix .prix-produit{font-size:14px}
 }
 .info-impose b{color:var(--primaire)}
 
-/* ═══ Pièce jointe : lien PDF + attestation + upload ═══ */
-.bloc-pdf{
-  background:var(--papier);border:1px solid var(--trait);border-radius:10px;
-  padding:16px 18px;margin-bottom:18px;
-}
-.bloc-pdf a{
-  display:inline-flex;align-items:center;gap:8px;color:var(--primaire);
-  font-weight:600;font-size:14.5px;text-decoration:none;
-}
-.bloc-pdf a:hover{text-decoration:underline}
-.bloc-pdf p{font-size:13px;color:var(--gris);margin-top:6px}
-
 .case-attestation{
   display:flex;align-items:flex-start;gap:10px;margin-bottom:22px;cursor:pointer;
   font-size:14px;color:var(--ink);
 }
 .case-attestation input{margin-top:3px;width:18px;height:18px;flex-shrink:0;accent-color:var(--primaire)}
-
-.zone-upload{margin-bottom:12px}
-.zone-upload label{
-  display:block;font-size:13px;font-weight:600;color:var(--gris);margin-bottom:6px;
-}
-.zone-upload input[type=file]{
-  width:100%;border:2px dashed var(--trait);border-radius:9px;padding:14px;
-  font-family:'Space Grotesk', sans-serif;font-size:13.5px;background:var(--carte);
-}
-.zone-upload.rempli input[type=file]{border-color:var(--sarcelle);border-style:solid}
 
 /* ═══ Navigation entre étapes ═══ */
 .suite{display:flex;align-items:center;gap:14px;margin-top:32px}
@@ -276,6 +254,11 @@ body.mode-accessible .carte-choix .prix-produit{font-size:14px}
   border:4px solid rgba(230,36,96,.18);
   border-top-color:var(--alerte);
   animation:tourner .75s linear infinite;
+}
+.spinner-inline{
+  display:inline-block;width:14px;height:14px;border-radius:50%;
+  border:2px solid rgba(255,255,255,.4);border-top-color:#fff;
+  animation:tourner .75s linear infinite;margin-right:8px;vertical-align:-2px;
 }
 @keyframes tourner{to{transform:rotate(360deg)}}
 .voile-envoi .texte-voile{
@@ -423,12 +406,7 @@ body.mode-sombre .plaque{background:rgba(255,255,255,.06);border-left-color:var(
 body.mode-sombre .info-impose{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.2);border-left-color:var(--jaune)}
 body.mode-sombre .info-impose b{color:var(--jaune)}
 
-body.mode-sombre .bloc-pdf{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.15)}
-body.mode-sombre .bloc-pdf a{color:var(--jaune)}
-body.mode-sombre .bloc-pdf p{color:rgba(255,255,255,.5)}
 body.mode-sombre .case-attestation{color:#fff}
-body.mode-sombre .zone-upload label{color:rgba(255,255,255,.6)}
-body.mode-sombre .zone-upload input[type=file]{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.25);color:#fff}
 
 body.mode-sombre .bouton-principal{background:var(--jaune);color:var(--ink)}
 body.mode-sombre .bouton-principal:hover:not(:disabled){background:#FFDA6B}

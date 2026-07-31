@@ -310,7 +310,7 @@ $('btn-verifier-code').addEventListener('click', async function(){
   const code = $('id-code').value.trim();
   if(!code){ afficherMsg('retour-id-code', 'Saisissez votre code structure.', 'erreur'); return; }
   $('btn-verifier-code').disabled = true;
-  $('btn-verifier-code').textContent = 'Vérification…';
+  $('btn-verifier-code').innerHTML = '<span class="spinner-inline"></span>Vérification…';
   afficherMsg('retour-id-code', '', 'info');
   try{
     const r = await jsonp({action:'check', code: code});

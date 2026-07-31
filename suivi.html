@@ -28,6 +28,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
     display:inline-block;margin-top:10px;font-size:11.5px;font-weight:700;color:var(--alerte);
     background:#FCE8ED;border:1px solid #F3BCCB;padding:4px 10px;border-radius:20px;
   }
+  .raison-annulation-cs{font-size:13px;color:var(--gris);margin-top:8px;line-height:1.5}
 
   /* Timeline — même principe que le back-office : ronds reliés par un trait, coloré au fil des étapes */
   .tlc-suivi{margin-top:16px;display:grid;grid-template-columns:repeat(5,1fr)}
@@ -203,13 +204,13 @@ function rendreCommandesSuivi(commandes){
       </div>
       <div class="produits-cs">${produitsTexte}</div>
       ${estAnnulee
-        ? `<div class="badge-annulee-cs">Commande annulée</div>`
+        ? `<div class="badge-annulee-cs">Commande annulée</div>${c.commentaire ? `<div class="raison-annulation-cs">${echapper(c.commentaire)}</div>` : ''}`
         : construireTimelineSuivi(c.statutCommande)}
       ${numerosSerie.length ? `<div class="numeros-serie-cs">
           <span class="libelle-numeros-serie-cs">${numerosSerie.length > 1 ? 'Numéros de série' : 'Numéro de série'}</span>
           ${numerosSerie.map(n => `<span class="pilule-numero-serie-cs">${echapper(n)}</span>`).join('')}
         </div>` : ''}
-      ${c.bonLivraison ? `<div class="liens-colissimo-cs"><a href="${echapper(c.bonLivraison)}" target="_blank" rel="noopener">📄 Bon de livraison</a></div>` : ''}
+      ${c.bonLivraison ? `<div class="liens-colissimo-cs"><a href="${echapper(c.bonLivraison)}" target="_blank" rel="noopener">📄 Télécharger le bon de livraison</a></div>` : ''}
       ${liensColissimo.length ? `<div class="liens-colissimo-cs">${liensColissimo.map(l =>
           `<a href="${echapper(l)}" target="_blank" rel="noopener">📦 Suivre le colis</a>`).join('')}</div>` : ''}
       ${c.montantEstime != null ? `
@@ -227,7 +228,7 @@ async function chargerCommandesSuivi(){
   if(!code){ afficherMsg('retour-code', 'Merci de saisir un code.', 'erreur'); return; }
 
   $('btn-voir-commandes').disabled = true;
-  $('btn-voir-commandes').textContent = 'Vérification…';
+  $('btn-voir-commandes').innerHTML = '<span class="spinner-inline"></span>Vérification…';
   afficherMsg('retour-code', '', 'info');
 
   try{

@@ -399,6 +399,25 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
       <div class="grille-reglages">
 
       <div class="carte-reglage">
+        <h3>Onglet de démarrage</h3>
+        <p class="reglage-texte">
+          L'onglet qui s'ouvre automatiquement à la connexion sur cet appareil — un réglage local
+          au navigateur, pas partagé avec les autres personnes qui utilisent l'admin.
+        </p>
+        <div class="ligne-reglage">
+          <select id="role-vue-preferee-input">
+            <option value="commandes">Commandes &amp; Structures</option>
+            <option value="sav">SAV</option>
+            <option value="factures">Devis &amp; Factures</option>
+            <option value="comptabilite">Comptabilité</option>
+            <option value="bilan">Statistiques</option>
+          </select>
+          <button type="button" class="action claire" id="btn-role-vue-preferee-enregistrer">Enregistrer</button>
+        </div>
+        <div id="retour-role-vue-preferee"></div>
+      </div>
+
+      <div class="carte-reglage">
         <h3>Nom de la structure</h3>
         <p class="reglage-texte">
           Affiché en haut du back-office (et sur l'écran de connexion), par exemple pour un déploiement
@@ -954,7 +973,6 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
 
     <label for="facturer-numero">Numéro de facture</label>
     <input type="text" id="facturer-numero" placeholder="ex : 2026-0142">
-    <a class="action claire" id="lien-dossier-factures-modale" href="#" target="_blank" rel="noopener" style="display:inline-block;margin-top:10px" hidden>Ouvrir le dossier des factures PDF</a>
     <div id="retour-facturer"></div>
     <div class="pied-modale">
       <button class="action claire" id="facturer-annuler">Annuler</button>
@@ -1317,6 +1335,24 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
   </div>
 </div>
 
+<div class="voile-modale" id="modale-role" hidden>
+  <div class="modale" style="max-width:480px;text-align:center">
+    <h2 style="font-size:22px">Quel est ton rôle ?</h2>
+    <p class="sous-titre" style="text-align:left">
+      Juste pour t'ouvrir directement sur l'onglet qui te sert le plus — tu gardes accès à tout,
+      ça ne fait que choisir l'écran de démarrage. Modifiable à tout moment depuis Réglages.
+    </p>
+    <div class="grille-choix-role">
+      <button type="button" class="carte-choix-role" data-role-vue="commandes">📦<span>Commandes &amp; Structures</span></button>
+      <button type="button" class="carte-choix-role" data-role-vue="sav">🔧<span>SAV</span></button>
+      <button type="button" class="carte-choix-role" data-role-vue="factures">🧾<span>Devis &amp; Factures</span></button>
+      <button type="button" class="carte-choix-role" data-role-vue="comptabilite">💶<span>Comptabilité</span></button>
+      <button type="button" class="carte-choix-role" data-role-vue="bilan">📊<span>Statistiques</span></button>
+      <button type="button" class="carte-choix-role" data-role-vue="commandes">👀<span>Un peu de tout</span></button>
+    </div>
+  </div>
+</div>
+
 <div class="voile-modale" id="modale-bienvenue" hidden>
   <div class="modale" style="max-width:480px;text-align:center">
     <h2 style="font-size:22px">Bienvenue dans le back-office</h2>
@@ -1329,6 +1365,39 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
     <div class="pied-modale" style="justify-content:center">
       <button class="action claire" id="bienvenue-plus-tard">Plus tard</button>
       <button class="action" id="bienvenue-aller-reglages">Aller dans Réglages</button>
+    </div>
+  </div>
+</div>
+
+<div class="voile-modale" id="modale-nouvelle-annee" hidden>
+  <div class="modale" style="max-width:480px;text-align:center">
+    <h2 style="font-size:22px">Nouvelle année 🎉</h2>
+    <p class="sous-titre" style="text-align:left">
+      Certains réglages ont besoin d'un coup d'œil manuel à chaque changement d'année (dossier
+      de factures, fichier de numérotation officielle, éventuellement le modèle de facturation
+      s'il contient l'année en dur). Rien ne se met à jour tout seul — un passage par
+      <strong>Réglages</strong> permet de vérifier que tout pointe encore au bon endroit.
+    </p>
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--steel);margin:14px 0 4px;text-align:left">
+      <input type="checkbox" id="nouvelle-annee-ne-plus-afficher"> Ne plus me le rappeler cette année
+    </label>
+    <div class="pied-modale" style="justify-content:center">
+      <button class="action claire" id="nouvelle-annee-plus-tard">Plus tard</button>
+      <button class="action" id="nouvelle-annee-aller-reglages">Aller dans Réglages</button>
+    </div>
+  </div>
+</div>
+
+<div class="voile-modale" id="modale-raison-annulation" hidden>
+  <div class="modale">
+    <h2>Annuler cette commande</h2>
+    <p class="sous-titre">Le stock sera automatiquement recrédité. Cette raison sera visible dans le suivi de la structure.</p>
+    <label for="raison-annulation-texte">Raison de l'annulation</label>
+    <textarea id="raison-annulation-texte" style="min-height:100px" placeholder="Ex : rupture de stock imprévue, doublon avec une autre commande…"></textarea>
+    <div id="retour-raison-annulation"></div>
+    <div class="pied-modale">
+      <button class="action claire" id="raison-annulation-annuler">Ne pas annuler la commande</button>
+      <button class="action" id="raison-annulation-confirmer">Confirmer l'annulation</button>
     </div>
   </div>
 </div>

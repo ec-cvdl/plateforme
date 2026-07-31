@@ -127,7 +127,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
 
       <div class="suite">
         <button type="button" class="bouton-retour" data-retour>← Retour</button>
-        <button type="button" class="bouton-principal" id="btn-personnes-suivant">Continuer →</button>
+        <button type="button" class="bouton-principal" id="btn-personnes-suivant" disabled>Continuer →</button>
       </div>
     </section>
 
@@ -153,6 +153,14 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
       <textarea class="champ-long" id="commentaire" maxlength="1000"></textarea>
       <div class="rappel-prix" id="rappel-prix"></div>
 
+      <label class="case-attestation" id="case-bilan-social" style="margin-top:22px">
+        <input type="checkbox" id="attestation-bilan-social">
+        <span>J'atteste avoir réalisé un bilan social et reconnais que la ou les personnes orientées sont bien en situation de précarité sociale et/ou financière.</span>
+      </label>
+      <label class="case-attestation" id="case-non-acquisition">
+        <input type="checkbox" id="attestation-non-acquisition">
+        <span>J'atteste avoir vérifié que le ou les personne(s) orientée(s) n'ont pas fait l'acquisition d'un matériel reconditionné auprès d'Emmaüs Connect ces 2 dernières années.</span>
+      </label>
       <label class="case-attestation" style="margin-top:22px">
         <input type="checkbox" id="attestation-finale">
         <span>Je certifie que les informations transmises dans ce formulaire sont exactes.</span>
@@ -414,7 +422,7 @@ async function verifierCode(){
   if(!code){ afficherMsg('retour-code', 'Saisissez votre code structure.', 'erreur'); return; }
 
   $('btn-verifier').disabled = true;
-  $('btn-verifier').textContent = 'Vérification…';
+  $('btn-verifier').innerHTML = '<span class="spinner-inline"></span>Vérification…';
   afficherMsg('retour-code', '', 'info');
 
   try{
@@ -427,6 +435,14 @@ async function verifierCode(){
       estInterne = !!r.interne;
       $('demande-devis').closest('.case-attestation').hidden = estEsn;
       if(estEsn) $('demande-devis').checked = false;
+
+      const sansStatutParticulier = !moyenImpose && !estEsn;
+      $('case-bilan-social').hidden = !sansStatutParticulier;
+      $('case-non-acquisition').hidden = !sansStatutParticulier;
+      if(!sansStatutParticulier){
+        $('attestation-bilan-social').checked = false;
+        $('attestation-non-acquisition').checked = false;
+      }
 
       $('retour-code').innerHTML =
         '<div class="plaque"><span class="puce">OK</span>' +
@@ -617,12 +633,9 @@ function listePersonnesSaisies(){
 
 function verifierEtatPersonnes(){
   const noms = listePersonnesSaisies();
-  const tousRemplis = noms.every(function(n){ return n.length > 1; });
-  afficherMsg('retour-personnes', '', 'erreur');
-  $('btn-personnes-suivant').disabled = false; // facultatif : on n'empêche pas de continuer sans nom, juste on prévient
-  if(noms.length && !tousRemplis){
-    afficherMsg('retour-personnes', 'Un nom manquant ou trop court sera laissé vide — vous pourrez le compléter plus tard auprès de nous si besoin.', 'info');
-  }
+  const tousRemplis = noms.length > 0 && noms.every(function(n){ return n.length > 1; });
+  $('btn-personnes-suivant').disabled = !tousRemplis;
+  afficherMsg('retour-personnes', tousRemplis ? '' : 'Merci d\'indiquer le nom complet de chaque personne avant de continuer.', 'erreur');
 }
 $('btn-personnes-suivant').addEventListener('click', suivant);
 $('btn-date-livraison-suivant').addEventListener('click', function(){
@@ -631,20 +644,16 @@ $('btn-date-livraison-suivant').addEventListener('click', function(){
 });
 
 /* La case de certification finale (juste avant l'envoi) gate le bouton d'envoi, façon signature */
-$('attestation-finale').addEventListener('change', function(){
-  $('btn-envoyer').disabled = !$('attestation-finale').checked;
-});
+function majBoutonEnvoyer(){
+  const sansStatutParticulier = !moyenImpose && !estEsn;
+  const casesObligatoiresOk = !sansStatutParticulier || ($('attestation-bilan-social').checked && $('attestation-non-acquisition').checked);
+  $('btn-envoyer').disabled = !$('attestation-finale').checked || !casesObligatoiresOk;
+}
+$('attestation-finale').addEventListener('change', majBoutonEnvoyer);
+$('attestation-bilan-social').addEventListener('change', majBoutonEnvoyer);
+$('attestation-non-acquisition').addEventListener('change', majBoutonEnvoyer);
 
 /* Étape 4 : commentaire + envoi */
-function lireFichier(f){
-  return new Promise(function(ok, ko){
-    const lecteur = new FileReader();
-    lecteur.onload = function(){ ok({ nom: f.name, type: f.type || 'application/octet-stream', base64: lecteur.result.split(',')[1] }); };
-    lecteur.onerror = function(){ ko(new Error('Lecture du fichier impossible')); };
-    lecteur.readAsDataURL(f);
-  });
-}
-
 function majRappelPrix(){
   const connu = etat.lignes.every(function(l){ return typeof l.prixUnitaire === 'number'; });
   if(!connu || !etat.lignes.length){ $('rappel-prix').innerHTML = ''; return; }

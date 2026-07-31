@@ -232,7 +232,7 @@ async function chargerTicketsSuivi(){
   if(!numeroSerie){ afficherMsg('retour-numero', 'Merci de saisir un numéro de série.', 'erreur'); return; }
 
   $('btn-voir-tickets').disabled = true;
-  $('btn-voir-tickets').textContent = 'Recherche…';
+  $('btn-voir-tickets').innerHTML = '<span class="spinner-inline"></span>Recherche…';
   afficherMsg('retour-numero', '', 'info');
 
   try{
