@@ -242,7 +242,16 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
           <button data-f="impaye">Impayées</button>
         </div>
         <input type="text" id="recherche" placeholder="Structure, référence, numéro de série…">
+        <div class="selecteur-style-carte" id="selecteur-style-carte" role="group" aria-label="Style des cartes commande">
+          <button type="button" data-style-carte="couleur" title="Style aplat de couleur">🎨</button>
+          <button type="button" data-style-carte="neumorphisme" class="actif" title="Style neumorphisme">◐</button>
+        </div>
         <button class="action claire" id="btn-recharger">Actualiser</button>
+        <div class="selecteur-theme-carte" id="selecteur-theme-carte">
+          <button type="button" data-theme="classique" class="actif">Classique</button>
+          <button type="button" data-theme="couleur">Couleur</button>
+          <button type="button" data-theme="douceur">Douceur</button>
+        </div>
         <button class="action" id="btn-nouvelle-commande">+ Nouvelle commande</button>
       </div>
       <div id="bandeau-pagination" class="msg msg-info" hidden style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
@@ -943,6 +952,16 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
     <div class="pied-modale">
       <button class="action claire" id="p-annuler">Annuler</button>
       <button class="action" id="btn-produit-ajouter">Ajouter le produit</button>
+    </div>
+  </div>
+</div>
+
+<div class="voile-modale" id="modale-details-commande" hidden>
+  <div class="modale">
+    <h2 id="details-commande-titre">Détails de la commande</h2>
+    <div id="details-commande-corps"></div>
+    <div class="pied-modale">
+      <button class="action claire" id="details-commande-fermer">Fermer</button>
     </div>
   </div>
 </div>
