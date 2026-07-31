@@ -180,6 +180,21 @@ const LIMITE_COMMANDES_DEFAUT = 20;
 let limiteCommandesActuelle = LIMITE_COMMANDES_DEFAUT;
 let decalageCommandesActuel = 0;
 let totalCommandes = 0;
+
+// Agrégats calculés côté serveur sur tout l'historique (jamais sur la seule page affichée) —
+// c'est ce que le bandeau d'en-tête doit toujours utiliser, pas un recalcul local sur `commandes`.
+let chiffresLivraisonGlobal = {};
+let nombreNouvellesGlobal = 0;
+let nombreImpayeesGlobal = 0;
+let nombreSavEnAttenteGlobal = 0;
+function appliquerAgregatsCommandes(res){
+  if(res.aLivrer !== undefined) chiffresLivraisonGlobal = res.aLivrer;
+  if(res.nombreNouvelles !== undefined) nombreNouvellesGlobal = res.nombreNouvelles;
+  if(res.nombreImpayees !== undefined) nombreImpayeesGlobal = res.nombreImpayees;
+}
+function appliquerAgregatsSav(res){
+  if(res.nombreEnAttente !== undefined) nombreSavEnAttenteGlobal = res.nombreEnAttente;
+}
 let seuilAlerteImpayee = 30; // valeur de repli tant que /reglages n'a pas encore répondu
 let suppressionSimple = false; // idem
 let dossierFacturesPdfId = ''; // idem — sert au bouton "Ouvrir le dossier" de l'onglet Factures
@@ -425,7 +440,7 @@ async function connecter(){
 
       const etapesChargement = [
         { label: 'Commandes', fn: () => jsonp({action:'list', password:mdp, limite:LIMITE_COMMANDES_DEFAUT}).then(res => {
-            if(res.ok){ commandes = res.commandes; totalCommandes = res.total; limiteCommandesActuelle = LIMITE_COMMANDES_DEFAUT; }
+            if(res.ok){ commandes = res.commandes; totalCommandes = res.total; limiteCommandesActuelle = LIMITE_COMMANDES_DEFAUT; appliquerAgregatsCommandes(res); }
           }) },
         { label: 'Réglages', fn: () => jsonp({action:'reglages', password:mdp}).then(res => {
             if(!res.ok) return;
@@ -445,10 +460,10 @@ async function connecter(){
           }) },
         { label: 'Structures', fn: chargerStructures },
         { label: 'Produits', fn: chargerProduits },
-        { label: 'Devis', fn: chargerDevis },
-        { label: 'Factures', fn: chargerFactures },
+        { label: 'Devis', fn: () => chargerDevis(true) },
+        { label: 'Factures', fn: () => chargerFactures(true) },
         { label: 'SAV', fn: () => chargerStatutsSav().then(() => chargerSav(true)) },
-        { label: 'Comptabilité', fn: chargerComptabilite }
+        { label: 'Comptabilité', fn: () => chargerComptabilite(true) }
       ];
 
       let termines = 0;
@@ -504,7 +519,7 @@ async function rafraichirSilencieusement(){
 
   try{
     const r = await jsonp({action:'list', password:motDePasse, limite:limiteCommandesActuelle, decalage:decalageCommandesActuel});
-    if(r.ok){ commandes = r.commandes; totalCommandes = r.total; rendre(); }
+    if(r.ok){ commandes = r.commandes; totalCommandes = r.total; appliquerAgregatsCommandes(r); rendre(); }
   }catch(e){ /* silencieux — nouvelle tentative au prochain cycle */ }
   try{
     if(statutsSav.length) await chargerSav(true);

@@ -1,10 +1,28 @@
 /* ══════════════ COMMANDES ══════════════ */
 
+/* ─── Style de carte commande (neumorphisme par défaut, mémorisé sur cet appareil) ─── */
+function appliquerStyleCarteCommande(style){
+  document.body.classList.remove('carte-style-couleur', 'carte-style-neumorphisme');
+  document.body.classList.add('carte-style-' + style);
+  document.querySelectorAll('#selecteur-style-carte button').forEach(b => b.classList.toggle('actif', b.dataset.styleCarte === style));
+  try{ localStorage.setItem('cvdl-style-carte-commande', style); }catch(e){}
+}
+$('selecteur-style-carte').addEventListener('click', e => {
+  const b = e.target.closest('[data-style-carte]');
+  if(!b) return;
+  appliquerStyleCarteCommande(b.dataset.styleCarte);
+});
+try{
+  appliquerStyleCarteCommande(localStorage.getItem('cvdl-style-carte-commande') || 'neumorphisme');
+}catch(e){
+  appliquerStyleCarteCommande('neumorphisme');
+}
+
 async function recharger(){
   etat('Actualisation…', 'neutre');
   try{
     const r = await jsonp({action:'list', password:motDePasse, limite:limiteCommandesActuelle, decalage:decalageCommandesActuel});
-    if(r.ok){ commandes = r.commandes; totalCommandes = r.total; rendre(); etat('À jour', 'succes'); }
+    if(r.ok){ commandes = r.commandes; totalCommandes = r.total; appliquerAgregatsCommandes(r); rendre(); etat('À jour', 'succes'); }
   }catch(e){ etat('Actualisation impossible', 'erreur'); }
 }
 $('btn-recharger').addEventListener('click', recharger);
@@ -14,7 +32,7 @@ async function changerPageCommandes(nouveauDecalage){
   try{
     const r = await jsonp({action:'list', password:motDePasse, limite:limiteCommandesActuelle, decalage:nouveauDecalage});
     if(r.ok){
-      commandes = r.commandes; totalCommandes = r.total; decalageCommandesActuel = nouveauDecalage;
+      commandes = r.commandes; totalCommandes = r.total; decalageCommandesActuel = nouveauDecalage; appliquerAgregatsCommandes(r);
       rendre(); etat('À jour', 'succes');
     }
   }catch(e){ etat('Chargement impossible', 'erreur'); }
@@ -48,7 +66,7 @@ $('recherche').addEventListener('input', () => {
     try{
       const r = await jsonp({action:'list', password:motDePasse, recherche:terme});
       if(r.ok){
-        commandes = r.commandes; totalCommandes = r.total; rechercheCommandesActive = true;
+        commandes = r.commandes; totalCommandes = r.total; rechercheCommandesActive = true; appliquerAgregatsCommandes(r);
         rendre(); etat('À jour', 'succes');
       }
     }catch(e){ etat('Recherche impossible', 'erreur'); }
@@ -85,17 +103,9 @@ function rendreApercuGeneral(){
   const el = $('apercu-general');
   if(!el) return;
 
-  const nouvelles = commandes.filter(c => c.statutCommande === 'Reçue').length;
-
-  const impayees = commandes.filter(c => {
-    if(c.statutCommande !== 'Livrée') return false;
-    if(c.statutPaiement === 'Payé' || c.statutPaiement === 'Remboursé') return false;
-    const structureCmd = structures.find(s => s.code === c.code);
-    return !(structureCmd && (structureCmd.esn || structureCmd.interne));
-  }).length;
-
-  const premierStatutSav = statutsSav.length ? statutsSav[0].statut : null;
-  const savEnAttente = premierStatutSav ? sav.filter(t => t.statut === premierStatutSav).length : 0;
+  const nouvelles = nombreNouvellesGlobal;
+  const impayees = nombreImpayeesGlobal;
+  const savEnAttente = nombreSavEnAttenteGlobal;
 
   const puces = [];
   if(nouvelles) puces.push({ n: nouvelles, l: nouvelles > 1 ? 'nouvelles commandes' : 'nouvelle commande', vue:'commandes', filtre:'Reçue' });
@@ -120,6 +130,23 @@ $('apercu-general').addEventListener('click', e => {
   }
 });
 
+function appliquerThemeCarte(theme){
+  $('liste').classList.remove('theme-couleur', 'theme-douceur');
+  if(theme === 'couleur') $('liste').classList.add('theme-couleur');
+  if(theme === 'douceur') $('liste').classList.add('theme-douceur');
+  document.querySelectorAll('#selecteur-theme-carte button').forEach(b => b.classList.toggle('actif', b.dataset.theme === theme));
+  try{ localStorage.setItem('cvdl-theme-carte', theme); }catch(e){}
+}
+$('selecteur-theme-carte').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if(!b) return;
+  appliquerThemeCarte(b.dataset.theme);
+});
+try{
+  const themeMemorise = localStorage.getItem('cvdl-theme-carte');
+  if(themeMemorise) appliquerThemeCarte(themeMemorise);
+}catch(e){}
+
 function rendre(){
   const banniereHistorique = $('bandeau-pagination');
   if(!rechercheCommandesActive && limiteCommandesActuelle > 0 && totalCommandes > limiteCommandesActuelle){
@@ -133,16 +160,7 @@ function rendre(){
     banniereHistorique.hidden = true;
   }
 
-  const aLivrer = {};
-  commandes.forEach(c => {
-    if (!['Reçue', 'Validée'].includes(c.statutCommande)) return;
-    (c.lignes || []).forEach(l => {
-      const qte = parseInt(l.quantite, 10) || 0;
-      if (!qte || !l.produit) return;
-      if (!aLivrer[l.produit]) aLivrer[l.produit] = 0;
-      aLivrer[l.produit] += qte;
-    });
-  });
+  const aLivrer = chiffresLivraisonGlobal;
 
   const produitsAvecIcone = Object.keys(aLivrer).map(nom => {
     const info = produits.find(p => p.nom === nom);
@@ -169,38 +187,21 @@ function rendre(){
   }
 
   $('liste').innerHTML = visibles.map(c => {
-    const cb = c.moyenPaiement === 'Paiement en ligne (CB)';
     const structureCommande = structures.find(s => s.code === c.code);
     const estEsnCommande = !!(structureCommande && (structureCommande.esn || structureCommande.interne));
-    const classe = c.statutCommande === 'Annulée' ? 'annulee'
-                 : c.statutCommande === 'Reçue' ? 'en-attente'
-                 : c.statutCommande === 'Préparée' ? 'preparee'
-                 : c.statutCommande === 'En cours de livraison' ? 'en-livraison'
-                 : (c.statutCommande === 'Livrée' && c.statutPaiement === 'Payé') ? 'close'
-                 : 'cours';
-    const nbFichiers = parseInt(c.nombreFichiers, 10) || 0;
-    const nbSeries = (c.numerosSerie || '').split('\n').map(s => s.trim()).filter(Boolean).length;
-    const liensColissimoCommande = (c.colissimo || '').split('\n').map(s => s.trim()).filter(Boolean);
-    const nbColissimo = liensColissimoCommande.length;
-    const produitInfo = produits.find(p => p.nom === c.produit);
-    const nbCommentaire = (c.commentaire || '').trim().length;
-    const devisDemandeBadge = c.devisDemande === 'Oui'
-      ? `<span class="badge-devis-demande"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 22 20.5H2z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.5" r="0.6" fill="currentColor" stroke="none"/></svg>Devis demandé
-          <button type="button" data-rejeter-devis-demande="${c.ligne}" title="Masquer ce rappel">✕</button>
-        </span>`
-      : '';
+    const estAnnulee = c.statutCommande === 'Annulée';
+    const teinte = estAnnulee ? 't-gris' : (TEINTES[c.statutCommande] || 't-gris');
+    const materielResume = (c.lignes || []).map(l => `${echapper(l.quantite)}× ${echapper(l.produit)}`).join(', ');
+
     const joursImpaye = (!estEsnCommande && c.statutCommande === 'Livrée' && c.statutPaiement !== 'Payé' && c.statutPaiement !== 'Remboursé')
       ? joursDepuis(c.dateLivraison) : null;
     const alerteImpayee = (joursImpaye !== null && joursImpaye >= seuilAlerteImpayee)
-      ? `<div class="alerte-impayee">Impayée depuis ${joursImpaye} jour${joursImpaye > 1 ? 's' : ''}</div>` : '';
+      ? `<div class="ccm-alerte">Impayée depuis ${joursImpaye} jour${joursImpaye > 1 ? 's' : ''}</div>` : '';
 
     const facturationOubliee = !estEsnCommande && c.statutCommande === 'Livrée' && c.statutPaiement === 'Payé' && !c.referenceFacture
       && !facturesManquantesRejetees.has(c.reference);
     const alerteFactureManquante = facturationOubliee
-      ? `<div class="alerte-facture-manquante">
-           Livrée et payée, mais aucune facture liée
-           <button type="button" data-rejeter-alerte-facture="${echapper(c.reference)}" title="Masquer ce rappel">✕</button>
-         </div>` : '';
+      ? `<div class="ccm-alerte">Livrée et payée, mais aucune facture liée</div>` : '';
 
     const badgeNouvelle = (c.statutCommande === 'Reçue' && estNouvelleCommande(c.date, c.heure))
       ? '<div class="badge-nouvelle">NEW</div>' : '';
@@ -208,26 +209,50 @@ function rendre(){
     return `
     <div class="fiche-conteneur">
       ${badgeNouvelle}
-      <article class="fiche ${classe}">
-      ${classe === 'annulee' ? '<div class="ruban-annule">Commande annulée</div>' : ''}
-      ${alerteImpayee}
-      ${alerteFactureManquante}
+      <article class="carte-cmd-mini ${teinte}${estAnnulee ? ' annulee' : ''}">
+        ${estAnnulee ? '<div class="ruban-annule">Commande annulée</div>' : ''}
+        ${alerteImpayee}${alerteFactureManquante}
+        <div class="ccm-haut">
+          <span class="ccm-ref">${echapper(c.reference)}</span>
+          <span class="ccm-date">${echapper(c.date)}</span>
+        </div>
+        <div class="ccm-nom">${echapper(c.nom)}</div>
+        <div class="ccm-materiel">${materielResume}</div>
+        ${c.devisDemande === 'Oui' ? '<div class="ccm-devis">Devis demandé</div>' : ''}
+        <div class="ccm-pied">
+          <span class="ccm-statut">${echapper(c.statutCommande)}</span>
+          <button type="button" class="ccm-details" data-ouvrir-details-commande="${c.ligne}">Détails</button>
+        </div>
+      </article>
+    </div>`;
+  }).join('');
+  rendreApercuGeneral();
+}
 
-      <div class="fiche-entete">
-        <div class="fiche-entete-gauche">
-          <div class="ref">${echapper(c.reference)}</div>
-          <div class="date">${echapper(c.date)} <span class="heure">${echapper(c.heure)}</span></div>
-          ${devisDemandeBadge}
-        </div>
-        <div class="fiche-badges-statut">
-          ${badgeStatut(c.statutCommande)}
-          ${estEsnCommande ? '' : badgeStatut(c.statutPaiement)}
-          ${estEsnCommande ? '' : `<div class="rappel-montant-commande">${formaterMontant(c.montantFacture != null ? c.montantFacture : c.montantEstime)}</div>`}
-        </div>
+/** Construit le contenu de la modale Détails à la demande (jamais mis en cache : on relit
+ *  toujours l'état courant de la commande, pour ne jamais montrer une info périmée). */
+function construireDetailsCommande(ligne){
+  const c = commandes.find(x => x.ligne === ligne);
+  if(!c) return '';
+  const structureCommande = structures.find(s => s.code === c.code);
+  const estEsnCommande = !!(structureCommande && (structureCommande.esn || structureCommande.interne));
+  const classe = c.statutCommande === 'Annulée' ? 'annulee' : '';
+  const nbFichiers = parseInt(c.nombreFichiers, 10) || 0;
+  const nbSeries = (c.numerosSerie || '').split('\n').map(s => s.trim()).filter(Boolean).length;
+  const liensColissimoCommande = (c.colissimo || '').split('\n').map(s => s.trim()).filter(Boolean);
+  const nbColissimo = liensColissimoCommande.length;
+  const nbCommentaire = (c.commentaire || '').trim().length;
+
+  $('details-commande-titre').textContent = `${c.reference} — ${c.nom}`;
+
+  return `
+      <div class="fiche-badges-statut" style="flex-direction:row;flex-wrap:wrap;margin-bottom:16px">
+        ${badgeStatut(c.statutCommande)}
+        ${estEsnCommande ? '' : badgeStatut(c.statutPaiement)}
+        ${estEsnCommande ? '' : `<div class="rappel-montant-commande">${formaterMontant(c.montantFacture != null ? c.montantFacture : c.montantEstime)}</div>`}
       </div>
 
-
-      <div class="fiche-materiel-structure">
+      <div class="fiche-materiel-structure" style="display:block">
         <div class="materiel-lignes">
           ${(c.lignes || []).map(l => {
             const infoL = produits.find(p => p.nom === l.produit);
@@ -240,15 +265,14 @@ function rendre(){
           }).join('')}
           <button type="button" class="btn-ajouter-ligne-produit" data-commande-ligne="${c.ligne}">+ Ajouter un produit</button>
         </div>
-        <div class="bloc-structure">
-          <span class="nom">${echapper(c.nom)}</span>
+        <div class="bloc-structure" style="margin-top:10px">
           <span class="coords-resume">
             <a href="mailto:${echapper(c.email)}">${echapper(c.email)}</a> · ${echapper(c.telephone)}
           </span>
         </div>
       </div>
 
-      <div class="fiche-actions-rapides">
+      <div class="fiche-actions-rapides" style="margin-top:16px">
         ${c.dossier
           ? `<a class="pilule-action pilule-remplie" href="${echapper(c.dossier)}" target="_blank" rel="noopener">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8A2 2 0 0 1 21 9.5V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>
@@ -276,7 +300,7 @@ function rendre(){
         </button>
       </div>
 
-      <div class="fiche-boutons-modales">
+      <div class="fiche-boutons-modales" style="margin-top:16px">
         <button type="button" class="btn-ouvrir-modale" data-ouvrir-modale-statut="${c.ligne}">
           Statut &amp; livraison
           <span class="sous-statut">${echapper(c.statutCommande)}${c.dateLivraison ? ' · ' + echapper(c.dateLivraison) : ''}</span>
@@ -287,7 +311,7 @@ function rendre(){
         </button>`}
       </div>
 
-      <div class="fiche-pied">
+      <div class="fiche-pied" style="margin-top:16px">
         ${classe !== 'annulee' ? construireTimelineCommande(c.statutCommande) : '<div style="flex:1"></div>'}
         ${(c.statutCommande === 'En cours de livraison' && liensColissimoCommande.length)
           ? `<button type="button" class="btn-icone-fiche" data-suivre-colis="${echapper(JSON.stringify(liensColissimoCommande))}" title="Suivre le colis" aria-label="Suivre le colis">
@@ -299,12 +323,17 @@ function rendre(){
         <button type="button" class="btn-icone-fiche danger" data-commande-supprimer="${c.ligne}" data-ref="${echapper(c.reference)}" title="Supprimer la commande" aria-label="Supprimer la commande">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7m2 0v13a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 7 20V7h10z"/><path d="M10 11v6M14 11v6"/></svg>
         </button>
-      </div>
-    </article>
-    </div>`;
-  }).join('');
-  rendreApercuGeneral();
+      </div>`;
 }
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-ouvrir-details-commande]');
+  if(!b) return;
+  const ligne = parseInt(b.dataset.ouvrirDetailsCommande, 10);
+  $('details-commande-corps').innerHTML = construireDetailsCommande(ligne);
+  $('modale-details-commande').hidden = false;
+});
+$('details-commande-fermer').addEventListener('click', () => $('modale-details-commande').hidden = true);
 
 async function enregistrer(el){
   const ligne  = parseInt(el.dataset.ligne, 10);
@@ -340,7 +369,7 @@ async function enregistrer(el){
   el.disabled = false;
 }
 
-$('liste').addEventListener('change', e => {
+document.addEventListener('change', e => {
   const el = e.target;
   if(!el.matches('select[data-ligne], input[data-ligne]')) return;
 
@@ -379,20 +408,20 @@ function ouvrirModaleStatut(ligne){
   $('modale-statut').hidden = false;
 }
 
-$('liste').addEventListener('click', e => {
+document.addEventListener('click', e => {
   const b = e.target.closest('[data-ouvrir-modale-statut]');
   if(!b) return;
   ouvrirModaleStatut(parseInt(b.dataset.ouvrirModaleStatut, 10));
 });
 
-$('liste').addEventListener('click', e => {
+document.addEventListener('click', e => {
   const b = e.target.closest('[data-rejeter-alerte-facture]');
   if(!b) return;
   rejeterAlerteFacture(b.dataset.rejeterAlerteFacture);
   b.closest('.alerte-facture-manquante').remove();
 });
 
-$('liste').addEventListener('click', async e => {
+document.addEventListener('click', async e => {
   const b = e.target.closest('[data-rejeter-devis-demande]');
   if(!b) return;
   const ligne = parseInt(b.dataset.rejeterDevisDemande, 10);
@@ -419,7 +448,7 @@ function remplirSelectProduitsModaleLigne(produitActuel){
     `<option value="${echapper(p.nom)}" ${p.nom === produitActuel ? 'selected' : ''}>${echapper(p.nom)}</option>`).join('');
 }
 
-$('liste').addEventListener('click', e => {
+document.addEventListener('click', e => {
   const bAjouter = e.target.closest('.btn-ajouter-ligne-produit');
   if(bAjouter){
     ligneProduitContexte = { commandeLigne: parseInt(bAjouter.dataset.commandeLigne, 10), ligneDetail: null };
@@ -538,7 +567,7 @@ function ouvrirModaleModifierCommande(ligne){
   $('modale-modifier-commande').hidden = false;
 }
 
-$('liste').addEventListener('click', e => {
+document.addEventListener('click', e => {
   const bSuivre = e.target.closest('[data-suivre-colis]');
   if(bSuivre){
     try{
@@ -651,7 +680,7 @@ function ouvrirModalePaiement(ligne){
   $('modale-paiement').hidden = false;
 }
 
-$('liste').addEventListener('click', e => {
+document.addEventListener('click', e => {
   const b = e.target.closest('[data-ouvrir-modale-paiement]');
   if(!b) return;
   ouvrirModalePaiement(parseInt(b.dataset.ouvrirModalePaiement, 10));

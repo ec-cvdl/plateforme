@@ -9,13 +9,13 @@ let totalSav = 0;
 let filtreSav = 'tout';
 let symptomesSav = ['L\'écran ne s\'allume plus', 'L\'appareil ne se charge plus', 'Le clavier ne fonctionne plus ou mal'];
 
-async function chargerFactures(){
-  etat('Chargement des factures…', 'chargement');
+async function chargerFactures(silencieux){
+  if(!silencieux) etat('Chargement des factures…', 'chargement');
   try{
     const r = await jsonp({action:'factures', password:motDePasse});
     if(r.ok){ factures = r.factures; rendreFactures(); }
-    $('etat').classList.remove('visible');
-  }catch(e){ etat('Chargement des factures impossible', 'erreur'); }
+    if(!silencieux) $('etat').classList.remove('visible');
+  }catch(e){ if(!silencieux) etat('Chargement des factures impossible', 'erreur'); }
 }
 $('btn-recharger-factures').addEventListener('click', () => {
   etat('Actualisation…', 'neutre');
@@ -113,7 +113,7 @@ async function chargerSav(silencieux, limiteForcee){
   const limite = limiteForcee !== undefined ? limiteForcee : limiteSavActuelle;
   try{
     const r = await jsonp({action:'sav-list', password:motDePasse, limite:limite, decalage:decalageSavActuel});
-    if(r.ok){ sav = r.tickets; totalSav = r.total; rendreSav(); }
+    if(r.ok){ sav = r.tickets; totalSav = r.total; appliquerAgregatsSav(r); rendreSav(); rendreApercuGeneral(); }
     if(!silencieux) $('etat').classList.remove('visible');
   }catch(e){ if(!silencieux) etat('Chargement du SAV impossible', 'erreur'); }
 }
@@ -127,8 +127,8 @@ async function changerPageSav(nouveauDecalage){
   try{
     const r = await jsonp({action:'sav-list', password:motDePasse, limite:limiteSavActuelle, decalage:nouveauDecalage});
     if(r.ok){
-      sav = r.tickets; totalSav = r.total; decalageSavActuel = nouveauDecalage;
-      rendreSav(); etat('À jour', 'succes');
+      sav = r.tickets; totalSav = r.total; decalageSavActuel = nouveauDecalage; appliquerAgregatsSav(r);
+      rendreSav(); rendreApercuGeneral(); etat('À jour', 'succes');
     }
   }catch(e){ etat('Chargement impossible', 'erreur'); }
 }
@@ -153,8 +153,8 @@ $('recherche-sav').addEventListener('input', () => {
     try{
       const r = await jsonp({action:'sav-list', password:motDePasse, recherche:terme});
       if(r.ok){
-        sav = r.tickets; totalSav = r.total; rechercheSavActive = true;
-        rendreSav(); etat('À jour', 'succes');
+        sav = r.tickets; totalSav = r.total; rechercheSavActive = true; appliquerAgregatsSav(r);
+        rendreSav(); rendreApercuGeneral(); etat('À jour', 'succes');
       }
     }catch(e){ etat('Recherche impossible', 'erreur'); }
   }, 350);

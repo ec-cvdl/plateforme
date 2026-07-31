@@ -15,8 +15,8 @@ async function chargerDonneesBilan(){
       jsonp({action:'list', password:motDePasse, limite:0}),
       jsonp({action:'sav-list', password:motDePasse, limite:0})
     ]);
-    if(rc.ok) commandesBilan = rc.commandes;
-    if(rs.ok) savBilan = rs.tickets;
+    if(rc.ok){ commandesBilan = rc.commandes; appliquerAgregatsCommandes(rc); }
+    if(rs.ok){ savBilan = rs.tickets; appliquerAgregatsSav(rs); }
     bilanDonneesChargees = true;
   }catch(e){
     $('bilan-contenu').innerHTML = '<p class="sous-question">Chargement impossible — réessaie avec le bouton Actualiser.</p>';

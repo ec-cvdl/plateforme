@@ -2,13 +2,13 @@
 
 let devis = [];
 
-async function chargerDevis(){
-  etat('Chargement des devis…', 'chargement');
+async function chargerDevis(silencieux){
+  if(!silencieux) etat('Chargement des devis…', 'chargement');
   try{
     const r = await jsonp({action:'devis', password:motDePasse});
     if(r.ok){ devis = r.devis; rendreDevis(); }
-    $('etat').classList.remove('visible');
-  }catch(e){ etat('Chargement des devis impossible', 'erreur'); }
+    if(!silencieux) $('etat').classList.remove('visible');
+  }catch(e){ if(!silencieux) etat('Chargement des devis impossible', 'erreur'); }
 }
 $('btn-recharger-devis').addEventListener('click', () => {
   etat('Actualisation…', 'neutre');
