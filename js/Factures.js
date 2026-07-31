@@ -191,6 +191,7 @@ function rendreConfigStatutsSav(){
       <label class="case-drapeau"><input type="checkbox" data-statut-config="${s.ligne}" data-champ="diagnostic" ${s.diagnostic ? 'checked' : ''}> Diagnostic</label>
       <label class="case-drapeau"><input type="checkbox" data-statut-config="${s.ligne}" data-champ="departDelai" ${s.departDelai ? 'checked' : ''}> Départ délai</label>
       <label class="case-drapeau"><input type="checkbox" data-statut-config="${s.ligne}" data-champ="terminal" ${s.terminal ? 'checked' : ''}> Terminal</label>
+      <label class="case-drapeau" title="Ferme l'anneau de progression à 100% dans le suivi structure/bénéficiaire — à cocher sur le statut qui représente une résolution réussie, pas sur une sortie alternative (faux positif, hors garantie…)"><input type="checkbox" data-statut-config="${s.ligne}" data-champ="finCycle" ${s.finCycle ? 'checked' : ''}> Fin de cycle (anneau)</label>
       <button type="button" class="btn-icone-fiche danger" data-statut-supprimer="${s.ligne}" data-statut-nom="${echapper(s.statut)}" title="Supprimer ce statut" aria-label="Supprimer">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7m2 0v13a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 7 20V7h10z"/><path d="M10 11v6M14 11v6"/></svg>
       </button>
@@ -364,10 +365,30 @@ function rendreSav(){
   rendreApercuGeneral();
 }
 
+let clotureSavLigneCourante = null;
+let clotureSavValeurPrecedente = null;
+let clotureSavSelectCourant = null;
+
 $('liste-sav').addEventListener('change', async e => {
   const el = e.target;
   if(!el.matches('[data-sav-edit]')) return;
   const ligne = parseInt(el.dataset.savEdit, 10);
+
+  if(el.dataset.champ === 'statut'){
+    const infoNouveauStatut = statutsSav.find(s => s.statut === el.value);
+    if(infoNouveauStatut && infoNouveauStatut.terminal){
+      const t = sav.find(x => x.ligne === ligne);
+      clotureSavLigneCourante = ligne;
+      clotureSavValeurPrecedente = t ? t.statut : '';
+      clotureSavSelectCourant = el;
+      $('modale-cloture-sav-statut').textContent = `Nouveau statut : ${el.value}`;
+      $('cloture-sav-texte').value = t ? (t.notes || '') : '';
+      $('retour-cloture-sav').innerHTML = '';
+      $('modale-cloture-sav').hidden = false;
+      return; // rien n'est enregistré tant que la clôture n'est pas confirmée
+    }
+  }
+
   el.disabled = true;
   try{
     const r = await poster({ action:'sav-update', password:motDePasse, ligne, champ: el.dataset.champ, valeur: el.value });
@@ -385,6 +406,46 @@ $('liste-sav').addEventListener('change', async e => {
     }
   }catch(err){ etat('Enregistrement impossible', 'erreur'); }
   el.disabled = false;
+});
+
+$('cloture-sav-annuler').addEventListener('click', () => {
+  if(clotureSavSelectCourant) clotureSavSelectCourant.value = clotureSavValeurPrecedente;
+  $('modale-cloture-sav').hidden = true;
+  clotureSavLigneCourante = null;
+  clotureSavSelectCourant = null;
+});
+
+$('cloture-sav-confirmer').addEventListener('click', async () => {
+  const texte = $('cloture-sav-texte').value.trim();
+  if(!texte){
+    $('retour-cloture-sav').innerHTML = '<div class="msg msg-erreur">Merci de décrire les actions réalisées avant de confirmer — ce message sera lu par la structure/le bénéficiaire.</div>';
+    return;
+  }
+  $('cloture-sav-confirmer').disabled = true;
+  $('retour-cloture-sav').innerHTML = '';
+  try{
+    const nouveauStatut = clotureSavSelectCourant.value;
+    const rStatut = await poster({ action:'sav-update', password:motDePasse, ligne: clotureSavLigneCourante, champ:'statut', valeur: nouveauStatut });
+    if(!rStatut.ok){
+      $('retour-cloture-sav').innerHTML = `<div class="msg msg-erreur">${echapper(rStatut.erreur)}</div>`;
+      $('cloture-sav-confirmer').disabled = false;
+      return;
+    }
+    const rNotes = await poster({ action:'sav-update', password:motDePasse, ligne: clotureSavLigneCourante, champ:'notes', valeur: texte });
+    if(!rNotes.ok){
+      $('retour-cloture-sav').innerHTML = `<div class="msg msg-erreur">Statut enregistré, mais le message n'a pas pu être sauvegardé : ${echapper(rNotes.erreur)}</div>`;
+      $('cloture-sav-confirmer').disabled = false;
+      return;
+    }
+    $('modale-cloture-sav').hidden = true;
+    clotureSavLigneCourante = null;
+    clotureSavSelectCourant = null;
+    await chargerSav();
+    etat('Ticket clôturé', 'succes');
+  }catch(e){
+    $('retour-cloture-sav').innerHTML = '<div class="msg msg-erreur">Enregistrement impossible.</div>';
+  }
+  $('cloture-sav-confirmer').disabled = false;
 });
 
 $('liste-sav').addEventListener('click', e => {

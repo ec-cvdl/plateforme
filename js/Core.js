@@ -53,6 +53,18 @@ const LIBELLES_COURTS_TIMELINE = {
   'En cours de livraison': 'En livraison', 'Livrée': 'Livrée'
 };
 
+/** Barre de progression sur la carte commande elle-même (plus dans la modale Détails) —
+ *  couleur du statut en cours, longueur proportionnelle à l'avancement sur les 5 étapes. */
+function construireBarreProgressionCommande(statutActuel){
+  const indexActuel = ETAPES_TIMELINE_COMMANDE.indexOf(statutActuel);
+  if(indexActuel === -1) return '';
+  const teinte = TEINTES[statutActuel] || 't-gris';
+  const pourcentage = Math.round(((indexActuel + 1) / ETAPES_TIMELINE_COMMANDE.length) * 100);
+  return `<div class="barre-progression-cmd" title="${echapper(statutActuel)}">
+    <div class="barre-progression-cmd-fond"><div class="barre-progression-cmd-remplissage ${teinte}" style="width:${pourcentage}%"></div></div>
+  </div>`;
+}
+
 function construireTimelineCommande(statutActuel){
   const indexActuel = ETAPES_TIMELINE_COMMANDE.indexOf(statutActuel);
   if(indexActuel === -1) return '';
@@ -142,6 +154,26 @@ function svgIcone(nom, icone){
 }
 function svgIconePuce(nom, icone){
   return '<svg class="icone-puce" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + iconePour(nom, icone) + '</svg>';
+}
+
+/* Émoji par produit, pour le design "météo" — plus parlant et coloré qu'une icône SVG monochrome. */
+function emojiPour(nom, icone){
+  if(icone === 'feuille') return '🌱';
+  if(icone === 'atelier') return '🎓';
+  if(icone === 'telephone_touches') return '☎️';
+  if(icone === 'telephone') return '📱';
+  if(icone === 'tablette') return '📱';
+  if(icone === 'portable') return '💻';
+  if(icone === 'fixe') return '🖥️';
+  const n = String(nom || '').toLowerCase();
+  if (/(sensibilisation|[ée]cologi|environnement)/.test(n)) return '🌱';
+  if (/(atelier|animation)/.test(n)) return '🎓';
+  if (/touches?/.test(n)) return '☎️';
+  if (/(smartphone|t[ée]l[ée]phone|mobile)/.test(n)) return '📱';
+  if (/tablet/.test(n)) return '📱';
+  if (/(portable|laptop)/.test(n)) return '💻';
+  if (/(fixe|bureau|desktop|tour)/.test(n)) return '🖥️';
+  return '📦';
 }
 
 /* Icônes de symptôme SAV — même principe de reconnaissance par mot-clé que les produits */
@@ -345,18 +377,8 @@ function formaterMontant(montant){
 }
 
 /* ─── Connexion ─── */
-/* ─── Mode sombre (mémorisé) ─── */
-function appliquerModeSombreAdmin(actif){
-  document.body.classList.toggle('mode-sombre-admin', actif);
-  $('btn-mode-sombre-admin').textContent = actif ? '☀️' : '🌙';
-  try{ localStorage.setItem('cvdl-admin-sombre', actif ? '1' : '0'); }catch(e){}
-}
-$('btn-mode-sombre-admin').addEventListener('click', () => {
-  appliquerModeSombreAdmin(!document.body.classList.contains('mode-sombre-admin'));
-});
-try{
-  if(localStorage.getItem('cvdl-admin-sombre') === '1') appliquerModeSombreAdmin(true);
-}catch(e){}
+/* Mode sombre admin retiré pour le moment (à retravailler plus tard) — voir git/historique
+   des conversations si besoin de le réactiver un jour. */
 
 /* ─── Lien du formulaire public ───
    Calculé depuis l'URL de CETTE page (admin.html) plutôt que codé en dur : fonctionne
@@ -546,5 +568,21 @@ document.querySelector('.onglets').addEventListener('click', e => {
   if(b.dataset.vue === 'bilan'){ chargerDonneesBilan().then(() => { rendreBilan(); rendreBilanSav(); }); }
   $('vue-reglages').hidden = b.dataset.vue !== 'reglages';
   if(b.dataset.vue === 'reglages') chargerReglages();
+});
+
+/* ─── Premier plan des modales ─── toutes partagent le même z-index de base dans le CSS,
+   donc laquelle s'affiche "au-dessus" dépendait jusque-là de son ordre dans le HTML, pas de
+   celle ouverte en dernier — la modale Détails, par exemple, restait visible par-dessus une
+   modale ouverte depuis elle. On observe l'attribut "hidden" de chaque modale et on bascule
+   au premier plan celle qui vient de s'ouvrir, sans avoir à toucher aux dizaines d'endroits
+   qui font ".hidden = false" dans le reste du code. */
+let zIndexModalePremierPlan = 100;
+document.querySelectorAll('.voile-modale').forEach(modale => {
+  new MutationObserver(() => {
+    if(!modale.hidden){
+      zIndexModalePremierPlan += 1;
+      modale.style.zIndex = zIndexModalePremierPlan;
+    }
+  }).observe(modale, { attributes: true, attributeFilter: ['hidden'] });
 });
 

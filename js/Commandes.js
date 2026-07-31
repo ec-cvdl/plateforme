@@ -18,6 +18,24 @@ try{
   appliquerStyleCarteCommande('couleur');
 }
 
+function appliquerGrilleCarteCommande(nb){
+  $('liste').classList.remove('grille-2', 'grille-3');
+  if(nb === '2') $('liste').classList.add('grille-2');
+  if(nb === '3') $('liste').classList.add('grille-3');
+  document.querySelectorAll('#selecteur-grille-carte button').forEach(b => b.classList.toggle('actif', b.dataset.grilleCarte === nb));
+  try{ localStorage.setItem('cvdl-grille-carte-commande', nb); }catch(e){}
+}
+$('selecteur-grille-carte').addEventListener('click', e => {
+  const b = e.target.closest('[data-grille-carte]');
+  if(!b) return;
+  appliquerGrilleCarteCommande(b.dataset.grilleCarte);
+});
+try{
+  appliquerGrilleCarteCommande(localStorage.getItem('cvdl-grille-carte-commande') || '1');
+}catch(e){
+  appliquerGrilleCarteCommande('1');
+}
+
 async function recharger(){
   etat('Actualisation…', 'neutre');
   try{
@@ -174,7 +192,11 @@ function rendre(){
     const estEsnCommande = !!(structureCommande && (structureCommande.esn || structureCommande.interne));
     const estAnnulee = c.statutCommande === 'Annulée';
     const teinte = estAnnulee ? 't-gris' : (TEINTES[c.statutCommande] || 't-gris');
-    const materielResume = (c.lignes || []).map(l => `${echapper(l.quantite)}× ${echapper(l.produit)}`).join(', ');
+    const materielResume = (c.lignes || []).map(l => {
+      const infoProduit = produits.find(p => p.nom === l.produit);
+      const icone = svgIconePuce(l.produit, infoProduit ? infoProduit.icone : '');
+      return `<span class="ccm-materiel-item">${icone}${echapper(l.quantite)}× ${echapper(l.produit)}</span>`;
+    }).join('<span class="ccm-materiel-sep">│</span>');
 
     const joursImpaye = (!estEsnCommande && c.statutCommande === 'Livrée' && c.statutPaiement !== 'Payé' && c.statutPaiement !== 'Remboursé')
       ? joursDepuis(c.dateLivraison) : null;
@@ -191,7 +213,7 @@ function rendre(){
 
     const premierProduitNom = (c.lignes && c.lignes[0]) ? c.lignes[0].produit : c.produit;
     const infoPremierProduit = produits.find(p => p.nom === premierProduitNom);
-    const iconeMeteo = svgIconePuce(premierProduitNom || '', infoPremierProduit ? infoPremierProduit.icone : '');
+    const iconeMeteo = emojiPour(premierProduitNom || '', infoPremierProduit ? infoPremierProduit.icone : '');
     const iconeStatutPastille = ICONES_STATUT[c.statutCommande]
       ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONES_STATUT[c.statutCommande]}</svg>`
       : '';
@@ -211,6 +233,7 @@ function rendre(){
         <div class="ccm-nom">${echapper(c.nom)}</div>
         <div class="ccm-materiel">${materielResume}</div>
         ${c.devisDemande === 'Oui' ? '<div class="ccm-devis">Devis demandé</div>' : ''}
+        ${!estAnnulee ? construireBarreProgressionCommande(c.statutCommande) : ''}
         <div class="ccm-pied">
           <span class="ccm-statut">${echapper(c.statutCommande)}</span>
           <button type="button" class="ccm-details" data-ouvrir-details-commande="${c.ligne}">Détails</button>
@@ -327,7 +350,7 @@ function construireDetailsCommande(ligne){
       </div>
 
       <div class="fiche-pied" style="margin-top:16px">
-        ${classe !== 'annulee' ? construireTimelineCommande(c.statutCommande) : '<div style="flex:1"></div>'}
+        <div style="flex:1"></div>
         ${(c.statutCommande === 'En cours de livraison' && liensColissimoCommande.length)
           ? `<button type="button" class="btn-icone-fiche" data-suivre-colis="${echapper(JSON.stringify(liensColissimoCommande))}" title="Suivre le colis" aria-label="Suivre le colis">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8.5v7l-9 4.5-9-4.5v-7L12 4z"/><path d="M3.3 8.2 12 12.5l8.7-4.3M12 12.5V21"/></svg>
