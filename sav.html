@@ -43,7 +43,6 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
   </div>
   <div class="bascule-mode" role="group" aria-label="Apparence du formulaire">
     <button type="button" data-mode="clair" class="actif">Clair</button>
-    <button type="button" data-mode="sombre">Sombre</button>
     <button type="button" data-mode="accessible">Accessible</button>
   </div>
 </header>
@@ -251,7 +250,7 @@ function appliquerMode(mode){
 $$('.bascule-mode button').forEach(function(b){ b.addEventListener('click', function(){ appliquerMode(b.dataset.mode); }); });
 try{
   const memorise = localStorage.getItem('cvdl-mode');
-  if(memorise) appliquerMode(memorise);
+  if(memorise) appliquerMode(memorise === 'sombre' ? 'clair' : memorise); // le mode sombre a été retiré (à retravailler plus tard) : quelqu'un qui l'avait choisi avant repasse en clair, plutôt que de rester coincé sans bouton pour en sortir
 }catch(e){}
 
 /* Machine à étapes */
