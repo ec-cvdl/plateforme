@@ -1,8 +1,8 @@
 /* ══════════════ COMMANDES ══════════════ */
 
-/* ─── Style de carte commande (neumorphisme par défaut, mémorisé sur cet appareil) ─── */
+/* ─── Style de carte commande (couleur par défaut, mémorisé sur cet appareil) ─── */
 function appliquerStyleCarteCommande(style){
-  document.body.classList.remove('carte-style-couleur', 'carte-style-neumorphisme');
+  document.body.classList.remove('carte-style-couleur', 'carte-style-terminal', 'carte-style-pastille', 'carte-style-meteo');
   document.body.classList.add('carte-style-' + style);
   document.querySelectorAll('#selecteur-style-carte button').forEach(b => b.classList.toggle('actif', b.dataset.styleCarte === style));
   try{ localStorage.setItem('cvdl-style-carte-commande', style); }catch(e){}
@@ -13,9 +13,9 @@ $('selecteur-style-carte').addEventListener('click', e => {
   appliquerStyleCarteCommande(b.dataset.styleCarte);
 });
 try{
-  appliquerStyleCarteCommande(localStorage.getItem('cvdl-style-carte-commande') || 'neumorphisme');
+  appliquerStyleCarteCommande(localStorage.getItem('cvdl-style-carte-commande') || 'couleur');
 }catch(e){
-  appliquerStyleCarteCommande('neumorphisme');
+  appliquerStyleCarteCommande('couleur');
 }
 
 async function recharger(){
@@ -130,23 +130,6 @@ $('apercu-general').addEventListener('click', e => {
   }
 });
 
-function appliquerThemeCarte(theme){
-  $('liste').classList.remove('theme-couleur', 'theme-douceur');
-  if(theme === 'couleur') $('liste').classList.add('theme-couleur');
-  if(theme === 'douceur') $('liste').classList.add('theme-douceur');
-  document.querySelectorAll('#selecteur-theme-carte button').forEach(b => b.classList.toggle('actif', b.dataset.theme === theme));
-  try{ localStorage.setItem('cvdl-theme-carte', theme); }catch(e){}
-}
-$('selecteur-theme-carte').addEventListener('click', e => {
-  const b = e.target.closest('button');
-  if(!b) return;
-  appliquerThemeCarte(b.dataset.theme);
-});
-try{
-  const themeMemorise = localStorage.getItem('cvdl-theme-carte');
-  if(themeMemorise) appliquerThemeCarte(themeMemorise);
-}catch(e){}
-
 function rendre(){
   const banniereHistorique = $('bandeau-pagination');
   if(!rechercheCommandesActive && limiteCommandesActuelle > 0 && totalCommandes > limiteCommandesActuelle){
@@ -206,12 +189,21 @@ function rendre(){
     const badgeNouvelle = (c.statutCommande === 'Reçue' && estNouvelleCommande(c.date, c.heure))
       ? '<div class="badge-nouvelle">NEW</div>' : '';
 
+    const premierProduitNom = (c.lignes && c.lignes[0]) ? c.lignes[0].produit : c.produit;
+    const infoPremierProduit = produits.find(p => p.nom === premierProduitNom);
+    const iconeMeteo = svgIconePuce(premierProduitNom || '', infoPremierProduit ? infoPremierProduit.icone : '');
+    const iconeStatutPastille = ICONES_STATUT[c.statutCommande]
+      ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONES_STATUT[c.statutCommande]}</svg>`
+      : '';
+
     return `
     <div class="fiche-conteneur">
       ${badgeNouvelle}
       <article class="carte-cmd-mini ${teinte}${estAnnulee ? ' annulee' : ''}">
+        <div class="ccm-pastille ${teinte}">${iconeStatutPastille}</div>
         ${estAnnulee ? '<div class="ruban-annule">Commande annulée</div>' : ''}
         ${alerteImpayee}${alerteFactureManquante}
+        <div class="ccm-meteo">${iconeMeteo}</div>
         <div class="ccm-haut">
           <span class="ccm-ref">${echapper(c.reference)}</span>
           <span class="ccm-date">${echapper(c.date)}</span>
@@ -298,7 +290,30 @@ function construireDetailsCommande(ligne){
           <span>N° série</span>
           ${nbSeries ? `<span class="pilule-badge pilule-badge-serie">${nbSeries}</span>` : ''}
         </button>
+        ${c.bonLivraison
+          ? `<a class="pilule-action pilule-remplie" href="${echapper(c.bonLivraison)}" target="_blank" rel="noopener">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12h6M9 16h6M9 8h2"/><path d="M6 3h9l3 3v15H6z"/></svg>
+              <span>Bon de livraison</span>
+            </a>`
+          : `<button type="button" class="pilule-action pilule-bon-livraison" data-bon-livraison-ligne="${c.ligne}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12h6M9 16h6M9 8h2"/><path d="M6 3h9l3 3v15H6z"/></svg>
+              <span>Générer le bon de livraison</span>
+            </button>`}
+        ${c.personnes ? (c.dossier
+          ? `<a class="pilule-action pilule-remplie" href="${echapper(c.dossier)}" target="_blank" rel="noopener">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V7l8-4 8 4v14"/><path d="M9 21v-6h6v6"/></svg>
+              <span>Bon d'orientation</span>
+            </a>`
+          : `<button type="button" class="pilule-action pilule-bon-orientation" data-bon-orientation-ligne="${c.ligne}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V7l8-4 8 4v14"/><path d="M9 21v-6h6v6"/></svg>
+              <span>Générer le bon d'orientation</span>
+            </button>`) : ''}
+        ${c.personnes ? `<button type="button" class="pilule-action pilule-attestations" data-attestations-ligne="${c.ligne}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
+              <span>Générer les attestations</span>
+            </button>` : ''}
       </div>
+      <div id="resultat-attestations-${c.ligne}"></div>
 
       <div class="fiche-boutons-modales" style="margin-top:16px">
         <button type="button" class="btn-ouvrir-modale" data-ouvrir-modale-statut="${c.ligne}">

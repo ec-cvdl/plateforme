@@ -66,6 +66,7 @@ async function chargerReglages(){
       fichierNumerotationConfigure = !!r.fichierNumerotation;
       if(r.modeleFacturation) modeleFacturationUrl = 'https://docs.google.com/spreadsheets/d/' + r.modeleFacturation;
       $('modele-facturation-input').value = r.modeleFacturation || '';
+      $('modele-bon-livraison-input').value = r.modeleBonLivraison || '';
       $('responsable-nom-input').value = r.responsableNom || '';
       $('responsable-telephone-input').value = r.responsableTelephone || '';
       $('responsable-email-input').value = r.responsableEmail || '';
@@ -329,6 +330,24 @@ $('btn-modele-facturation-enregistrer').addEventListener('click', async () => {
     $('retour-modele-facturation').innerHTML = '<div class="msg msg-erreur">Enregistrement impossible.</div>';
   }
   $('btn-modele-facturation-enregistrer').disabled = false;
+});
+$('btn-modele-bon-livraison-enregistrer').addEventListener('click', async () => {
+  const valeur = $('modele-bon-livraison-input').value.trim();
+  $('btn-modele-bon-livraison-enregistrer').disabled = true;
+  $('retour-modele-bon-livraison').innerHTML = '';
+  try{
+    const r = await poster({action:'reglages-set', password:motDePasse, modeleBonLivraison: valeur});
+    if(r.ok){
+      $('retour-modele-bon-livraison').innerHTML = '<div class="msg msg-succes">Enregistré.</div>';
+      etat('Réglages enregistrés', 'succes');
+      await chargerReglages();
+    }else{
+      $('retour-modele-bon-livraison').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur)}</div>`;
+    }
+  }catch(e){
+    $('retour-modele-bon-livraison').innerHTML = '<div class="msg msg-erreur">Enregistrement impossible.</div>';
+  }
+  $('btn-modele-bon-livraison-enregistrer').disabled = false;
 });
 
 $('btn-responsable-enregistrer').addEventListener('click', async () => {

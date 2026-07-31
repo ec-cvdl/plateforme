@@ -2,7 +2,7 @@
 
 let serieLigneCourante = null;
 
-$('liste').addEventListener('click', e => {
+document.addEventListener('click', e => {
   const b = e.target.closest('[data-serie-ligne]');
   if(!b) return;
   serieLigneCourante = parseInt(b.dataset.serieLigne, 10);
@@ -17,6 +17,32 @@ $('liste').addEventListener('click', e => {
     ? `<a href="${echapper(c.csvTectech)}" target="_blank" rel="noopener">📄 Ouvrir le fichier CSV déjà importé</a>` : '';
   $('modale-serie').hidden = false;
   setTimeout(() => $('serie-texte').focus(), 50);
+});
+
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-bon-livraison-ligne]');
+  if(!b) return;
+  const ligne = parseInt(b.dataset.bonLivraisonLigne, 10);
+  b.disabled = true;
+  const contenuInitial = b.innerHTML;
+  b.innerHTML = '<span>Génération…</span>';
+  try{
+    const r = await poster({ action: 'commande-generer-bon-livraison', password: motDePasse, ligne: ligne });
+    if(r.ok){
+      const c = commandes.find(x => x.ligne === ligne);
+      if(c) c.bonLivraison = r.url;
+      rendre();
+      etat('Bon de livraison généré', 'succes');
+    }else{
+      etat(r.erreur || 'Génération impossible', 'erreur');
+      b.disabled = false;
+      b.innerHTML = contenuInitial;
+    }
+  }catch(e){
+    etat('Génération impossible', 'erreur');
+    b.disabled = false;
+    b.innerHTML = contenuInitial;
+  }
 });
 
 function listeSerieNettoyee(){
@@ -154,7 +180,7 @@ $('serie-enregistrer').addEventListener('click', async () => {
 
 let colissimoLigneCourante = null;
 
-$('liste').addEventListener('click', e => {
+document.addEventListener('click', e => {
   const b = e.target.closest('[data-colissimo-ligne]');
   if(!b) return;
   colissimoLigneCourante = parseInt(b.dataset.colissimoLigne, 10);
@@ -286,7 +312,7 @@ $('colissimo-envoyer-email').addEventListener('click', async () => {
 
 let commentaireLigneCourante = null;
 
-$('liste').addEventListener('click', e => {
+document.addEventListener('click', e => {
   const b = e.target.closest('[data-commentaire-ligne]');
   if(!b) return;
   commentaireLigneCourante = parseInt(b.dataset.commentaireLigne, 10);
@@ -365,7 +391,7 @@ function majLienOngletNumerotation(){
 }
 $('facturer-onglet-numerotation').addEventListener('change', majLienOngletNumerotation);
 
-$('liste').addEventListener('click', e => {
+document.addEventListener('click', e => {
   const b = e.target.closest('[data-facturer-ligne]');
   if(!b) return;
   ouvrirModaleFacturerDirect(parseInt(b.dataset.facturerLigne, 10));
@@ -479,7 +505,8 @@ $('nc-enregistrer').addEventListener('click', async () => {
     statutCommande: $('nc-statut-commande').value,
     statutPaiement: $('nc-statut-paiement').value,
     commentaire: $('nc-commentaire').value.trim(),
-    urlSuivi: urlFormulairePublic().replace('portail.html', 'suivi.html')
+    urlSuivi: urlFormulairePublic().replace('portail.html', 'suivi.html'),
+    urlPortail: urlFormulairePublic().replace('portail.html', 'portail-structure.html')
   };
 
   if(!donnees.code){
@@ -538,7 +565,7 @@ async function executerSuppression(action, ligne, apres){
   }catch(e){ etat('Suppression impossible', 'erreur'); return false; }
 }
 
-$('liste').addEventListener('click', e => {
+document.addEventListener('click', e => {
   const b = e.target.closest('[data-commande-supprimer]');
   if(!b) return;
   demanderSuppression('la commande ' + b.dataset.ref, 'commande-delete', parseInt(b.dataset.commandeSupprimer, 10), recharger);
@@ -562,13 +589,13 @@ $('suppr-confirmer').addEventListener('click', async () => {
 
 let compta = [];
 
-async function chargerComptabilite(){
-  etat('Chargement de la comptabilité…', 'chargement');
+async function chargerComptabilite(silencieux){
+  if(!silencieux) etat('Chargement de la comptabilité…', 'chargement');
   try{
     const r = await jsonp({action:'comptabilite', password:motDePasse});
-    if(r.ok){ compta = r.lignes; rendreComptabilite(); $('etat').classList.remove('visible'); }
-    else etat(r.erreur || 'Chargement de la comptabilité impossible', 'erreur');
-  }catch(e){ etat('Chargement de la comptabilité impossible', 'erreur'); }
+    if(r.ok){ compta = r.lignes; rendreComptabilite(); if(!silencieux) $('etat').classList.remove('visible'); }
+    else if(!silencieux) etat(r.erreur || 'Chargement de la comptabilité impossible', 'erreur');
+  }catch(e){ if(!silencieux) etat('Chargement de la comptabilité impossible', 'erreur'); }
 }
 $('btn-recharger-compta').addEventListener('click', () => {
   etat('Actualisation…', 'neutre');
@@ -617,7 +644,7 @@ function rendreComptabilite(){
       </div>
       <div>
         <div class="materiel"><span class="q">${echapper(l.quantite)}×</span> ${echapper(l.produit)}</div>
-        <div class="moyen">${echapper(l.moyenPaiement)} — ${echapper(l.statutPaiement)}</div>
+        <div class="moyen">${svgMoyenPaiement(l.moyenPaiement)}${echapper(l.moyenPaiement)} — ${echapper(l.statutPaiement)}</div>
       </div>
       <div class="montant">${formaterMontant(l.montant)}</div>
       <select data-compta-ligne="${l.ligne}" data-compta-champ="statutComptable">${optionsStatut(l.statutComptable)}</select>

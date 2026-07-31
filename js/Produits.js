@@ -2,6 +2,24 @@
 
 let produits = [];
 
+$('btn-synchroniser-tectech').addEventListener('click', async () => {
+  $('btn-synchroniser-tectech').disabled = true;
+  $('retour-sync-tectech').innerHTML = '';
+  try{
+    const r = await poster({ action: 'stock-synchroniser-tectech', password: motDePasse });
+    if(r.ok){
+      produits = r.produits || produits;
+      rendreProduits();
+      $('retour-sync-tectech').innerHTML = `<div class="msg msg-succes">Stock synchronisé avec Tech.tec.</div>`;
+    }else{
+      $('retour-sync-tectech').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur)}</div>`;
+    }
+  }catch(e){
+    $('retour-sync-tectech').innerHTML = '<div class="msg msg-erreur">Synchronisation impossible.</div>';
+  }
+  $('btn-synchroniser-tectech').disabled = false;
+});
+
 async function chargerProduits(){
   try{
     const r = await jsonp({action:'produits', password:motDePasse});
