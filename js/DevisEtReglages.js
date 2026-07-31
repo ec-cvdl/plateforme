@@ -67,6 +67,9 @@ async function chargerReglages(){
       if(r.modeleFacturation) modeleFacturationUrl = 'https://docs.google.com/spreadsheets/d/' + r.modeleFacturation;
       $('modele-facturation-input').value = r.modeleFacturation || '';
       $('modele-bon-livraison-input').value = r.modeleBonLivraison || '';
+      $('modele-bon-orientation-input').value = r.modeleBonOrientation || '';
+      $('modele-attestation-input').value = r.modeleAttestationPaiement || '';
+      $('dossier-attestations-input').value = r.dossierAttestations || '';
       $('responsable-nom-input').value = r.responsableNom || '';
       $('responsable-telephone-input').value = r.responsableTelephone || '';
       $('responsable-email-input').value = r.responsableEmail || '';
@@ -331,24 +334,53 @@ $('btn-modele-facturation-enregistrer').addEventListener('click', async () => {
   }
   $('btn-modele-facturation-enregistrer').disabled = false;
 });
-$('btn-modele-bon-livraison-enregistrer').addEventListener('click', async () => {
-  const valeur = $('modele-bon-livraison-input').value.trim();
-  $('btn-modele-bon-livraison-enregistrer').disabled = true;
-  $('retour-modele-bon-livraison').innerHTML = '';
-  try{
-    const r = await poster({action:'reglages-set', password:motDePasse, modeleBonLivraison: valeur});
-    if(r.ok){
-      $('retour-modele-bon-livraison').innerHTML = '<div class="msg msg-succes">Enregistré.</div>';
-      etat('Réglages enregistrés', 'succes');
-      await chargerReglages();
-    }else{
-      $('retour-modele-bon-livraison').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur)}</div>`;
+if($('btn-modele-bon-livraison-enregistrer')){
+  $('btn-modele-bon-livraison-enregistrer').addEventListener('click', async () => {
+    const valeur = $('modele-bon-livraison-input').value.trim();
+    $('btn-modele-bon-livraison-enregistrer').disabled = true;
+    $('retour-modele-bon-livraison').innerHTML = '';
+    try{
+      const r = await poster({action:'reglages-set', password:motDePasse, modeleBonLivraison: valeur});
+      if(r.ok){
+        $('retour-modele-bon-livraison').innerHTML = '<div class="msg msg-succes">Enregistré.</div>';
+        etat('Réglages enregistrés', 'succes');
+        await chargerReglages();
+      }else{
+        $('retour-modele-bon-livraison').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur)}</div>`;
+      }
+    }catch(e){
+      $('retour-modele-bon-livraison').innerHTML = '<div class="msg msg-erreur">Enregistrement impossible.</div>';
     }
-  }catch(e){
-    $('retour-modele-bon-livraison').innerHTML = '<div class="msg msg-erreur">Enregistrement impossible.</div>';
-  }
-  $('btn-modele-bon-livraison-enregistrer').disabled = false;
-});
+    $('btn-modele-bon-livraison-enregistrer').disabled = false;
+  });
+}
+
+function creerHandlerReglageSimple(idBouton, idChamp, idRetour, cle){
+  if(!$(idBouton)) return; // décalage possible entre la version du HTML et celle du JS déployés — ne doit jamais faire planter le reste du fichier
+  $(idBouton).addEventListener('click', async () => {
+    const valeur = $(idChamp).value.trim();
+    $(idBouton).disabled = true;
+    $(idRetour).innerHTML = '';
+    try{
+      const payload = { action:'reglages-set', password:motDePasse };
+      payload[cle] = valeur;
+      const r = await poster(payload);
+      if(r.ok){
+        $(idRetour).innerHTML = '<div class="msg msg-succes">Enregistré.</div>';
+        etat('Réglages enregistrés', 'succes');
+        await chargerReglages();
+      }else{
+        $(idRetour).innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur)}</div>`;
+      }
+    }catch(e){
+      $(idRetour).innerHTML = '<div class="msg msg-erreur">Enregistrement impossible.</div>';
+    }
+    $(idBouton).disabled = false;
+  });
+}
+creerHandlerReglageSimple('btn-modele-bon-orientation-enregistrer', 'modele-bon-orientation-input', 'retour-modele-bon-orientation', 'modeleBonOrientation');
+creerHandlerReglageSimple('btn-modele-attestation-enregistrer', 'modele-attestation-input', 'retour-modele-attestation', 'modeleAttestationPaiement');
+creerHandlerReglageSimple('btn-dossier-attestations-enregistrer', 'dossier-attestations-input', 'retour-dossier-attestations', 'dossierAttestations');
 
 $('btn-responsable-enregistrer').addEventListener('click', async () => {
   const nom = $('responsable-nom-input').value.trim();
