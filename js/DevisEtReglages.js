@@ -26,6 +26,7 @@ function apercuModeleDevis(modele){
 async function chargerReglages(){
   etat('Chargement des réglages…', 'chargement');
   try{
+    try{ $('role-vue-preferee-input').value = localStorage.getItem('cvdl-role-vue-preferee') || 'commandes'; }catch(e){}
     const r = await jsonp({action:'reglages', password:motDePasse});
     if(r.ok){
       $('modele-devis-input').value = r.modeleDevis;
@@ -524,6 +525,15 @@ $('btn-onglets-visibles-enregistrer').addEventListener('click', async () => {
   $('btn-onglets-visibles-enregistrer').disabled = false;
 });
 
+$('btn-role-vue-preferee-enregistrer').addEventListener('click', () => {
+  try{
+    localStorage.setItem('cvdl-role-vue-preferee', $('role-vue-preferee-input').value);
+    localStorage.setItem('cvdl-role-choisi', 'true');
+    $('retour-role-vue-preferee').innerHTML = '<div class="msg msg-succes">Enregistré — actif dès ta prochaine connexion.</div>';
+  }catch(e){
+    $('retour-role-vue-preferee').innerHTML = '<div class="msg msg-erreur">Enregistrement impossible sur ce navigateur.</div>';
+  }
+});
 $('btn-nom-organisation-enregistrer').addEventListener('click', async () => {
   const valeur = $('nom-organisation-input').value.trim();
   $('btn-nom-organisation-enregistrer').disabled = true;

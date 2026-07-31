@@ -32,6 +32,7 @@ document.addEventListener('click', async e => {
       const c = commandes.find(x => x.ligne === ligne);
       if(c) c.bonLivraison = r.url;
       rendre();
+      if(!$('modale-details-commande').hidden) $('details-commande-corps').innerHTML = construireDetailsCommande(ligne);
       etat('Bon de livraison généré', 'succes');
     }else{
       etat(r.erreur || 'Génération impossible', 'erreur');
@@ -58,6 +59,7 @@ document.addEventListener('click', async e => {
       const c = commandes.find(x => x.ligne === ligne);
       if(c) c.dossier = r.url;
       rendre();
+      if(!$('modale-details-commande').hidden) $('details-commande-corps').innerHTML = construireDetailsCommande(ligne);
       etat('Bon d\'orientation généré', 'succes');
     }else{
       etat(r.erreur || 'Génération impossible', 'erreur');
@@ -405,14 +407,6 @@ async function ouvrirModaleFacturerDirect(ligne){
   $('facturer-numero').value = '';
   $('retour-facturer').innerHTML = '';
   $('modale-facturer-direct').hidden = false;
-
-  const lienDossier = $('lien-dossier-factures-modale');
-  if(dossierFacturesPdfId){
-    lienDossier.href = 'https://drive.google.com/drive/folders/' + dossierFacturesPdfId;
-    lienDossier.hidden = false;
-  }else{
-    lienDossier.hidden = true;
-  }
 
   if(fichierNumerotationConfigure){
     $('zone-numerotation-auto').hidden = false;

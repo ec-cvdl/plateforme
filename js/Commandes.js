@@ -106,15 +106,6 @@ function filtrer(){
   });
 }
 
-function selectStatut(liste, courant, ligne, champ, libelle){
-  const options = liste.map(v =>
-    `<option value="${echapper(v)}"${v === courant ? ' selected' : ''}>${echapper(v)}</option>`
-  ).join('');
-  const teinte = TEINTES[courant] || 't-gris';
-  return `<div class="champ-pilote"><span class="legende-pilotage">${libelle}</span>
-    <select class="statut ${teinte}" data-ligne="${ligne}" data-champ="${champ}">${options}</select></div>`;
-}
-
 /** Petit aperçu global — calculé uniquement à partir des données déjà en mémoire
  *  (commandes, sav), donc sans le moindre appel réseau supplémentaire. */
 function rendreApercuGeneral(){
@@ -208,6 +199,9 @@ function rendre(){
     const alerteFactureManquante = facturationOubliee
       ? `<div class="ccm-alerte">Livrée et payée, mais aucune facture liée</div>` : '';
 
+    const alerteDoublon = String(c.commentaire || '').startsWith('⚠️ DOUBLON POTENTIEL DÉTECTÉ')
+      ? `<div class="ccm-alerte">⚠️ Doublon potentiel détecté — vérifier les précédentes commandes de cette structure</div>` : '';
+
     const badgeNouvelle = (c.statutCommande === 'Reçue' && estNouvelleCommande(c.date, c.heure))
       ? '<div class="badge-nouvelle">NEW</div>' : '';
 
@@ -224,7 +218,7 @@ function rendre(){
       <article class="carte-cmd-mini ${teinte}${estAnnulee ? ' annulee' : ''}">
         <div class="ccm-pastille ${teinte}">${iconeStatutPastille}</div>
         ${estAnnulee ? '<div class="ruban-annule">Commande annulée</div>' : ''}
-        ${alerteImpayee}${alerteFactureManquante}
+        ${alerteImpayee}${alerteFactureManquante}${alerteDoublon}
         <div class="ccm-meteo">${iconeMeteo}</div>
         <div class="ccm-haut">
           <span class="ccm-ref">${echapper(c.reference)}</span>
@@ -251,7 +245,6 @@ function construireDetailsCommande(ligne){
   if(!c) return '';
   const structureCommande = structures.find(s => s.code === c.code);
   const estEsnCommande = !!(structureCommande && (structureCommande.esn || structureCommande.interne));
-  const classe = c.statutCommande === 'Annulée' ? 'annulee' : '';
   const nbFichiers = parseInt(c.nombreFichiers, 10) || 0;
   const nbSeries = (c.numerosSerie || '').split('\n').map(s => s.trim()).filter(Boolean).length;
   const liensColissimoCommande = (c.colissimo || '').split('\n').map(s => s.trim()).filter(Boolean);
@@ -373,6 +366,52 @@ document.addEventListener('click', e => {
 });
 $('details-commande-fermer').addEventListener('click', () => $('modale-details-commande').hidden = true);
 
+let annulationSelectCourant = null;
+let annulationValeurPrecedente = null;
+
+function demanderRaisonAnnulation(el){
+  const ligne = parseInt(el.dataset.ligne, 10);
+  const c = commandes.find(x => x.ligne === ligne);
+  annulationSelectCourant = el;
+  annulationValeurPrecedente = c ? c.statutCommande : el.value;
+  $('raison-annulation-texte').value = '';
+  $('retour-raison-annulation').innerHTML = '';
+  $('modale-raison-annulation').hidden = false;
+}
+$('raison-annulation-annuler').addEventListener('click', () => {
+  if(annulationSelectCourant) annulationSelectCourant.value = annulationValeurPrecedente;
+  $('modale-raison-annulation').hidden = true;
+  annulationSelectCourant = null;
+});
+$('raison-annulation-confirmer').addEventListener('click', async () => {
+  const raison = $('raison-annulation-texte').value.trim();
+  if(!raison){
+    $('retour-raison-annulation').innerHTML = '<div class="msg msg-erreur">Merci d\'indiquer une raison avant de confirmer.</div>';
+    return;
+  }
+  const ligne = parseInt(annulationSelectCourant.dataset.ligne, 10);
+  $('raison-annulation-confirmer').disabled = true;
+  $('retour-raison-annulation').innerHTML = '';
+  const c = commandes.find(x => x.ligne === ligne);
+  const commentaireExistant = c ? String(c.commentaire || '') : '';
+  const nouveauCommentaire = 'Raison de l\'annulation : ' + raison + (commentaireExistant ? ('\n\n' + commentaireExistant) : '');
+  try{
+    const rCommentaire = await poster({ action:'update', ligne, champ:'commentaire', valeur: nouveauCommentaire });
+    if(!rCommentaire.ok){
+      $('retour-raison-annulation').innerHTML = `<div class="msg msg-erreur">${echapper(rCommentaire.erreur)}</div>`;
+      $('raison-annulation-confirmer').disabled = false;
+      return;
+    }
+    if(c) c.commentaire = nouveauCommentaire;
+    $('modale-raison-annulation').hidden = true;
+    await enregistrer(annulationSelectCourant);
+    annulationSelectCourant = null;
+  }catch(e){
+    $('retour-raison-annulation').innerHTML = '<div class="msg msg-erreur">Enregistrement impossible.</div>';
+  }
+  $('raison-annulation-confirmer').disabled = false;
+});
+
 async function enregistrer(el){
   const ligne  = parseInt(el.dataset.ligne, 10);
   const champ  = el.dataset.champ;
@@ -411,13 +450,10 @@ document.addEventListener('change', e => {
   const el = e.target;
   if(!el.matches('select[data-ligne], input[data-ligne]')) return;
 
-  // Une annulation est irréversible sur le stock : on le confirme avant d'appliquer
+  // Une annulation est irréversible sur le stock : on demande une raison avant d'appliquer
   if(el.dataset.champ === 'statutCommande' && el.value === 'Annulée'){
-    if(!confirm('Confirmer l\'annulation de cette commande ? Le stock du produit sera automatiquement recrédité.')){
-      const c = commandes.find(x => x.ligne === parseInt(el.dataset.ligne, 10));
-      if(c) el.value = c.statutCommande;
-      return;
-    }
+    demanderRaisonAnnulation(el);
+    return;
   }
   enregistrer(el);
 });
@@ -561,13 +597,17 @@ $('ligne-produit-enregistrer').addEventListener('click', async () => {
 });
 
 $('modale-statut-select').addEventListener('change', async e => {
-  // Même confirmation d'annulation que sur la fiche
   if(e.target.value === 'Annulée'){
+    demanderRaisonAnnulation(e.target);
+    return;
+  }
+  if(e.target.value === 'Livrée' && !$('modale-statut-date-livraison').value){
     const c = commandes.find(x => x.ligne === statutModaleLigneCourante);
-    if(!confirm('Confirmer l\'annulation de cette commande ? Le stock du produit sera automatiquement recrédité.')){
-      e.target.value = c ? c.statutCommande : e.target.value;
-      return;
-    }
+    e.target.value = c ? c.statutCommande : e.target.value;
+    $('bloc-date-livraison').hidden = false;
+    etat('Renseigne d\'abord la date de livraison avant de passer la commande en Livrée', 'erreur');
+    $('modale-statut-date-livraison').focus();
+    return;
   }
   $('bloc-date-livraison').hidden = e.target.value !== 'Livrée';
   await enregistrer(e.target);

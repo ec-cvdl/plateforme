@@ -134,6 +134,18 @@ if(!localStorage.getItem('cvdl-installation-terminee')){
   ouvrirInstallation();
 }
 
+document.querySelectorAll('[data-role-vue]').forEach(b => {
+  b.addEventListener('click', () => {
+    localStorage.setItem('cvdl-role-vue-preferee', b.dataset.roleVue);
+    localStorage.setItem('cvdl-role-choisi', 'true');
+    $('modale-role').hidden = true;
+    const onglet = document.querySelector(`[data-vue="${b.dataset.roleVue}"]`);
+    if(onglet) onglet.click();
+    if(!localStorage.getItem('cvdl-onboarding-vu')) $('modale-bienvenue').hidden = false;
+    else verifierRappelNouvelleAnnee();
+  });
+});
+
 $('bienvenue-plus-tard').addEventListener('click', () => {
   localStorage.setItem('cvdl-onboarding-vu', 'true');
   $('modale-bienvenue').hidden = true;
@@ -141,6 +153,29 @@ $('bienvenue-plus-tard').addEventListener('click', () => {
 $('bienvenue-aller-reglages').addEventListener('click', () => {
   localStorage.setItem('cvdl-onboarding-vu', 'true');
   $('modale-bienvenue').hidden = true;
+  document.querySelector('[data-vue="reglages"]').click();
+});
+
+/* ─── Rappel de changement d'année : réaffiché chaque janvier tant qu'on n'a pas coché
+   "ne plus me le rappeler" POUR CETTE ANNÉE précise (donc revient bien l'année suivante). ─── */
+function verifierRappelNouvelleAnnee(){
+  const maintenant = new Date();
+  if(maintenant.getMonth() !== 0) return; // uniquement en janvier
+  const annee = maintenant.getFullYear();
+  if(localStorage.getItem('cvdl-nouvelle-annee-ignoree') === String(annee)) return;
+  $('modale-nouvelle-annee').hidden = false;
+}
+$('nouvelle-annee-plus-tard').addEventListener('click', () => {
+  $('modale-nouvelle-annee').hidden = true;
+  if($('nouvelle-annee-ne-plus-afficher').checked){
+    localStorage.setItem('cvdl-nouvelle-annee-ignoree', String(new Date().getFullYear()));
+  }
+});
+$('nouvelle-annee-aller-reglages').addEventListener('click', () => {
+  $('modale-nouvelle-annee').hidden = true;
+  if($('nouvelle-annee-ne-plus-afficher').checked){
+    localStorage.setItem('cvdl-nouvelle-annee-ignoree', String(new Date().getFullYear()));
+  }
   document.querySelector('[data-vue="reglages"]').click();
 });
 

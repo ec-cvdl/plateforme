@@ -48,10 +48,6 @@ const ICONES_STATUT = {
  *  très légère : une simple piste avec une épingle positionnée, en bas de carte, pour ne pas
  *  perturber le reste de la fiche. */
 const ETAPES_TIMELINE_COMMANDE = ['Reçue', 'Validée', 'Préparée', 'En cours de livraison', 'Livrée'];
-const LIBELLES_COURTS_TIMELINE = {
-  'Reçue': 'Reçue', 'Validée': 'Validée', 'Préparée': 'Préparée',
-  'En cours de livraison': 'En livraison', 'Livrée': 'Livrée'
-};
 
 /** Barre de progression sur la carte commande elle-même (plus dans la modale Détails) —
  *  couleur du statut en cours, longueur proportionnelle à l'avancement sur les 5 étapes. */
@@ -62,21 +58,6 @@ function construireBarreProgressionCommande(statutActuel){
   const pourcentage = Math.round(((indexActuel + 1) / ETAPES_TIMELINE_COMMANDE.length) * 100);
   return `<div class="barre-progression-cmd" title="${echapper(statutActuel)}">
     <div class="barre-progression-cmd-fond"><div class="barre-progression-cmd-remplissage ${teinte}" style="width:${pourcentage}%"></div></div>
-  </div>`;
-}
-
-function construireTimelineCommande(statutActuel){
-  const indexActuel = ETAPES_TIMELINE_COMMANDE.indexOf(statutActuel);
-  if(indexActuel === -1) return '';
-  const etapes = ETAPES_TIMELINE_COMMANDE.map((etape, i) => {
-    const cls = i < indexActuel ? 'fait' : (i === indexActuel ? 'actuel' : '');
-    return `<div class="tlc-etape ${cls}">
-      <div class="tlc-point ${cls}"></div>
-      <div class="tlc-libelle ${cls}">${echapper(LIBELLES_COURTS_TIMELINE[etape] || etape)}</div>
-    </div>`;
-  }).join('');
-  return `<div class="timeline-commande" title="${echapper(statutActuel)}">
-    <div class="tlc-piste">${etapes}</div>
   </div>`;
 }
 
@@ -508,7 +489,14 @@ async function connecter(){
       $('app').hidden = false;
       rendre();
       $('etat').classList.remove('visible');
-      if(!localStorage.getItem('cvdl-onboarding-vu')) $('modale-bienvenue').hidden = false;
+      if(!localStorage.getItem('cvdl-role-choisi')){
+        $('modale-role').hidden = false; // enchaîne elle-même vers bienvenue/nouvelle année après le choix
+      }else{
+        const ongletPrefere = document.querySelector(`[data-vue="${localStorage.getItem('cvdl-role-vue-preferee')}"]`);
+        if(ongletPrefere) ongletPrefere.click();
+        if(!localStorage.getItem('cvdl-onboarding-vu')) $('modale-bienvenue').hidden = false;
+        else verifierRappelNouvelleAnnee();
+      }
       demarrerRafraichissementSilencieux();
       return;
     }
