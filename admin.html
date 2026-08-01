@@ -12,7 +12,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="admin.css">
+<link rel="stylesheet" href="admin.css?v=20260801-2">
 </head>
 <body>
 
@@ -238,7 +238,6 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
         <input type="text" id="recherche" placeholder="Structure, référence, numéro de série…">
         <div class="selecteur-style-carte" id="selecteur-style-carte" role="group" aria-label="Style des cartes commande">
           <button type="button" data-style-carte="couleur" class="actif" title="Aplat de couleur">🎨</button>
-          <button type="button" data-style-carte="terminal" title="Terminal rétro">⌨</button>
           <button type="button" data-style-carte="pastille" title="Pastille de statut">●</button>
           <button type="button" data-style-carte="meteo" title="Icône produit">▢</button>
         </div>
@@ -266,7 +265,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
       </div>
 
       <div class="entete-liste entete-structure">
-        <span>Code</span><span>Nom</span><span>Email</span><span>Téléphone</span><span>Adresse</span><span>RN</span><span>ESN</span><span>Interne</span><span></span>
+        <span>Code</span><span>Nom</span><span>Email</span><span>Email facturation</span><span>Téléphone</span><span>Adresse</span><span>RN</span><span>ESN</span><span>Interne</span><span>Autres</span><span></span>
       </div>
       <div id="liste-structures"></div>
     </section>
@@ -299,6 +298,11 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
         <button class="action claire" id="btn-recharger-devis">Actualiser</button>
         <button class="action" id="btn-nouveau-devis">+ Nouveau devis</button>
       </div>
+      <div id="bandeau-pagination-devis" class="msg msg-info" hidden style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <button type="button" class="action claire" id="btn-page-precedente-devis">← Précédent</button>
+        <span id="texte-pagination-devis"></span>
+        <button type="button" class="action claire" id="btn-page-suivante-devis">Suivant →</button>
+      </div>
       <div id="liste-devis"></div>
     </section>
 
@@ -310,6 +314,11 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
         <button class="action claire" id="btn-recharger-factures">Actualiser</button>
         <a class="action claire" id="btn-ouvrir-fichier-numerotation" href="#" target="_blank" rel="noopener" hidden>🔢 Ouvrir le fichier de numérotation</a>
         <a class="action claire" id="btn-ouvrir-dossier-factures" href="#" target="_blank" rel="noopener" hidden>📁 Ouvrir le dossier d'archivage des factures</a>
+      </div>
+      <div id="bandeau-pagination-factures" class="msg msg-info" hidden style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <button type="button" class="action claire" id="btn-page-precedente-factures">← Précédent</button>
+        <span id="texte-pagination-factures"></span>
+        <button type="button" class="action claire" id="btn-page-suivante-factures">Suivant →</button>
       </div>
       <div id="liste-factures"></div>
     </section>
@@ -465,17 +474,18 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
       </div>
 
       <div class="carte-reglage">
-        <h3>Dossier Drive des bons d'orientation</h3>
+        <h3>📁 Dossier Drive principal <em style="font-weight:400;font-size:12px">(obligatoire)</em></h3>
         <p class="reglage-texte">
-          C'est là que sont déposés les fichiers joints aux commandes. Colle l'URL du dossier
-          (ex. <code>https://drive.google.com/drive/folders/1AbCdEf...</code>) ou juste son ID.
-          Laisse vide pour utiliser la racine de ton Drive.
+          Le seul dossier à configurer. Tous les fichiers générés par l'outil (factures, devis, bons de livraison,
+          bons d'orientation, attestations, CSV tec.tech, pièces jointes) sont automatiquement rangés dans des
+          sous-dossiers créés dedans — rien d'autre à configurer côté Drive.
+          Colle l'URL du dossier (ex. <code>https://drive.google.com/drive/folders/1AbCdEf...</code>) ou juste son ID.
         </p>
         <div class="ligne-reglage">
-          <input type="text" id="dossier-drive-input" placeholder="URL ou ID du dossier Drive">
-          <button type="button" class="action claire" id="btn-dossier-drive-enregistrer">Enregistrer</button>
+          <input type="text" id="dossier-principal-input" placeholder="URL ou ID du dossier Drive">
+          <button type="button" class="action claire" id="btn-dossier-principal-enregistrer">Enregistrer</button>
         </div>
-        <div id="retour-dossier-drive"></div>
+        <div id="retour-dossier-principal"></div>
       </div>
 
       <div class="carte-reglage">
@@ -663,39 +673,17 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
       </div>
 
       <div class="carte-reglage">
-        <h3>Dossier Drive des attestations</h3>
-        <p class="reglage-texte">Où déposer les attestations de paiement générées (un fichier par personne).</p>
-        <div class="ligne-reglage">
-          <input type="text" id="dossier-attestations-input" placeholder="URL ou ID du dossier Drive">
-          <button type="button" class="action claire" id="btn-dossier-attestations-enregistrer">Enregistrer</button>
-        </div>
-        <div id="retour-dossier-attestations"></div>
-      </div>
-
-      <div class="carte-reglage">
-        <h3>Dossier Drive des factures PDF</h3>
+        <h3>Nettoyage automatique des fichiers générés</h3>
         <p class="reglage-texte">
-          Change chaque année : mets à jour ce lien en janvier. Un bouton "Ouvrir le dossier" apparaîtra
-          dans l'onglet Factures pour y accéder en un clic.
+          Supprime (met à la corbeille Drive, jamais définitivement — récupérable 30 jours) les bons, devis, factures,
+          attestations et CSV tec.tech générés par l'outil, plus vieux que le nombre de jours indiqué. Laisse vide ou à 0 pour désactiver.
+          S'exécute automatiquement chaque nuit une fois activé.
         </p>
         <div class="ligne-reglage">
-          <input type="text" id="dossier-factures-input" placeholder="URL ou ID du dossier Drive">
-          <button type="button" class="action claire" id="btn-dossier-factures-enregistrer">Enregistrer</button>
+          <input type="number" min="0" id="nettoyage-fichiers-input" placeholder="Ex. 365 (désactivé si vide)">
+          <button type="button" class="action claire" id="btn-nettoyage-fichiers-enregistrer">Enregistrer</button>
         </div>
-        <div id="retour-dossier-factures"></div>
-      </div>
-
-      <div class="carte-reglage">
-        <h3>Dossier export tec.tech</h3>
-        <p class="reglage-texte">
-          Dossier Drive où déposer les fichiers CSV issus du logiciel de traçabilité tec.tech, une fois
-          importés depuis une carte commande (colonne G lue automatiquement pour les numéros de série).
-        </p>
-        <div class="ligne-reglage">
-          <input type="text" id="dossier-tectech-input" placeholder="URL ou ID du dossier Drive">
-          <button type="button" class="action claire" id="btn-dossier-tectech-enregistrer">Enregistrer</button>
-        </div>
-        <div id="retour-dossier-tectech"></div>
+        <div id="retour-nettoyage-fichiers"></div>
       </div>
 
       <div class="carte-reglage">
@@ -933,6 +921,10 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
     <label for="colissimo-texte">Liens de suivi</label>
     <textarea id="colissimo-texte" placeholder="https://www.laposte.fr/outils/suivre-vos-envois?code=..."></textarea>
     <div class="compteur-lignes" id="colissimo-compte">0 lien</div>
+    <label class="case-rn" style="margin-top:10px">
+      <input type="checkbox" id="colissimo-sans-envoi">
+      <span>Commande à livrer sans envoi postal <em>(remise en main propre, retrait sur place…) — valide l'étape de livraison sans numéro de suivi ni email</em></span>
+    </label>
     <div class="pied-modale">
       <button class="action claire" id="colissimo-annuler">Annuler</button>
       <button class="action claire" id="colissimo-envoyer-email">📧 Envoyer par email</button>
@@ -942,6 +934,25 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
 </div>
 
 <!-- Modale : confirmation avant tout envoi d'email (partagée commande + SAV) -->
+<!-- Modale bloquante : dossier Drive principal obligatoire — pas de croix, pas de clic en dehors
+     pour fermer (voile sans gestionnaire de fermeture), tant qu'il n'est pas renseigné. -->
+<div class="voile-modale" id="modale-dossier-principal-obligatoire" hidden>
+  <div class="modale">
+    <h2>📁 Dossier Drive principal requis</h2>
+    <p class="sous-titre">
+      Avant toute chose : indique le dossier Google Drive où l'outil doit ranger tous les fichiers qu'il génère
+      (factures, devis, bons de livraison, bons d'orientation, attestations, CSV tec.tech). Un seul dossier à
+      renseigner — les sous-dossiers se créent tout seuls dedans, rien d'autre à configurer côté Drive.
+    </p>
+    <label for="dossier-principal-modal-input">URL ou ID du dossier Drive</label>
+    <input type="text" id="dossier-principal-modal-input" placeholder="https://drive.google.com/drive/folders/...">
+    <div id="retour-dossier-principal-modal"></div>
+    <div class="pied-modale">
+      <button type="button" class="action" id="btn-dossier-principal-modal-enregistrer" style="width:100%">Enregistrer et continuer</button>
+    </div>
+  </div>
+</div>
+
 <div class="voile-modale" id="modale-confirmation-email" hidden>
   <div class="modale">
     <h2>Aperçu de l'email</h2>
@@ -1027,6 +1038,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
       <input type="text" id="s-code" class="mono" placeholder="Code d'accès">
       <input type="text" id="s-nom" placeholder="Nom de la structure">
       <input type="text" id="s-email" placeholder="Email">
+      <input type="text" id="s-email-facturation" placeholder="Email facturation (si différent)">
       <input type="text" id="s-tel" placeholder="Téléphone">
       <input type="text" id="s-adresse" placeholder="Adresse">
     </div>
@@ -1041,6 +1053,10 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
     <label class="case-rn">
       <input type="checkbox" id="s-interne">
       <span>Structure Interne <em>(commandes passées en interne — mêmes effets que ESN, juste le nom qui change)</em></span>
+    </label>
+    <label class="case-rn">
+      <input type="checkbox" id="s-autres">
+      <span>Structure Autres <em>(catégorie à part — pas de demande de devis ni d'attestations à la commande, comme Interne)</em></span>
     </label>
     <div id="retour-ajout"></div>
     <div class="pied-modale">
@@ -1453,15 +1469,15 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
   </div>
 </div>
 
-<script src="js/Core.js"></script>
-<script src="js/Commandes.js"></script>
-<script src="js/Bilan.js"></script>
-<script src="js/Structures.js"></script>
-<script src="js/Produits.js"></script>
-<script src="js/DevisEtReglages.js"></script>
-<script src="js/Factures.js"></script>
-<script src="js/ModalesPartagees.js"></script>
-<script src="js/CodeBackendIntegre.js"></script>
-<script src="js/Installateur.js"></script>
+<script src="js/Core.js?v=20260801-2"></script>
+<script src="js/Commandes.js?v=20260801-2"></script>
+<script src="js/Bilan.js?v=20260801-2"></script>
+<script src="js/Structures.js?v=20260801-2"></script>
+<script src="js/Produits.js?v=20260801-2"></script>
+<script src="js/DevisEtReglages.js?v=20260801-2"></script>
+<script src="js/Factures.js?v=20260801-2"></script>
+<script src="js/ModalesPartagees.js?v=20260801-2"></script>
+<script src="js/CodeBackendIntegre.js?v=20260801-2"></script>
+<script src="js/Installateur.js?v=20260801-2"></script>
 </body>
 </html>

@@ -12,7 +12,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=20260801-1">
 </head>
 <body>
 <a href="#contenu-principal" class="lien-evitement">Aller au contenu</a>
@@ -368,6 +368,7 @@ let indexEtape = 0;
 let moyenImpose = null;
 let estEsn = false;
 let estInterne = false;
+let estSansDevisNiAttestations = false; // ESN + Interne + Autres : pas de demande de devis, pas d'attestations obligatoires
 
 const etat = {
   code: '', nomStructure: '',
@@ -458,11 +459,12 @@ async function verifierCode(){
       etat.nomStructure = r.nom;
       moyenImpose = r.moyenImpose || null;
       estEsn = !!r.esn || !!r.interne;
+      estSansDevisNiAttestations = !!r.esn || !!r.interne || !!r.autres;
       estInterne = !!r.interne;
-      $('demande-devis').closest('.case-attestation').hidden = estEsn;
-      if(estEsn) $('demande-devis').checked = false;
+      $('demande-devis').closest('.case-attestation').hidden = estSansDevisNiAttestations;
+      if(estSansDevisNiAttestations) $('demande-devis').checked = false;
 
-      const sansStatutParticulier = !moyenImpose && !estEsn;
+      const sansStatutParticulier = !moyenImpose && !estSansDevisNiAttestations;
       $('case-bilan-social').hidden = !sansStatutParticulier;
       $('case-non-acquisition').hidden = !sansStatutParticulier;
       if(!sansStatutParticulier){
