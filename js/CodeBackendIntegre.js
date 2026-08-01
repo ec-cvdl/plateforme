@@ -34,12 +34,10 @@ const CLES_CONFIG = {
   ADMIN_PASSWORD:  'CONFIG_ADMIN_PASSWORD',
   COMPTA_PASSWORD: 'CONFIG_COMPTA_PASSWORD',
   ADMIN_EMAIL:     'CONFIG_ADMIN_EMAIL',
-  DRIVE_FOLDER_ID: 'CONFIG_DRIVE_FOLDER_ID',
+  DOSSIER_PRINCIPAL: 'CONFIG_DOSSIER_PRINCIPAL',
   SEUIL_ALERTE_IMPAYEE: 'CONFIG_SEUIL_ALERTE_IMPAYEE',
   NOM_ORGANISATION: 'CONFIG_NOM_ORGANISATION',
   SUPPRESSION_SIMPLE: 'CONFIG_SUPPRESSION_SIMPLE',
-  DOSSIER_FACTURES_PDF: 'CONFIG_DOSSIER_FACTURES_PDF',
-  DOSSIER_TECTECH: 'CONFIG_DOSSIER_TECTECH',
   FICHIER_NUMEROTATION: 'CONFIG_FICHIER_NUMEROTATION',
   ONGLET_NUMEROTATION: 'CONFIG_ONGLET_NUMEROTATION',
   RESPONSABLE_NOM: 'CONFIG_RESPONSABLE_NOM',
@@ -50,7 +48,7 @@ const CLES_CONFIG = {
   MODELE_BON_ORIENTATION: 'CONFIG_MODELE_BON_ORIENTATION',
   MODELE_ATTESTATION_PAIEMENT: 'CONFIG_MODELE_ATTESTATION_PAIEMENT',
   MODELE_FLOTTE_MATERIEL: 'CONFIG_MODELE_FLOTTE_MATERIEL',
-  DOSSIER_ATTESTATIONS: 'CONFIG_DOSSIER_ATTESTATIONS',
+  NETTOYAGE_FICHIERS_JOURS: 'CONFIG_NETTOYAGE_FICHIERS_JOURS',
   QUANTITE_MAX_DEFAUT: 'CONFIG_QUANTITE_MAX_DEFAUT',
   QUANTITE_MAX_DEFAUT_ESN: 'CONFIG_QUANTITE_MAX_DEFAUT_ESN',
   BADGE_NOUVELLE_JOURS: 'CONFIG_BADGE_NOUVELLE_JOURS',
@@ -137,7 +135,7 @@ function configurerInstallation(data) {
       try { DriveApp.getFolderById(id); }
       catch (e) { return { ok: false, erreur: 'Ce dossier Drive est introuvable ou inaccessible avec ce compte Google' }; }
     }
-    definirConfig('DRIVE_FOLDER_ID', id);
+    definirConfig('DOSSIER_PRINCIPAL', id);
   }
   return { ok: true };
 }
@@ -145,12 +143,10 @@ function configurerInstallation(data) {
 const ADMIN_PASSWORD  = obtenirConfig('ADMIN_PASSWORD', 'change-moi-tout-de-suite');  // mot de passe du back-office
 const COMPTA_PASSWORD = obtenirConfig('COMPTA_PASSWORD', 'change-moi-aussi');          // mot de passe de la vue comptabilité (lecture + statut/dépôt uniquement)
 const ADMIN_EMAIL     = obtenirConfig('ADMIN_EMAIL', '');                          // ton email pour la notif à chaque commande (vide = pas d'email)
-const DRIVE_FOLDER_ID = obtenirConfig('DRIVE_FOLDER_ID', '');                          // ID du dossier Drive racine pour les bons (vide = racine du Drive)
+const DOSSIER_PRINCIPAL = obtenirConfig('DOSSIER_PRINCIPAL', ''); // seul dossier Drive à configurer — tous les sous-dossiers (Factures, Devis, Bons de livraison...) sont créés automatiquement dedans
 const SEUIL_ALERTE_IMPAYEE = parseInt(obtenirConfig('SEUIL_ALERTE_IMPAYEE', '30'), 10) || 30; // jours après livraison avant d'afficher l'alerte impayée
 const NOM_ORGANISATION = obtenirConfig('NOM_ORGANISATION', '');                       // ex. "Mairie de Paris" — affiché dans l'en-tête du back-office
 const SUPPRESSION_SIMPLE = obtenirConfig('SUPPRESSION_SIMPLE', '') === '1';            // true = une seule confirmation au lieu de deux
-const DOSSIER_FACTURES_PDF = obtenirConfig('DOSSIER_FACTURES_PDF', '');                // dossier Drive où déposer les factures PDF générées (change chaque année)
-const DOSSIER_TECTECH = obtenirConfig('DOSSIER_TECTECH', '');                          // dossier Drive où déposer les CSV importés depuis tec.tech (logiciel de traçabilité)
 const FICHIER_NUMEROTATION = obtenirConfig('FICHIER_NUMEROTATION', '');                // classeur externe de numérotation officielle des factures
 const ONGLET_NUMEROTATION = obtenirConfig('ONGLET_NUMEROTATION', '');                  // nom de l'onglet à l'intérieur de ce classeur (souvent l'année en cours)
 const RESPONSABLE_NOM = obtenirConfig('RESPONSABLE_NOM', '');                          // affiché sur les factures PDF générées
@@ -171,7 +167,24 @@ const MODELE_BON_LIVRAISON = obtenirConfig('MODELE_BON_LIVRAISON', ''); // ID du
 const MODELE_BON_ORIENTATION = obtenirConfig('MODELE_BON_ORIENTATION', ''); // ID du Sheets modèle de bon d'orientation
 const MODELE_ATTESTATION_PAIEMENT = obtenirConfig('MODELE_ATTESTATION_PAIEMENT', ''); // ID du Sheets modèle d'attestation de paiement (par personne)
 const MODELE_FLOTTE_MATERIEL = obtenirConfig('MODELE_FLOTTE_MATERIEL', ''); // ID du Sheets modèle que chaque structure copie dans son propre Drive
-const DOSSIER_ATTESTATIONS = obtenirConfig('DOSSIER_ATTESTATIONS', ''); // Dossier Drive où déposer les attestations générées
+const NETTOYAGE_FICHIERS_JOURS = parseInt(obtenirConfig('NETTOYAGE_FICHIERS_JOURS', '0'), 10) || 0; // 0 = désactivé
+
+/** Renvoie (en le créant si besoin) un sous-dossier nommé à l'intérieur du dossier Drive
+ *  principal — tous les documents générés par l'outil (factures, devis, bons, attestations,
+ *  CSV tec.tech) vivent chacun dans leur propre sous-dossier, sans qu'il y ait quoi que ce
+ *  soit à configurer individuellement. Si aucun dossier principal n'est renseigné, repli sur
+ *  la racine du Drive (comportement historique, avant la consolidation en un seul réglage).
+ *  Mis en cache le temps d'une exécution : plusieurs appels au même nom ne refont pas la
+ *  recherche Drive à chaque fois. */
+const _sousDossiersCache = {};
+function sousDossier(nom) {
+  if (_sousDossiersCache[nom]) return _sousDossiersCache[nom];
+  const racine = DOSSIER_PRINCIPAL ? DriveApp.getFolderById(DOSSIER_PRINCIPAL) : DriveApp.getRootFolder();
+  const existants = racine.getFoldersByName(nom);
+  const dossier = existants.hasNext() ? existants.next() : racine.createFolder(nom);
+  _sousDossiersCache[nom] = dossier;
+  return dossier;
+}
 const QUANTITE_MAX_DEFAUT = parseInt(obtenirConfig('QUANTITE_MAX_DEFAUT', '5'), 10) || 5; // par produit, sauf réglage propre au produit
 const QUANTITE_MAX_DEFAUT_ESN = parseInt(obtenirConfig('QUANTITE_MAX_DEFAUT_ESN', '5'), 10) || 5; // idem, pour les structures ESN
 const BADGE_NOUVELLE_JOURS = parseFloat(obtenirConfig('BADGE_NOUVELLE_JOURS', '1.5')) || 1.5; // en jours ouvrés
@@ -194,11 +207,9 @@ function obtenirReglages(data) {
     modeleCommande: obtenirModeleCommande(),
     modeleSav: obtenirModeleSav(),
     emailAdmin: ADMIN_EMAIL,
-    dossierDriveId: DRIVE_FOLDER_ID,
+    dossierPrincipal: DOSSIER_PRINCIPAL,
     nomOrganisation: NOM_ORGANISATION,
     suppressionSimple: SUPPRESSION_SIMPLE,
-    dossierFacturesPdf: DOSSIER_FACTURES_PDF,
-    dossierTectech: DOSSIER_TECTECH,
     fichierNumerotation: FICHIER_NUMEROTATION,
     ongletNumerotation: ONGLET_NUMEROTATION,
     responsableNom: RESPONSABLE_NOM,
@@ -208,8 +219,8 @@ function obtenirReglages(data) {
     modeleBonLivraison: MODELE_BON_LIVRAISON,
     modeleBonOrientation: MODELE_BON_ORIENTATION,
     modeleAttestationPaiement: MODELE_ATTESTATION_PAIEMENT,
-    dossierAttestations: DOSSIER_ATTESTATIONS,
     modeleFlotteMateriel: MODELE_FLOTTE_MATERIEL,
+    nettoyageFichiersJours: NETTOYAGE_FICHIERS_JOURS,
     quantiteMaxDefaut: QUANTITE_MAX_DEFAUT,
     quantiteMaxDefautEsn: QUANTITE_MAX_DEFAUT_ESN,
     badgeNouvelleJours: BADGE_NOUVELLE_JOURS,
@@ -288,13 +299,12 @@ function definirReglages(data) {
     definirConfig('ADMIN_EMAIL', email);
   }
 
-  if (data.dossierDriveId !== undefined) {
-    const id = extraireIdDossierDrive(data.dossierDriveId);
-    if (id) {
-      try { DriveApp.getFolderById(id); }
-      catch (e) { return { ok: false, erreur: 'Ce dossier Drive est introuvable ou inaccessible avec ce compte Google' }; }
-    }
-    definirConfig('DRIVE_FOLDER_ID', id);
+  if (data.dossierPrincipal !== undefined) {
+    const id = extraireIdDossierDrive(data.dossierPrincipal);
+    if (!id) return { ok: false, erreur: 'Le dossier Drive principal est obligatoire' };
+    try { DriveApp.getFolderById(id); }
+    catch (e) { return { ok: false, erreur: 'Ce dossier Drive est introuvable ou inaccessible avec ce compte Google' }; }
+    definirConfig('DOSSIER_PRINCIPAL', id);
   }
 
   if (data.nouveauMotDePasseAdmin) {
@@ -310,24 +320,6 @@ function definirReglages(data) {
 
   if (data.suppressionSimple !== undefined) {
     definirConfig('SUPPRESSION_SIMPLE', data.suppressionSimple ? '1' : '');
-  }
-
-  if (data.dossierFacturesPdf !== undefined) {
-    const id = extraireIdDossierDrive(data.dossierFacturesPdf);
-    if (id) {
-      try { DriveApp.getFolderById(id); }
-      catch (e) { return { ok: false, erreur: 'Ce dossier Drive (factures PDF) est introuvable ou inaccessible avec ce compte Google' }; }
-    }
-    definirConfig('DOSSIER_FACTURES_PDF', id);
-  }
-
-  if (data.dossierTectech !== undefined) {
-    const id = extraireIdDossierDrive(data.dossierTectech);
-    if (id) {
-      try { DriveApp.getFolderById(id); }
-      catch (e) { return { ok: false, erreur: 'Ce dossier Drive (export tec.tech) est introuvable ou inaccessible avec ce compte Google' }; }
-    }
-    definirConfig('DOSSIER_TECTECH', id);
   }
 
   if (data.fichierNumerotation !== undefined) {
@@ -402,13 +394,11 @@ function definirReglages(data) {
     definirConfig('MODELE_FLOTTE_MATERIEL', id);
   }
 
-  if (data.dossierAttestations !== undefined) {
-    const id = extraireIdDossierDrive(data.dossierAttestations);
-    if (id) {
-      try { DriveApp.getFolderById(id); }
-      catch (e) { return { ok: false, erreur: 'Ce dossier Drive d\\'attestations est introuvable ou inaccessible avec ce compte Google' }; }
-    }
-    definirConfig('DOSSIER_ATTESTATIONS', id);
+  if (data.nettoyageFichiersJours !== undefined) {
+    const jours = parseInt(data.nettoyageFichiersJours, 10) || 0;
+    if (jours < 0) return { ok: false, erreur: 'Le nombre de jours ne peut pas être négatif' };
+    definirConfig('NETTOYAGE_FICHIERS_JOURS', String(jours));
+    configurerDeclencheurNettoyage(jours);
   }
 
   if (data.quantiteMaxDefaut !== undefined) {
@@ -522,7 +512,7 @@ const ENTETES_COMMANDES = [
   'Nombre de fichiers', 'Référence devis', 'Référence facture', 'Statut comptable', 'Numéro de dépôt',
   'Devis demandé', 'Suivi Colissimo', 'Date de livraison', 'Fichier CSV tec.tech',
   'Caractéristiques matériel', 'Bon de livraison', 'Personnes bénéficiaires', 'Dernier clic lien de paiement',
-  'Jeton validation logistique', 'Date de livraison souhaitée', 'Paiement séparé'
+  'Jeton validation logistique', 'Date de livraison souhaitée', 'Paiement séparé', 'Livraison sans envoi postal'
 ];
 
 const STATUTS_COMPTABLES = ['Non rapproché', 'Rapproché', 'Clôturé'];
@@ -533,7 +523,7 @@ const ENTETES_DEVIS = [
   'Statut', 'Référence facture'
 ];
 
-const ENTETES_STRUCTURES = ['Code', 'Nom', 'Email', 'Téléphone', 'Adresse', 'RN', 'ESN', 'Interne', 'Lien flotte matériel'];
+const ENTETES_STRUCTURES = ['Code', 'Nom', 'Email', 'Téléphone', 'Adresse', 'RN', 'ESN', 'Interne', 'Lien flotte matériel', 'Autres', 'Email facturation'];
 
 const ENTETES_PRODUITS = ['Nom', 'Prix standard', 'Prix RN', 'Stock', 'Visible', 'Message si épuisé', 'Disque dur', 'RAM', 'Système', 'Icône', 'Quantité max', 'SKU Tech.tec'];
 
@@ -609,6 +599,57 @@ function lireCacheDecoupe(cle) {
     return null;
   }
 }
+
+/* ══════════════ Nettoyage automatique des fichiers générés ══════════════
+   Supprime (met à la corbeille, jamais de suppression définitive directe — Drive garde la
+   corbeille 30 jours, donc rien n'est perdu brutalement) les fichiers générés par l'outil
+   (bons, devis, factures, attestations, CSV tec.tech) plus vieux que le seuil configuré,
+   dans chacun des sous-dossiers auto-créés du dossier Drive principal. Ne touche jamais aux
+   modèles eux-mêmes (fichiers référencés par les ID de modèle) ni à quoi que ce soit hors
+   de ces sous-dossiers connus. */
+const NOMS_SOUS_DOSSIERS_GENERES = ['Factures', 'Devis', 'Bons de livraison', 'Bons d\\'orientation', 'Attestations de paiement', 'CSV Tec.Tech', 'Pièces jointes commandes'];
+
+function dossiersANettoyer() {
+  return NOMS_SOUS_DOSSIERS_GENERES.map(function(nom) {
+    try { return sousDossier(nom); } catch (e) { return null; } // dossier principal pas encore configuré, ou inaccessible
+  }).filter(Boolean);
+}
+
+function nettoyerFichiersAnciens() {
+  const jours = NETTOYAGE_FICHIERS_JOURS;
+  if (!jours) return { ok: true, supprimes: 0 };
+
+  const idsModeles = [MODELE_FACTURATION, MODELE_BON_LIVRAISON, MODELE_BON_ORIENTATION, MODELE_ATTESTATION_PAIEMENT, MODELE_FLOTTE_MATERIEL]
+    .filter(Boolean);
+  const seuil = new Date(Date.now() - jours * 24 * 60 * 60 * 1000);
+  let supprimes = 0;
+
+  dossiersANettoyer().forEach(function(dossier) {
+    const fichiers = dossier.getFiles();
+    while (fichiers.hasNext()) {
+      const fichier = fichiers.next();
+      if (idsModeles.indexOf(fichier.getId()) !== -1) continue; // jamais le modèle lui-même
+      if (fichier.getLastUpdated() < seuil) {
+        fichier.setTrashed(true);
+        supprimes++;
+      }
+    }
+  });
+  return { ok: true, supprimes: supprimes };
+}
+
+/** Crée, met à jour ou supprime le déclencheur quotidien de nettoyage selon le réglage.
+ *  Toujours repartir d'une base propre (suppression des anciens déclencheurs de cette
+ *  fonction) pour ne jamais en empiler plusieurs au fil des changements de réglage. */
+function configurerDeclencheurNettoyage(jours) {
+  ScriptApp.getProjectTriggers().forEach(function(t) {
+    if (t.getHandlerFunction() === 'nettoyerFichiersAnciens') ScriptApp.deleteTrigger(t);
+  });
+  if (jours > 0) {
+    ScriptApp.newTrigger('nettoyerFichiersAnciens').timeBased().everyDays(1).atHour(3).create();
+  }
+}
+
 
 /**
  * CVDL — Backend commandes matériel (source : Routeur.gs, 2 sur 8 — doGet/doPost, aiguillage des actions)
@@ -692,9 +733,9 @@ function doGet(e) {
     } else if (p.action === 'produits') {
       res = listerProduits(p.password);
     } else if (p.action === 'factures') {
-      res = listerFactures(p.password);
+      res = listerFactures(p.password, p.limite, p.decalage, p.recherche);
     } else if (p.action === 'devis') {
-      res = listerDevis(p.password);
+      res = listerDevis(p.password, p.limite, p.decalage, p.recherche);
     } else if (p.action === 'comptabilite') {
       res = listerComptabilite(p.password);
     } else if (p.action === 'sav-list') {
@@ -883,7 +924,9 @@ function lireStructures() {
       rn:        lignes[i][5] === true || String(lignes[i][5]).trim().toUpperCase() === 'TRUE',
       esn:       lignes[i][6] === true || String(lignes[i][6]).trim().toUpperCase() === 'TRUE',
       interne:   lignes[i][7] === true || String(lignes[i][7]).trim().toUpperCase() === 'TRUE',
-      lienFlotte: String(lignes[i][8] || '').trim()
+      lienFlotte: String(lignes[i][8] || '').trim(),
+      autres:    lignes[i][9] === true || String(lignes[i][9]).trim().toUpperCase() === 'TRUE',
+      emailFacturation: String(lignes[i][10] || '').trim()
     };
   }
   return structures;
@@ -905,7 +948,8 @@ function verifierCode(code) {
     nom: structure.nom,
     moyenImpose: structure.rn ? 'Virement (RN uniquement)' : null,
     esn: !!structure.esn,
-    interne: !!structure.interne
+    interne: !!structure.interne,
+    autres: !!structure.autres
   };
 }
 
@@ -948,11 +992,15 @@ function creerStructure(data) {
     String(data.adresse || '').trim(),
     data.rn === true || data.rn === 'true',
     data.esn === true || data.esn === 'true',
-    data.interne === true || data.interne === 'true'
+    data.interne === true || data.interne === 'true',
+    '', // Lien flotte matériel — jamais renseigné à la création, uniquement par la structure elle-même
+    data.autres === true || data.autres === 'true',
+    String(data.emailFacturation || '').trim()
   ]);
 
   // Cases à cocher propres sur les colonnes RN, ESN et Interne de cette nouvelle ligne
   feuille.getRange(feuille.getLastRow(), 6, 1, 3).insertCheckboxes();
+  feuille.getRange(feuille.getLastRow(), 10).insertCheckboxes(); // colonne Autres
 
   return { ok: true };
 }
@@ -960,11 +1008,11 @@ function creerStructure(data) {
 function majStructure(data) {
   if (data.password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
 
-  const colonnes = { code: 1, nom: 2, email: 3, telephone: 4, adresse: 5, rn: 6, esn: 7, interne: 8 };
+  const colonnes = { code: 1, nom: 2, email: 3, telephone: 4, adresse: 5, rn: 6, esn: 7, interne: 8, autres: 10, emailFacturation: 11 };
   const colonne = colonnes[data.champ];
   if (!colonne) return { ok: false, erreur: 'Champ inconnu' };
 
-  if (data.champ === 'rn' || data.champ === 'esn' || data.champ === 'interne') {
+  if (data.champ === 'rn' || data.champ === 'esn' || data.champ === 'interne' || data.champ === 'autres') {
     feuilleStructures().getRange(data.ligne, colonne).setValue(data.valeur === true || data.valeur === 'true');
     return { ok: true };
   }
@@ -1712,7 +1760,7 @@ function enregistrerFichiers(fichiers, reference, nomStructure, date) {
     }
   }
 
-  const racine = DRIVE_FOLDER_ID ? DriveApp.getFolderById(DRIVE_FOLDER_ID) : DriveApp.getRootFolder();
+  const racine = sousDossier('Pièces jointes commandes');
 
   const dateFormatee = Utilities.formatDate(date, Session.getScriptTimeZone(), 'dd-MM-yyyy');
   const nomDossier = reference + ' — ' + dateFormatee + ' — ' + nomStructure;
@@ -1731,7 +1779,7 @@ function enregistrerFichiers(fichiers, reference, nomStructure, date) {
 }
 
 /** Importe un CSV tec.tech pour une commande donnée : dépôt dans le dossier Drive dédié
- *  (config DOSSIER_TECTECH), et lien persistant écrit sur la ligne de la commande. Le
+ *  (sous-dossier "CSV Tec.Tech" du dossier principal), et lien persistant écrit sur la ligne de la commande. Le
  *  parsing de la colonne G (numéros de série) se fait côté client, avant l'appel — ici
  *  on ne fait que conserver le fichier et son lien. */
 /** Même principe que genererFacturePdf/genererDevisPdf : copie d'un modèle Sheets dédié avec
@@ -1770,11 +1818,11 @@ function genererBonLivraisonPdf(data) {
   let copie;
   try {
     const modeleFichier = DriveApp.getFileById(MODELE_BON_LIVRAISON);
-    const dossierCible = DRIVE_FOLDER_ID ? DriveApp.getFolderById(DRIVE_FOLDER_ID) : DriveApp.getRootFolder();
+    const dossierCible = sousDossier('Bons de livraison');
     copie = modeleFichier.makeCopy(nomFichier, dossierCible);
-    // Le dossier configuré (ou la racine du Drive) n'est pas forcément partagé avec qui doit
-    // ouvrir ce lien (structure, logistique...) — on rend donc CE fichier accessible par lien,
-    // sans dépendre du partage du dossier qui le contient.
+    // Le dossier n'est pas forcément partagé avec qui doit ouvrir ce lien (structure,
+    // logistique...) — on rend donc CE fichier accessible par lien, sans dépendre du
+    // partage du dossier qui le contient.
     copie.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   } catch (e) {
     return { ok: false, erreur: 'Copie du modèle impossible : ' + e.message };
@@ -1828,7 +1876,7 @@ function genererBonOrientationPdf(data) {
   let copie;
   try {
     const modeleFichier = DriveApp.getFileById(MODELE_BON_ORIENTATION);
-    const dossierCible = DRIVE_FOLDER_ID ? DriveApp.getFolderById(DRIVE_FOLDER_ID) : DriveApp.getRootFolder();
+    const dossierCible = sousDossier('Bons d\\'orientation');
     copie = modeleFichier.makeCopy(nomFichier, dossierCible);
     copie.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   } catch (e) {
@@ -1857,7 +1905,7 @@ function genererBonOrientationPdf(data) {
 function genererAttestationsPaiement(data) {
   if (data.password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
   if (!MODELE_ATTESTATION_PAIEMENT) return { ok: false, erreur: 'Aucun modèle d\\'attestation de paiement configuré (Réglages)' };
-  if (!DOSSIER_ATTESTATIONS) return { ok: false, erreur: 'Aucun dossier Drive d\\'attestations configuré (Réglages)' };
+  if (!DOSSIER_PRINCIPAL) return { ok: false, erreur: 'Aucun dossier Drive principal configuré (Réglages)' };
 
   const ligne = parseInt(data.ligne, 10);
   if (!ligne) return { ok: false, erreur: 'Commande introuvable' };
@@ -1893,9 +1941,7 @@ function genererAttestationsPaiement(data) {
   const structure = lireStructures()[String(codeStructure || '').trim()];
   const dateVente = dateCommande ? Utilities.formatDate(new Date(dateCommande), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '';
 
-  let dossier;
-  try { dossier = DriveApp.getFolderById(DOSSIER_ATTESTATIONS); }
-  catch (e) { return { ok: false, erreur: 'Le dossier Drive d\\'attestations est introuvable ou inaccessible' }; }
+  const dossier = sousDossier('Attestations de paiement');
 
   const modeleFichier = DriveApp.getFileById(MODELE_ATTESTATION_PAIEMENT);
   const resultats = [];
@@ -1942,8 +1988,8 @@ function genererAttestationsPaiement(data) {
 function importerCsvTectech(data) {
   if (data.password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
 
-  if (!DOSSIER_TECTECH) {
-    return { ok: false, erreur: 'Aucun dossier Drive "export tec.tech" n\\'est configuré (onglet Réglages)' };
+  if (!DOSSIER_PRINCIPAL) {
+    return { ok: false, erreur: 'Aucun dossier Drive principal n\\'est configuré (onglet Réglages)' };
   }
 
   const ligne = parseInt(data.ligne, 10);
@@ -1955,9 +2001,7 @@ function importerCsvTectech(data) {
     return { ok: false, erreur: 'Le fichier dépasse ' + MAX_FICHIER_MO + ' Mo' };
   }
 
-  let dossier;
-  try { dossier = DriveApp.getFolderById(DOSSIER_TECTECH); }
-  catch (e) { return { ok: false, erreur: 'Le dossier Drive "export tec.tech" est introuvable ou inaccessible' }; }
+  const dossier = sousDossier('CSV Tec.Tech');
 
   const feuille = feuilleCommandes();
   const ligneActuelle = feuille.getRange(ligne, 1, 1, ENTETES_COMMANDES.length).getValues()[0];
@@ -2105,7 +2149,8 @@ function construireBaseCommandes() {
       dernierClicLienPaiement: l[28] ? Utilities.formatDate(new Date(l[28]), Session.getScriptTimeZone(), 'dd/MM/yyyy à HH:mm') : '',
       validationLogistiqueEnAttente: !!l[29],
       dateLivraisonSouhaitee: (l[30] instanceof Date) ? Utilities.formatDate(l[30], Session.getScriptTimeZone(), 'dd/MM/yyyy') : String(l[30] || '').trim(),
-      paiementSepare: l[31] === 'Oui'
+      paiementSepare: l[31] === 'Oui',
+      livraisonSansEnvoi: l[32] === 'Oui'
     });
   }
 
@@ -2525,7 +2570,8 @@ function majCommande(data) {
     dateLivraison:    24,
     csvTectech:       25,
     caracteristiquesMateriel: 26,
-    dateLivraisonSouhaitee: 31
+    dateLivraisonSouhaitee: 31,
+    livraisonSansEnvoi: 33
   };
 
   const colonne = colonnes[data.champ];
@@ -2568,9 +2614,10 @@ function majCommande(data) {
       }
       if (data.valeur === 'En cours de livraison') {
         const bonLivraisonRenseigne = String(ligneActuellePourControle[26] || '').trim().length > 0;
-        const colissimoRenseigne = String(ligneActuellePourControle[22] || '').trim().length > 0;
+        const sansEnvoi = ligneActuellePourControle[32] === 'Oui';
+        const colissimoRenseigne = sansEnvoi || String(ligneActuellePourControle[22] || '').trim().length > 0;
         if (!bonLivraisonRenseigne || !colissimoRenseigne) {
-          return { ok: false, erreur: 'Renseigne le bon de livraison et le numéro Colissimo avant de passer cette commande en livraison.' };
+          return { ok: false, erreur: 'Renseigne le bon de livraison' + (sansEnvoi ? '' : ' et le numéro Colissimo') + ' avant de passer cette commande en livraison.' };
         }
       }
       if (data.valeur === 'Livrée') {
@@ -3589,6 +3636,7 @@ function genererDevis(ligneCommande) {
   if (structurePourVerif && (structurePourVerif.esn || structurePourVerif.interne)) {
     return { ok: false, erreur: 'Cette structure est de type ESN ou Interne — aucun devis n\\'est généré pour elle' };
   }
+  const emailDevis = (structurePourVerif && structurePourVerif.emailFacturation) || email;
 
   if (devisExistePourCommande(reference)) {
     return { ok: false, erreur: 'Un devis existe déjà pour ' + reference };
@@ -3609,7 +3657,7 @@ function genererDevis(ligneCommande) {
   const feuilleDev = feuilleDevis();
   const referenceDevis = genererReferenceUnique();
   feuilleDev.appendRow([
-    referenceDevis, new Date(), reference, nomStructure, email, adresse,
+    referenceDevis, new Date(), reference, nomStructure, emailDevis, adresse,
     resumeProduit, quantiteTotale, moyenPaiement, prixUnitaireAffiche, montant, 'Émis', ''
   ]);
 
@@ -3648,7 +3696,7 @@ function creerDevisManuel(data) {
   }
 
   const resultat = inscrireDevis(
-    referenceCommande, structure.code, structure.nom, structure.email, structure.adresse,
+    referenceCommande, structure.code, structure.nom, structure.emailFacturation || structure.email, structure.adresse,
     data.produit, quantite, data.moyenPaiement
   );
   if (!resultat.ok) return resultat;
@@ -3685,38 +3733,51 @@ function supprimerFacture(data) {
   return { ok: true };
 }
 
-function listerDevis(password) {
+function listerDevis(password, limite, decalage, recherche) {
   if (password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
 
   const cleCache = 'devis_v' + versionCache('devis');
-  const enCache = lireCacheDecoupe(cleCache);
-  if (enCache) return { ok: true, devis: enCache };
+  let toutes = lireCacheDecoupe(cleCache);
 
-  const lignes = feuilleDevis().getDataRange().getValues();
-  const devis = [];
-
-  for (let i = 1; i < lignes.length; i++) {
-    if (!lignes[i][0]) continue;
-    devis.push({
-      ligne:             i + 1,
-      referenceDevis:    lignes[i][0],
-      date:              lignes[i][1] ? Utilities.formatDate(new Date(lignes[i][1]), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '',
-      referenceCommande: lignes[i][2],
-      nomStructure:      lignes[i][3],
-      email:             lignes[i][4],
-      adresse:           lignes[i][5],
-      produit:           lignes[i][6],
-      quantite:          lignes[i][7],
-      moyenPaiement:     lignes[i][8],
-      prixUnitaire:      lignes[i][9],
-      montantTotal:      lignes[i][10],
-      statut:            lignes[i][11],
-      referenceFacture:  lignes[i][12]
-    });
+  if (!toutes) {
+    const lignes = feuilleDevis().getDataRange().getValues();
+    toutes = [];
+    for (let i = 1; i < lignes.length; i++) {
+      if (!lignes[i][0]) continue;
+      toutes.push({
+        ligne:             i + 1,
+        referenceDevis:    lignes[i][0],
+        date:              lignes[i][1] ? Utilities.formatDate(new Date(lignes[i][1]), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '',
+        referenceCommande: lignes[i][2],
+        nomStructure:      lignes[i][3],
+        email:             lignes[i][4],
+        adresse:           lignes[i][5],
+        produit:           lignes[i][6],
+        quantite:          lignes[i][7],
+        moyenPaiement:     lignes[i][8],
+        prixUnitaire:      lignes[i][9],
+        montantTotal:      lignes[i][10],
+        statut:            lignes[i][11],
+        referenceFacture:  lignes[i][12]
+      });
+    }
+    toutes.reverse();
+    mettreEnCacheDecoupe(cleCache, toutes);
   }
-  const resultat = devis.reverse();
-  mettreEnCacheDecoupe(cleCache, resultat);
-  return { ok: true, devis: resultat };
+
+  const termeRecherche = String(recherche || '').trim().toLowerCase();
+  if (termeRecherche) {
+    const resultats = toutes.filter(function(d) {
+      const cible = (d.referenceDevis + ' ' + d.referenceCommande + ' ' + d.nomStructure + ' ' + d.email + ' ' + d.produit).toLowerCase();
+      return cible.includes(termeRecherche);
+    });
+    return { ok: true, devis: resultats.slice(0, 200), total: toutes.length, recherche: true };
+  }
+
+  const limiteNombre = parseInt(limite, 10) || 0;
+  const decalageNombre = parseInt(decalage, 10) || 0;
+  const limitees = limiteNombre > 0 ? toutes.slice(decalageNombre, decalageNombre + limiteNombre) : toutes;
+  return { ok: true, devis: limitees, total: toutes.length };
 }
 
 /**
@@ -3937,6 +3998,7 @@ function facturerDirectement(data) {
   if (structurePourVerif && (structurePourVerif.esn || structurePourVerif.interne)) {
     return { ok: false, erreur: 'Cette structure est de type ESN ou Interne — aucune facture n\\'est générée pour elle' };
   }
+  const emailFacture = (structurePourVerif && structurePourVerif.emailFacturation) || email;
 
   const detailLignes = lireLignesCommande(referenceCommande, resumeProduit, quantiteTotale);
   let montantTotal = 0;
@@ -3949,7 +4011,7 @@ function facturerDirectement(data) {
     ? (montantTotal / (detailLignes[0].quantite || 1)) : '';
 
   feuilleFactures().appendRow([
-    numeroFacture, new Date(), referenceCommande, nomStructure, email, adresse,
+    numeroFacture, new Date(), referenceCommande, nomStructure, emailFacture, adresse,
     resumeProduit, quantiteTotale, moyenPaiement, prixUnitaireAffiche, montantTotal, ''
   ]);
   invaliderCacheFactures();
@@ -3972,37 +4034,54 @@ function reporterFactureSurCommande(referenceCommande, numeroFacture) {
   }
 }
 
-function listerFactures(password) {
+function listerFactures(password, limite, decalage, recherche) {
   if (password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
 
   const cleCache = 'factures_v' + versionCache('factures');
-  const enCache = lireCacheDecoupe(cleCache);
-  if (enCache) return { ok: true, factures: enCache };
+  let toutes = lireCacheDecoupe(cleCache);
 
-  const lignes = feuilleFactures().getDataRange().getValues();
-  const factures = [];
-
-  for (let i = 1; i < lignes.length; i++) {
-    if (!lignes[i][0]) continue;
-    factures.push({
-      ligne:             i + 1,
-      referenceFacture:  lignes[i][0],
-      date:              lignes[i][1] ? Utilities.formatDate(new Date(lignes[i][1]), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '',
-      referenceCommande: lignes[i][2] || '',
-      nomStructure:      lignes[i][3] || '',
-      email:             lignes[i][4] || '',
-      adresse:           lignes[i][5] || '',
-      produit:           lignes[i][6] || '',
-      quantite:          lignes[i][7] || '',
-      moyenPaiement:     lignes[i][8] || '',
-      prixUnitaire:      lignes[i][9] || 0,
-      montantTotal:      lignes[i][10] || 0,
-      commentaire:       lignes[i][11] || ''
-    });
+  if (!toutes) {
+    const lignes = feuilleFactures().getDataRange().getValues();
+    toutes = [];
+    for (let i = 1; i < lignes.length; i++) {
+      if (!lignes[i][0]) continue;
+      toutes.push({
+        ligne:             i + 1,
+        referenceFacture:  lignes[i][0],
+        date:              lignes[i][1] ? Utilities.formatDate(new Date(lignes[i][1]), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '',
+        referenceCommande: lignes[i][2] || '',
+        nomStructure:      lignes[i][3] || '',
+        email:             lignes[i][4] || '',
+        adresse:           lignes[i][5] || '',
+        produit:           lignes[i][6] || '',
+        quantite:          lignes[i][7] || '',
+        moyenPaiement:     lignes[i][8] || '',
+        prixUnitaire:      lignes[i][9] || 0,
+        montantTotal:      lignes[i][10] || 0,
+        commentaire:       lignes[i][11] || ''
+      });
+    }
+    toutes.reverse();
+    mettreEnCacheDecoupe(cleCache, toutes);
   }
-  const resultat = factures.reverse();
-  mettreEnCacheDecoupe(cleCache, resultat);
-  return { ok: true, factures: resultat };
+
+  const montantTotalGlobal = toutes.reduce(function(s, f) { return s + (parseFloat(f.montantTotal) || 0); }, 0);
+
+  const termeRecherche = String(recherche || '').trim().toLowerCase();
+  if (termeRecherche) {
+    // La recherche porte toujours sur l'historique complet, jamais seulement sur la page
+    // affichée — même principe que pour les commandes.
+    const resultats = toutes.filter(function(f) {
+      const cible = (f.referenceFacture + ' ' + f.referenceCommande + ' ' + f.nomStructure + ' ' + f.email + ' ' + f.produit).toLowerCase();
+      return cible.includes(termeRecherche);
+    });
+    return { ok: true, factures: resultats.slice(0, 200), total: toutes.length, montantTotalGlobal: montantTotalGlobal, recherche: true };
+  }
+
+  const limiteNombre = parseInt(limite, 10) || 0;
+  const decalageNombre = parseInt(decalage, 10) || 0;
+  const limitees = limiteNombre > 0 ? toutes.slice(decalageNombre, decalageNombre + limiteNombre) : toutes;
+  return { ok: true, factures: limitees, total: toutes.length, montantTotalGlobal: montantTotalGlobal };
 }
 
 /** Édition manuelle d'une facture déjà émise (produit, quantité, prix, commentaire).
@@ -4099,9 +4178,9 @@ function genererFacturePdf(data) {
     // l'ouvre, vérifie, et exporte elle-même en PDF depuis Sheets si besoin (Fichier →
     // Télécharger → PDF), ou la classe directement dans le dossier d'archivage.
     const modeleFichier = DriveApp.getFileById(MODELE_FACTURATION);
-    const dossierCible = DRIVE_FOLDER_ID ? DriveApp.getFolderById(DRIVE_FOLDER_ID) : DriveApp.getRootFolder();
+    const dossierCible = sousDossier('Factures');
     copie = modeleFichier.makeCopy(nomFichier, dossierCible);
-    // Le dossier cible n'est pas forcément partagé avec qui reçoit ce lien : on partage donc
+    // Le dossier n'est pas forcément partagé avec qui reçoit ce lien : on partage donc
     // explicitement CE fichier, sans dépendre du partage du dossier qui le contient.
     copie.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   } catch (e) {
@@ -4164,7 +4243,7 @@ function genererDevisPdf(data) {
   let copie;
   try {
     const modeleFichier = DriveApp.getFileById(MODELE_FACTURATION);
-    const dossierCible = DRIVE_FOLDER_ID ? DriveApp.getFolderById(DRIVE_FOLDER_ID) : DriveApp.getRootFolder();
+    const dossierCible = sousDossier('Devis');
     copie = modeleFichier.makeCopy(nomFichier, dossierCible);
     copie.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   } catch (e) {

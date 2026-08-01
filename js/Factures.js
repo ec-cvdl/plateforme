@@ -2,6 +2,11 @@
 
 let factures = [];
 let facturesChargeesUneFois = false;
+let totalFactures = 0;
+let montantTotalFacturesGlobal = 0;
+let limiteFacturesActuelle = LIMITE_LISTES_DEFAUT;
+let decalageFacturesActuel = 0;
+let rechercheFacturesActive = false;
 let sav = [];
 const LIMITE_SAV_DEFAUT = 20;
 let limiteSavActuelle = LIMITE_SAV_DEFAUT;
@@ -13,16 +18,45 @@ let symptomesSav = ['L\'écran ne s\'allume plus', 'L\'appareil ne se charge plu
 async function chargerFactures(silencieux){
   if(!silencieux) etat('Chargement des factures…', 'chargement');
   try{
-    const r = await jsonp({action:'factures', password:motDePasse});
-    if(r.ok){ factures = r.factures; facturesChargeesUneFois = true; rendreFactures(); }
+    const r = await jsonp({action:'factures', password:motDePasse, limite:limiteFacturesActuelle, decalage:decalageFacturesActuel});
+    if(r.ok){ factures = r.factures; totalFactures = r.total; montantTotalFacturesGlobal = r.montantTotalGlobal || 0; facturesChargeesUneFois = true; rendreFactures(); }
     if(!silencieux) $('etat').classList.remove('visible');
   }catch(e){ if(!silencieux) etat('Chargement des factures impossible', 'erreur'); }
 }
+async function changerPageFactures(nouveauDecalage){
+  decalageFacturesActuel = Math.max(0, nouveauDecalage);
+  etat('Chargement…', 'chargement');
+  try{
+    const r = await jsonp({action:'factures', password:motDePasse, limite:limiteFacturesActuelle, decalage:decalageFacturesActuel});
+    if(r.ok){ factures = r.factures; totalFactures = r.total; montantTotalFacturesGlobal = r.montantTotalGlobal || 0; rendreFactures(); }
+    $('etat').classList.remove('visible');
+  }catch(e){ etat('Chargement impossible', 'erreur'); }
+}
+$('btn-page-precedente-factures').addEventListener('click', () => changerPageFactures(decalageFacturesActuel - limiteFacturesActuelle));
+$('btn-page-suivante-factures').addEventListener('click', () => changerPageFactures(decalageFacturesActuel + limiteFacturesActuelle));
+
 $('btn-recharger-factures').addEventListener('click', () => {
   etat('Actualisation…', 'neutre');
+  decalageFacturesActuel = 0;
   chargerFactures().then(() => etat('À jour', 'succes'));
 });
-$('recherche-factures').addEventListener('input', rendreFactures);
+let minuteurRechercheFactures = null;
+$('recherche-factures').addEventListener('input', () => {
+  clearTimeout(minuteurRechercheFactures);
+  const terme = $('recherche-factures').value.trim();
+  minuteurRechercheFactures = setTimeout(async () => {
+    if(!terme){
+      rechercheFacturesActive = false;
+      await changerPageFactures(0);
+      return;
+    }
+    etat('Recherche…', 'chargement');
+    try{
+      const r = await jsonp({action:'factures', password:motDePasse, recherche:terme});
+      if(r.ok){ factures = r.factures; totalFactures = r.total; montantTotalFacturesGlobal = r.montantTotalGlobal || 0; rechercheFacturesActive = true; rendreFactures(); etat('À jour', 'succes'); }
+    }catch(e){ etat('Recherche impossible', 'erreur'); }
+  }, 350);
+});
 
 let statutsSav = [];
 const COULEURS_SAV_DISPONIBLES = ['t-ambre', 't-bleu', 't-violet', 't-turquoise', 't-vert', 't-rouge', 't-gris'];
@@ -577,15 +611,24 @@ $('detail-sav-enregistrer').addEventListener('click', async () => {
 });
 
 function rendreFactures(){
-  const totalFactures = factures.reduce((t, f) => t + (parseFloat(f.montantTotal) || 0), 0);
-  $('bandeau-total-factures').hidden = !factures.length;
-  $('bandeau-total-factures').innerHTML = factures.length
-    ? `<span class="libelle-total-factures">Montant total facturé</span><span class="valeur-total-factures">${formaterMontant(totalFactures)}</span><span class="sous-total-factures">${factures.length} facture${factures.length > 1 ? 's' : ''}, réglées ou en attente</span>`
+  $('bandeau-total-factures').hidden = !totalFactures;
+  $('bandeau-total-factures').innerHTML = totalFactures
+    ? `<span class="libelle-total-factures">Montant total facturé</span><span class="valeur-total-factures">${formaterMontant(montantTotalFacturesGlobal)}</span><span class="sous-total-factures">${totalFactures} facture${totalFactures > 1 ? 's' : ''}, réglées ou en attente</span>`
     : '';
 
-  const q = $('recherche-factures').value.trim().toLowerCase();
-  const visibles = factures.filter(f =>
-    !q || (f.referenceFacture + ' ' + f.referenceCommande + ' ' + f.nomStructure).toLowerCase().includes(q));
+  const banniereHistorique = $('bandeau-pagination-factures');
+  if(!rechercheFacturesActive && limiteFacturesActuelle > 0 && totalFactures > limiteFacturesActuelle){
+    const pageActuelle = Math.floor(decalageFacturesActuel / limiteFacturesActuelle) + 1;
+    const nbPages = Math.ceil(totalFactures / limiteFacturesActuelle);
+    $('texte-pagination-factures').textContent = `Page ${pageActuelle} sur ${nbPages} (${totalFactures} factures au total)`;
+    $('btn-page-precedente-factures').disabled = decalageFacturesActuel === 0;
+    $('btn-page-suivante-factures').disabled = decalageFacturesActuel + limiteFacturesActuelle >= totalFactures;
+    banniereHistorique.hidden = false;
+  }else{
+    banniereHistorique.hidden = true;
+  }
+
+  const visibles = factures;
 
   if(!visibles.length){
     $('liste-factures').innerHTML = `<div class="vide">

@@ -90,7 +90,7 @@ function conditionBloquanteEtapeSuivante(c, estInterne){
   }
   if(c.statutCommande === 'Préparée'){
     if(!c.bonLivraison) return 'Génère le bon de livraison avant de continuer.';
-    if(!(c.colissimo || '').trim()) return 'Renseigne le numéro Colissimo avant de continuer.';
+    if(!c.livraisonSansEnvoi && !(c.colissimo || '').trim()) return 'Renseigne le numéro Colissimo avant de continuer (ou coche "sans envoi postal" si remis en main propre).';
   }
   if(c.statutCommande === 'En cours de livraison' && !c.dateLivraison) return 'Renseigne la date de livraison avant de continuer.';
   return null;
@@ -252,6 +252,7 @@ let motDePasse = '';
 let commandes  = [];
 const LIMITE_COMMANDES_DEFAUT = 20;
 let limiteCommandesActuelle = LIMITE_COMMANDES_DEFAUT;
+const LIMITE_LISTES_DEFAUT = 20; // devis, factures — même principe que les commandes
 let decalageCommandesActuel = 0;
 let totalCommandes = 0;
 
@@ -273,6 +274,7 @@ let seuilAlerteImpayee = 30; // valeur de repli tant que /reglages n'a pas encor
 let suppressionSimple = false; // idem
 let dossierFacturesPdfId = ''; // idem — sert au bouton "Ouvrir le dossier" de l'onglet Factures
 let fichierNumerotationConfigure = false; // idem — conditionne l'affichage de la recherche auto de numéro
+let dossierPrincipalConfigure = false; // conditionne l'affichage de la modale bloquante à l'ouverture des Réglages
 let structures = [];
 
 /* Rappels "facture manquante" masqués par l'utilisateur — persistés pour ne pas
@@ -518,9 +520,10 @@ async function connecter(){
             seuilAlerteImpayee = res.seuilAlerteImpayee;
             appliquerNomOrganisation(res.nomOrganisation);
             suppressionSimple = !!res.suppressionSimple;
-            appliquerLienDossierFactures(res.dossierFacturesPdf);
+            appliquerLienDossierFactures(res.dossierPrincipal);
             appliquerLienFichierNumerotation(res.fichierNumerotation);
             fichierNumerotationConfigure = !!res.fichierNumerotation;
+            dossierPrincipalConfigure = !!res.dossierPrincipal;
             badgeNouvelleJours = res.badgeNouvelleJours || 1.5;
             badgeNouvelleSavJours = res.badgeNouvelleSavJours || 1.5;
             heureFinVendredi = res.heureFinVendredi != null ? res.heureFinVendredi : 17;
@@ -623,7 +626,10 @@ document.querySelector('.onglets').addEventListener('click', e => {
   if(b.dataset.vue === 'factures' && !facturesChargeesUneFois) chargerFactures();
   if(b.dataset.vue === 'comptabilite' && !comptaChargeUneFois) chargerComptabilite();
   $('vue-reglages').hidden = b.dataset.vue !== 'reglages';
-  if(b.dataset.vue === 'reglages') chargerReglages();
+  if(b.dataset.vue === 'reglages'){
+    chargerReglages();
+    if(!dossierPrincipalConfigure) $('modale-dossier-principal-obligatoire').hidden = false;
+  }
 });
 
 /* ─── Premier plan des modales ─── toutes partagent le même z-index de base dans le CSS,

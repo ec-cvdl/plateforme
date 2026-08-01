@@ -30,11 +30,13 @@ function rendreStructures(){
       <input class="mono" value="${echapper(s.code)}"      data-ligne="${s.ligne}" data-champ="code">
       <input          value="${echapper(s.nom)}"       data-ligne="${s.ligne}" data-champ="nom">
       <input          value="${echapper(s.email)}"     data-ligne="${s.ligne}" data-champ="email">
+      <input          value="${echapper(s.emailFacturation || '')}" data-ligne="${s.ligne}" data-champ="emailFacturation" placeholder="Si différent">
       <input          value="${echapper(s.telephone)}" data-ligne="${s.ligne}" data-champ="telephone">
       <textarea rows="2" data-ligne="${s.ligne}" data-champ="adresse" placeholder="Retour à la ligne possible (Entrée)">${echapper(s.adresse)}</textarea>
       <input type="checkbox" data-ligne="${s.ligne}" data-champ="rn" ${s.rn ? 'checked' : ''}>
       <input type="checkbox" data-ligne="${s.ligne}" data-champ="esn" ${s.esn ? 'checked' : ''} title="ESN : aucun prix affiché, aucune facturation générée pour cette structure">
       <input type="checkbox" data-ligne="${s.ligne}" data-champ="interne" ${s.interne ? 'checked' : ''} title="Interne : mêmes effets que ESN (aucun prix, aucune facturation), pour les commandes passées en interne">
+      <input type="checkbox" data-ligne="${s.ligne}" data-champ="autres" ${s.autres ? 'checked' : ''} title="Autres : pas de demande de devis ni d'attestations à la commande, comme Interne">
       <div class="ligne-actions-icones">
         <button type="button" class="btn-icone-fiche" data-structure-modifier="${s.ligne}" title="Modifier (les champs sont éditables directement)" aria-label="Modifier">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l11-11-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>
@@ -47,10 +49,11 @@ function rendreStructures(){
 }
 
 $('btn-nouvelle-structure').addEventListener('click', () => {
-  ['s-code','s-nom','s-email','s-tel','s-adresse'].forEach(i => $(i).value = '');
+  ['s-code','s-nom','s-email','s-email-facturation','s-tel','s-adresse'].forEach(i => $(i).value = '');
   $('s-rn').checked = false;
   $('s-esn').checked = false;
   $('s-interne').checked = false;
+  $('s-autres').checked = false;
   $('retour-ajout').innerHTML = '';
   $('modale-nouvelle-structure').hidden = false;
   setTimeout(() => $('s-nom').focus(), 50);
@@ -71,11 +74,13 @@ $('btn-ajouter').addEventListener('click', async () => {
     code:      $('s-code').value.trim(),
     nom:       $('s-nom').value.trim(),
     email:     $('s-email').value.trim(),
+    emailFacturation: $('s-email-facturation').value.trim(),
     telephone: $('s-tel').value.trim(),
     adresse:   $('s-adresse').value.trim(),
     rn:        $('s-rn').checked,
     esn:       $('s-esn').checked,
-    interne:   $('s-interne').checked
+    interne:   $('s-interne').checked,
+    autres:    $('s-autres').checked
   };
 
   if(!donnees.code || !donnees.nom){

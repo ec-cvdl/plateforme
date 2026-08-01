@@ -2,20 +2,53 @@
 
 let devis = [];
 let devisChargeUneFois = false;
+let totalDevis = 0;
+let limiteDevisActuelle = LIMITE_LISTES_DEFAUT;
+let decalageDevisActuel = 0;
+let rechercheDevisActive = false;
 
 async function chargerDevis(silencieux){
   if(!silencieux) etat('Chargement des devis…', 'chargement');
   try{
-    const r = await jsonp({action:'devis', password:motDePasse});
-    if(r.ok){ devis = r.devis; devisChargeUneFois = true; rendreDevis(); }
+    const r = await jsonp({action:'devis', password:motDePasse, limite:limiteDevisActuelle, decalage:decalageDevisActuel});
+    if(r.ok){ devis = r.devis; totalDevis = r.total; devisChargeUneFois = true; rendreDevis(); }
     if(!silencieux) $('etat').classList.remove('visible');
   }catch(e){ if(!silencieux) etat('Chargement des devis impossible', 'erreur'); }
 }
+async function changerPageDevis(nouveauDecalage){
+  decalageDevisActuel = Math.max(0, nouveauDecalage);
+  etat('Chargement…', 'chargement');
+  try{
+    const r = await jsonp({action:'devis', password:motDePasse, limite:limiteDevisActuelle, decalage:decalageDevisActuel});
+    if(r.ok){ devis = r.devis; totalDevis = r.total; rendreDevis(); }
+    $('etat').classList.remove('visible');
+  }catch(e){ etat('Chargement impossible', 'erreur'); }
+}
+$('btn-page-precedente-devis').addEventListener('click', () => changerPageDevis(decalageDevisActuel - limiteDevisActuelle));
+$('btn-page-suivante-devis').addEventListener('click', () => changerPageDevis(decalageDevisActuel + limiteDevisActuelle));
+
 $('btn-recharger-devis').addEventListener('click', () => {
   etat('Actualisation…', 'neutre');
+  decalageDevisActuel = 0;
   chargerDevis().then(() => etat('À jour', 'succes'));
 });
-$('recherche-devis').addEventListener('input', rendreDevis);
+let minuteurRechercheDevis = null;
+$('recherche-devis').addEventListener('input', () => {
+  clearTimeout(minuteurRechercheDevis);
+  const terme = $('recherche-devis').value.trim();
+  minuteurRechercheDevis = setTimeout(async () => {
+    if(!terme){
+      rechercheDevisActive = false;
+      await changerPageDevis(0);
+      return;
+    }
+    etat('Recherche…', 'chargement');
+    try{
+      const r = await jsonp({action:'devis', password:motDePasse, recherche:terme});
+      if(r.ok){ devis = r.devis; totalDevis = r.total; rechercheDevisActive = true; rendreDevis(); etat('À jour', 'succes'); }
+    }catch(e){ etat('Recherche impossible', 'erreur'); }
+  }, 350);
+});
 
 function apercuModeleDevis(modele){
   const rendu = String(modele || '')
@@ -54,15 +87,14 @@ async function chargerReglages(){
       peuplerCasesOngletsVisibles(r.ongletsMasques || '');
       appliquerOngletsVisibles(r.ongletsMasques || '');
       seuilAlerteImpayee = r.seuilAlerteImpayee;
-      $('dossier-drive-input').value = r.dossierDriveId || '';
+      $('dossier-principal-input').value = r.dossierPrincipal || '';
+      dossierPrincipalConfigure = !!r.dossierPrincipal;
       $('email-admin-input').value = r.emailAdmin || '';
       $('nom-organisation-input').value = r.nomOrganisation || '';
       $('suppression-simple-input').checked = !!r.suppressionSimple;
       suppressionSimple = !!r.suppressionSimple;
       appliquerNomOrganisation(r.nomOrganisation);
-      $('dossier-factures-input').value = r.dossierFacturesPdf || '';
-      appliquerLienDossierFactures(r.dossierFacturesPdf);
-      $('dossier-tectech-input').value = r.dossierTectech || '';
+      appliquerLienDossierFactures(r.dossierPrincipal);
       appliquerLienFichierNumerotation(r.fichierNumerotation);
       $('fichier-numerotation-input').value = r.fichierNumerotation || '';
       $('onglet-numerotation-input').value = r.ongletNumerotation || '';
@@ -73,7 +105,7 @@ async function chargerReglages(){
       $('modele-bon-orientation-input').value = r.modeleBonOrientation || '';
       $('modele-attestation-input').value = r.modeleAttestationPaiement || '';
       $('modele-flotte-input').value = r.modeleFlotteMateriel || '';
-      $('dossier-attestations-input').value = r.dossierAttestations || '';
+      $('nettoyage-fichiers-input').value = r.nettoyageFichiersJours || '';
       $('responsable-nom-input').value = r.responsableNom || '';
       $('responsable-telephone-input').value = r.responsableTelephone || '';
       $('responsable-email-input').value = r.responsableEmail || '';
@@ -243,61 +275,56 @@ $('btn-badge-nouvelle-enregistrer').addEventListener('click', async () => {
   $('btn-badge-nouvelle-enregistrer').disabled = false;
 });
 
-$('btn-dossier-drive-enregistrer').addEventListener('click', async () => {
-  const valeur = $('dossier-drive-input').value.trim();
-  $('btn-dossier-drive-enregistrer').disabled = true;
-  $('retour-dossier-drive').innerHTML = '';
+$('btn-dossier-principal-enregistrer').addEventListener('click', async () => {
+  const valeur = $('dossier-principal-input').value.trim();
+  if(!valeur){
+    $('retour-dossier-principal').innerHTML = '<div class="msg msg-erreur">Le dossier Drive principal est obligatoire.</div>';
+    return;
+  }
+  $('btn-dossier-principal-enregistrer').disabled = true;
+  $('retour-dossier-principal').innerHTML = '';
   try{
-    const r = await poster({action:'reglages-set', password:motDePasse, dossierDriveId: valeur});
+    const r = await poster({action:'reglages-set', password:motDePasse, dossierPrincipal: valeur});
     if(r.ok){
-      $('retour-dossier-drive').innerHTML = '<div class="msg msg-succes">Enregistré.</div>';
+      $('retour-dossier-principal').innerHTML = '<div class="msg msg-succes">Enregistré.</div>';
       etat('Réglages enregistrés', 'succes');
+      dossierPrincipalConfigure = true;
+      $('modale-dossier-principal-obligatoire').hidden = true;
       await chargerReglages(); // réaffiche l'ID nettoyé si une URL complète a été collée
     }else{
-      $('retour-dossier-drive').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur)}</div>`;
+      $('retour-dossier-principal').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur)}</div>`;
     }
   }catch(e){
-    $('retour-dossier-drive').innerHTML = '<div class="msg msg-erreur">Enregistrement impossible.</div>';
+    $('retour-dossier-principal').innerHTML = '<div class="msg msg-erreur">Enregistrement impossible.</div>';
   }
-  $('btn-dossier-drive-enregistrer').disabled = false;
+  $('btn-dossier-principal-enregistrer').disabled = false;
 });
 
-$('btn-dossier-factures-enregistrer').addEventListener('click', async () => {
-  const valeur = $('dossier-factures-input').value.trim();
-  $('btn-dossier-factures-enregistrer').disabled = true;
-  $('retour-dossier-factures').innerHTML = '';
+$('dossier-principal-modal-input').addEventListener('keydown', e => { if(e.key === 'Enter') $('btn-dossier-principal-modal-enregistrer').click(); });
+
+$('btn-dossier-principal-modal-enregistrer').addEventListener('click', async () => {
+  const valeur = $('dossier-principal-modal-input').value.trim();
+  if(!valeur){
+    $('retour-dossier-principal-modal').innerHTML = '<div class="msg msg-erreur">Le dossier Drive principal est obligatoire.</div>';
+    return;
+  }
+  $('btn-dossier-principal-modal-enregistrer').disabled = true;
+  $('retour-dossier-principal-modal').innerHTML = '';
   try{
-    const r = await poster({action:'reglages-set', password:motDePasse, dossierFacturesPdf: valeur});
+    const r = await poster({action:'reglages-set', password:motDePasse, dossierPrincipal: valeur});
     if(r.ok){
-      $('retour-dossier-factures').innerHTML = '<div class="msg msg-succes">Enregistré.</div>';
+      dossierPrincipalConfigure = true;
+      $('modale-dossier-principal-obligatoire').hidden = true;
+      $('dossier-principal-input').value = valeur;
       etat('Réglages enregistrés', 'succes');
       await chargerReglages();
     }else{
-      $('retour-dossier-factures').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur)}</div>`;
+      $('retour-dossier-principal-modal').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur)}</div>`;
     }
   }catch(e){
-    $('retour-dossier-factures').innerHTML = '<div class="msg msg-erreur">Enregistrement impossible.</div>';
+    $('retour-dossier-principal-modal').innerHTML = '<div class="msg msg-erreur">Enregistrement impossible.</div>';
   }
-  $('btn-dossier-factures-enregistrer').disabled = false;
-});
-
-$('btn-dossier-tectech-enregistrer').addEventListener('click', async () => {
-  const valeur = $('dossier-tectech-input').value.trim();
-  $('btn-dossier-tectech-enregistrer').disabled = true;
-  $('retour-dossier-tectech').innerHTML = '';
-  try{
-    const r = await poster({action:'reglages-set', password:motDePasse, dossierTectech: valeur});
-    if(r.ok){
-      $('retour-dossier-tectech').innerHTML = '<div class="msg msg-succes">Enregistré.</div>';
-      etat('Réglages enregistrés', 'succes');
-      await chargerReglages();
-    }else{
-      $('retour-dossier-tectech').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur)}</div>`;
-    }
-  }catch(e){
-    $('retour-dossier-tectech').innerHTML = '<div class="msg msg-erreur">Enregistrement impossible.</div>';
-  }
-  $('btn-dossier-tectech-enregistrer').disabled = false;
+  $('btn-dossier-principal-modal-enregistrer').disabled = false;
 });
 
 $('btn-numerotation-enregistrer').addEventListener('click', async () => {
@@ -385,7 +412,7 @@ function creerHandlerReglageSimple(idBouton, idChamp, idRetour, cle){
 creerHandlerReglageSimple('btn-modele-bon-orientation-enregistrer', 'modele-bon-orientation-input', 'retour-modele-bon-orientation', 'modeleBonOrientation');
 creerHandlerReglageSimple('btn-modele-attestation-enregistrer', 'modele-attestation-input', 'retour-modele-attestation', 'modeleAttestationPaiement');
 creerHandlerReglageSimple('btn-modele-flotte-enregistrer', 'modele-flotte-input', 'retour-modele-flotte', 'modeleFlotteMateriel');
-creerHandlerReglageSimple('btn-dossier-attestations-enregistrer', 'dossier-attestations-input', 'retour-dossier-attestations', 'dossierAttestations');
+creerHandlerReglageSimple('btn-nettoyage-fichiers-enregistrer', 'nettoyage-fichiers-input', 'retour-nettoyage-fichiers', 'nettoyageFichiersJours');
 
 $('btn-responsable-enregistrer').addEventListener('click', async () => {
   const nom = $('responsable-nom-input').value.trim();
@@ -648,9 +675,19 @@ $('btn-mdp-enregistrer').addEventListener('click', async () => {
 });
 
 function rendreDevis(){
-  const q = $('recherche-devis').value.trim().toLowerCase();
-  const visibles = devis.filter(d =>
-    !q || (d.referenceDevis + ' ' + d.referenceCommande + ' ' + d.nomStructure).toLowerCase().includes(q));
+  const banniereHistorique = $('bandeau-pagination-devis');
+  if(!rechercheDevisActive && limiteDevisActuelle > 0 && totalDevis > limiteDevisActuelle){
+    const pageActuelle = Math.floor(decalageDevisActuel / limiteDevisActuelle) + 1;
+    const nbPages = Math.ceil(totalDevis / limiteDevisActuelle);
+    $('texte-pagination-devis').textContent = `Page ${pageActuelle} sur ${nbPages} (${totalDevis} devis au total)`;
+    $('btn-page-precedente-devis').disabled = decalageDevisActuel === 0;
+    $('btn-page-suivante-devis').disabled = decalageDevisActuel + limiteDevisActuelle >= totalDevis;
+    banniereHistorique.hidden = false;
+  }else{
+    banniereHistorique.hidden = true;
+  }
+
+  const visibles = devis;
 
   if(!visibles.length){
     $('liste-devis').innerHTML = `<div class="vide">

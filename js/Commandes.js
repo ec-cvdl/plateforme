@@ -2,7 +2,8 @@
 
 /* ─── Style de carte commande (couleur par défaut, mémorisé sur cet appareil) ─── */
 function appliquerStyleCarteCommande(style){
-  document.body.classList.remove('carte-style-couleur', 'carte-style-terminal', 'carte-style-pastille', 'carte-style-meteo');
+  if(style === 'terminal') style = 'couleur'; // style retiré : on rabat une préférence déjà mémorisée sur cet appareil
+  document.body.classList.remove('carte-style-couleur', 'carte-style-pastille', 'carte-style-meteo');
   document.body.classList.add('carte-style-' + style);
   document.querySelectorAll('#selecteur-style-carte button').forEach(b => b.classList.toggle('actif', b.dataset.styleCarte === style));
   try{ localStorage.setItem('cvdl-style-carte-commande', style); }catch(e){}
@@ -220,19 +221,21 @@ function rendre(){
 
     const zoneEtapeSuivante = estAnnulee ? '' : construireZoneEtapeSuivante(c);
 
-    const pilule = (classe, svgPath, libelle, remplie, dataAttr, nombre) => `
+    const pilule = (classe, svgPath, libelle, remplie, dataAttr, nombre, pointNotif) => `
       <button type="button" class="ccm-pilule-mini ${classe}${remplie ? ' pilule-remplie' : ''}" ${dataAttr}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svgPath}</svg>
         <span>${libelle}</span>
         ${nombre ? `<span class="ccm-pilule-badge">${nombre}</span>` : ''}
+        ${pointNotif ? '<span class="point-notif-mini"></span>' : ''}
       </button>`;
     const nbSeriesCarte = (c.numerosSerie || '').split('\n').map(s => s.trim()).filter(Boolean).length;
     const nbColissimoCarte = (c.colissimo || '').split('\n').map(s => s.trim()).filter(Boolean).length;
+    const aCommentaire = !!(c.commentaire || '').trim();
     const pilulesBas = estAnnulee ? '' : `
       <div class="ccm-pilules-bas">
-        ${pilule('ccm-pilule-commentaire', '<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>', 'Commentaire', !!(c.commentaire || '').trim(), `data-commentaire-ligne="${c.ligne}" data-commentaire-valeur="${echapper(c.commentaire)}"`)}
+        ${pilule('ccm-pilule-commentaire', '<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>', 'Commentaire', aCommentaire, `data-commentaire-ligne="${c.ligne}" data-commentaire-valeur="${echapper(c.commentaire)}"`, null, aCommentaire)}
         ${pilule('ccm-pilule-serie', '<path d="M4 7h13l3 3.5-3 3.5H4z"/><circle cx="8" cy="10.5" r="0.9" fill="currentColor" stroke="none"/>', 'N° série', !!nbSeriesCarte, `data-serie-ligne="${c.ligne}" data-serie-valeur="${echapper(c.numerosSerie)}"`, nbSeriesCarte)}
-        ${pilule('ccm-pilule-colissimo', '<path d="M21 8.5v7l-9 4.5-9-4.5v-7L12 4z"/><path d="M3.3 8.2 12 12.5l8.7-4.3M12 12.5V21"/>', 'Colissimo', !!nbColissimoCarte, `data-colissimo-ligne="${c.ligne}" data-colissimo-valeur="${echapper(c.colissimo)}"`, nbColissimoCarte)}
+        ${pilule('ccm-pilule-colissimo', '<path d="M21 8.5v7l-9 4.5-9-4.5v-7L12 4z"/><path d="M3.3 8.2 12 12.5l8.7-4.3M12 12.5V21"/>', c.livraisonSansEnvoi ? 'Sans envoi' : 'Colissimo', !!nbColissimoCarte || !!c.livraisonSansEnvoi, `data-colissimo-ligne="${c.ligne}" data-colissimo-valeur="${echapper(c.colissimo)}"`, nbColissimoCarte)}
       </div>`;
 
 

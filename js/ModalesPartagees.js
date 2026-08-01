@@ -312,10 +312,20 @@ document.addEventListener('click', e => {
   if(!b) return;
   colissimoLigneCourante = parseInt(b.dataset.colissimoLigne, 10);
   $('colissimo-texte').value = b.dataset.colissimoValeur || '';
+  const c = commandes.find(x => x.ligne === colissimoLigneCourante);
+  $('colissimo-sans-envoi').checked = !!(c && c.livraisonSansEnvoi);
+  majEtatSansEnvoi();
   majCompteurColissimo();
   $('modale-colissimo').hidden = false;
   setTimeout(() => $('colissimo-texte').focus(), 50);
 });
+
+function majEtatSansEnvoi(){
+  const coche = $('colissimo-sans-envoi').checked;
+  $('colissimo-texte').disabled = coche;
+  $('colissimo-envoyer-email').disabled = coche;
+}
+$('colissimo-sans-envoi').addEventListener('change', majEtatSansEnvoi);
 
 function listeColissimoNettoyee(){
   return $('colissimo-texte').value.split('\n').map(s => s.trim()).filter(Boolean);
@@ -328,18 +338,20 @@ $('colissimo-texte').addEventListener('input', majCompteurColissimo);
 $('colissimo-annuler').addEventListener('click', () => $('modale-colissimo').hidden = true);
 
 $('colissimo-enregistrer').addEventListener('click', async () => {
-  const valeur = listeColissimoNettoyee().join('\n');
+  const sansEnvoi = $('colissimo-sans-envoi').checked;
+  const valeur = sansEnvoi ? '' : listeColissimoNettoyee().join('\n');
   $('colissimo-enregistrer').disabled = true;
   try{
+    const rSansEnvoi = await poster({ action:'update', ligne: colissimoLigneCourante, champ:'livraisonSansEnvoi', valeur: sansEnvoi ? 'Oui' : 'Non' });
     const r = await poster({ action:'update', ligne: colissimoLigneCourante, champ:'colissimo', valeur });
-    if(r.ok){
+    if(r.ok && rSansEnvoi.ok){
       const c = commandes.find(x => x.ligne === colissimoLigneCourante);
-      if(c) c.colissimo = valeur;
+      if(c){ c.colissimo = valeur; c.livraisonSansEnvoi = sansEnvoi; }
       $('modale-colissimo').hidden = true;
       rendre();
       etat('Suivi Colissimo enregistré', 'succes');
     }else{
-      etat(r.erreur || 'Enregistrement impossible', 'erreur');
+      etat((r.erreur || rSansEnvoi.erreur) || 'Enregistrement impossible', 'erreur');
     }
   }catch(e){ etat('Enregistrement impossible', 'erreur'); }
   $('colissimo-enregistrer').disabled = false;
