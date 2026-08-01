@@ -612,30 +612,64 @@ $$('.etape[data-etape="paiement"] input[type=radio]').forEach(function(input){
 $('btn-paiement-suivant').addEventListener('click', suivant);
 
 /* Étape 5 : personnes bénéficiaires (remplace l'ancien upload de bon d'orientation) */
+/** Étale les lignes du panier (produit + quantité) en une liste d'unités individuelles,
+ *  une entrée par appareil — sert à associer chaque personne à un appareil précis, pas
+ *  juste à un numéro dans l'absolu (utile quand plusieurs types de produits se mélangent). */
+function unitesCommandees(){
+  const unites = [];
+  etat.lignes.forEach(function(l){
+    for(let i = 0; i < l.quantite; i++){ unites.push(l.produit); }
+  });
+  return unites;
+}
+
 function construireZonePersonnes(){
-  const n = quantiteTotaleLignes();
+  const unites = unitesCommandees();
+  // Numérotation par produit (Tablette #1, Tablette #2, PC portable #1…) plutôt qu'un seul
+  // compteur global, pour que ce soit clair à qui correspond quel appareil au moment de saisir.
+  const compteurParProduit = {};
   let html = '';
-  for(let i = 1; i <= n; i++){
-    html += '<div class="zone-personne" data-index="' + i + '">' +
-      '<label for="personne-' + i + '">' + (n > 1 ? ('Nom complet — Personne ' + i) : 'Nom complet de la personne') + '</label>' +
-      '<input type="text" class="champ-texte" id="personne-' + i + '" placeholder="Prénom Nom" autocomplete="off"></div>';
-  }
+  unites.forEach(function(produit, i){
+    compteurParProduit[produit] = (compteurParProduit[produit] || 0) + 1;
+    const libelleProduit = produit + (unites.filter(function(p){ return p === produit; }).length > 1 ? (' #' + compteurParProduit[produit]) : '');
+    html += '<div class="zone-personne" data-index="' + i + '" data-produit="' + echapperAttribut(produit) + '">' +
+      '<div class="zone-personne-produit">Personne pour : ' + libelleProduit + '</div>' +
+      '<label for="personne-nom-' + i + '">Prénom et nom</label>' +
+      '<input type="text" class="champ-texte" id="personne-nom-' + i + '" placeholder="Prénom Nom" autocomplete="off">' +
+      '<label for="personne-naissance-' + i + '">Date de naissance</label>' +
+      '<input type="date" class="champ-texte" id="personne-naissance-' + i + '">' +
+      '</div>';
+  });
   $('zone-personnes').innerHTML = html;
-  $$('#zone-personnes input[type=text]').forEach(function(input){
+  $$('#zone-personnes input').forEach(function(input){
     input.addEventListener('input', verifierEtatPersonnes);
+    input.addEventListener('change', verifierEtatPersonnes);
   });
   verifierEtatPersonnes();
 }
 
+function echapperAttribut(s){
+  return String(s ?? '').replace(/"/g, '&quot;');
+}
+
 function listePersonnesSaisies(){
-  return $$('#zone-personnes input[type=text]').map(function(i){ return i.value.trim(); });
+  return $$('.zone-personne').map(function(zone){
+    const i = zone.dataset.index;
+    return {
+      nomComplet: $('personne-nom-' + i).value.trim(),
+      dateNaissance: $('personne-naissance-' + i).value,
+      produit: zone.dataset.produit
+    };
+  });
 }
 
 function verifierEtatPersonnes(){
-  const noms = listePersonnesSaisies();
-  const tousRemplis = noms.length > 0 && noms.every(function(n){ return n.length > 1; });
+  const personnes = listePersonnesSaisies();
+  const tousRemplis = personnes.length > 0 && personnes.every(function(p){
+    return p.nomComplet.length > 1 && !!p.dateNaissance;
+  });
   $('btn-personnes-suivant').disabled = !tousRemplis;
-  afficherMsg('retour-personnes', tousRemplis ? '' : 'Merci d\'indiquer le nom complet de chaque personne avant de continuer.', 'erreur');
+  afficherMsg('retour-personnes', tousRemplis ? '' : 'Merci d\'indiquer le nom complet et la date de naissance de chaque personne avant de continuer.', 'erreur');
 }
 $('btn-personnes-suivant').addEventListener('click', suivant);
 $('btn-date-livraison-suivant').addEventListener('click', function(){
@@ -682,7 +716,9 @@ $('btn-envoyer').addEventListener('click', async function(){
       code: etat.code,
       lignes: etat.lignes.map(function(l){ return { produit: l.produit, quantite: l.quantite }; }),
       moyenPaiement: moyenImpose || (estEsn ? 'Non applicable (ESN/Interne)' : etat.moyenPaiement),
-      personnes: (moyenImpose || estEsn) ? [] : listePersonnesSaisies(),
+      personnes: (moyenImpose || estEsn) ? [] : listePersonnesSaisies().map(function(p){
+        return p.nomComplet + '|' + p.dateNaissance.split('-').reverse().join('/') + '|' + p.produit;
+      }),
       demandeDevis: etat.demandeDevis,
       commentaire: (etat.dateLivraisonSouhaitee ? ('Date de livraison max. souhaitée : ' + etat.dateLivraisonSouhaitee.split('-').reverse().join('/') + '\n\n') : '') + $('commentaire').value.trim(),
       urlSuivi: urlSuiviCommandes(),

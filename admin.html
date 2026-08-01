@@ -639,9 +639,10 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
       <div class="carte-reglage">
         <h3>Modèle d'attestation de paiement (PDF)</h3>
         <p class="reglage-texte">
-          Une attestation est générée par personne (appariée par ordre de saisie avec les numéros de
-          série renseignés). Jetons disponibles : <code>{{NOM_COMPLET}}</code>, <code>{{STRUCTURE}}</code>,
-          <code>{{PRIX}}</code>, <code>{{MARQUE_MODELE}}</code>, <code>{{DATE_VENTE}}</code>, <code>{{NUMERO_SERIE}}</code>.
+          Une attestation est générée par personne, avec le prix réel du produit qui lui est associé
+          (saisi à la commande). Jetons disponibles : <code>{{NOM_COMPLET}}</code>, <code>{{DATE_NAISSANCE}}</code>,
+          <code>{{STRUCTURE}}</code>, <code>{{PRIX}}</code>, <code>{{PRODUIT}}</code>, <code>{{MARQUE_MODELE}}</code>,
+          <code>{{DATE_VENTE}}</code>, <code>{{NUMERO_SERIE}}</code>.
         </p>
         <div class="ligne-reglage">
           <input type="text" id="modele-attestation-input" placeholder="URL ou ID du Sheets modèle">

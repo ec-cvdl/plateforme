@@ -497,7 +497,7 @@ const ENTETES_DEVIS = [
 
 const ENTETES_STRUCTURES = ['Code', 'Nom', 'Email', 'Téléphone', 'Adresse', 'RN', 'ESN', 'Interne'];
 
-const ENTETES_PRODUITS = ['Nom', 'Prix standard', 'Prix RN', 'Stock', 'Visible', 'Message si épuisé', 'Disque dur', 'RAM', 'Système', 'Icône', 'Quantité max'];
+const ENTETES_PRODUITS = ['Nom', 'Prix standard', 'Prix RN', 'Stock', 'Visible', 'Message si épuisé', 'Disque dur', 'RAM', 'Système', 'Icône', 'Quantité max', 'SKU Tech.tec'];
 
 const ENTETES_FACTURES = [
   'Référence facture', 'Date', 'Référence commande', 'Nom structure', 'Email', 'Adresse',
@@ -992,7 +992,8 @@ function lireProduits() {
       ram:            String(lignes[i][7] || '').trim(),
       systeme:        String(lignes[i][8] || '').trim(),
       icone:          String(lignes[i][9] || '').trim(),
-      quantiteMax:    parseInt(lignes[i][10], 10) || 0 // 0 = pas de limite propre, utilise le réglage global
+      quantiteMax:    parseInt(lignes[i][10], 10) || 0, // 0 = pas de limite propre, utilise le réglage global
+      skuTectech:     String(lignes[i][11] || '').trim()
     };
   }
   return produits;
@@ -1080,7 +1081,7 @@ function majProduit(data) {
 
   const colonnes = {
     nom: 1, prixStandard: 2, prixRN: 3, stock: 4, visible: 5, messageRupture: 6,
-    disque: 7, ram: 8, systeme: 9, icone: 10, quantiteMax: 11
+    disque: 7, ram: 8, systeme: 9, icone: 10, quantiteMax: 11, skuTectech: 12
   };
   const colonne = colonnes[data.champ];
   if (!colonne) return { ok: false, erreur: 'Champ inconnu' };
@@ -1579,7 +1580,7 @@ function genererBonOrientationPdf(data) {
   const [reference, , codeStructure, nomStructure, email, telephone, adresse, resumeProduit, quantiteTotale] = c;
   if (!reference) return { ok: false, erreur: 'Commande introuvable' };
 
-  const personnes = String(c[27] || '').split('\n').map(function(s) { return s.trim(); }).filter(Boolean);
+  const personnes = String(c[27] || '').split('\n').map(function(s) { return s.trim().split('|')[0].trim(); }).filter(Boolean);
 
   const jetons = Object.assign(jetonsProduitsNumerotes(reference, resumeProduit, quantiteTotale, codeStructure), {
     '{{STRUCTURE}}': nomStructure || '',
@@ -1637,8 +1638,19 @@ function genererAttestationsPaiement(data) {
   const [reference, dateCommande, codeStructure] = c;
   if (!reference) return { ok: false, erreur: 'Commande introuvable' };
 
-  const personnes = String(c[27] || '').split('\n').map(function(s) { return s.trim(); }).filter(Boolean);
-  if (!personnes.length) return { ok: false, erreur: 'Aucune personne renseignée pour cette commande' };
+  const personnesBrutes = String(c[27] || '').split('\n').map(function(s) { return s.trim(); }).filter(Boolean);
+  if (!personnesBrutes.length) return { ok: false, erreur: 'Aucune personne renseignée pour cette commande' };
+
+  // Format "nom complet|date de naissance|produit" — avec repli sur l'ancien format (juste
+  // un nom, sans date ni produit) pour les commandes enregistrées avant ce changement.
+  const personnes = personnesBrutes.map(function(ligne) {
+    const parties = ligne.split('|');
+    return {
+      nomComplet: (parties[0] || '').trim(),
+      dateNaissance: (parties[1] || '').trim(),
+      produit: (parties[2] || '').trim()
+    };
+  });
 
   const numerosSerie = String(c[15] || '').split('\n').map(function(s) { return s.trim(); }).filter(Boolean);
   const caracteristiquesBrutes = String(c[25] || '').split('\n').map(function(s) { return s.trim(); }).filter(Boolean);
@@ -1649,16 +1661,7 @@ function genererAttestationsPaiement(data) {
     specsParSerie[ligneSpec.slice(0, sep).trim()] = ligneSpec.slice(sep + 1).trim();
   });
 
-  const quantiteTotale = parseInt(c[8], 10) || personnes.length;
   const structure = lireStructures()[String(codeStructure || '').trim()];
-  let montantEstime = 0;
-  const detailLignes = lireLignesCommande(reference, c[7], quantiteTotale);
-  detailLignes.forEach(function(l) {
-    const calcul = calculerPrixUnitaire(codeStructure, l.produit);
-    if (calcul) montantEstime += calcul.prixUnitaire * l.quantite;
-  });
-  const prixMoyenParPersonne = personnes.length ? Math.round((montantEstime / personnes.length) * 100) / 100 : 0;
-
   const dateVente = dateCommande ? Utilities.formatDate(new Date(dateCommande), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '';
 
   let dossier;
@@ -1668,16 +1671,22 @@ function genererAttestationsPaiement(data) {
   const modeleFichier = DriveApp.getFileById(MODELE_ATTESTATION_PAIEMENT);
   const resultats = [];
 
-  personnes.forEach(function(nomComplet, i) {
+  personnes.forEach(function(personne, i) {
     const numeroSerie = numerosSerie[i] || '';
     const specs = specsParSerie[numeroSerie] || '';
+    // Prix réel du produit de cette personne — plus précis qu'une moyenne sur toute la
+    // commande, maintenant qu'on sait exactement quel appareil lui revient.
+    const calculPrix = personne.produit ? calculerPrixUnitaire(codeStructure, personne.produit) : null;
+    const prixPersonne = calculPrix ? calculPrix.prixUnitaire : 0;
 
     const jetons = {
-      '{{NOM_COMPLET}}': nomComplet,
+      '{{NOM_COMPLET}}': personne.nomComplet,
+      '{{DATE_NAISSANCE}}': personne.dateNaissance,
       '{{STRUCTURE}}': structure ? structure.nom : '',
       '{{REFERENCE_COMMANDE}}': reference,
-      '{{PRIX}}': formaterMontantPourModele(prixMoyenParPersonne),
-      '{{MARQUE_MODELE}}': specs,
+      '{{PRIX}}': formaterMontantPourModele(prixPersonne),
+      '{{PRODUIT}}': personne.produit,
+      '{{MARQUE_MODELE}}': specs || personne.produit,
       '{{DATE_VENTE}}': dateVente,
       '{{NUMERO_SERIE}}': numeroSerie,
       '{{RESPONSABLE_NOM}}': RESPONSABLE_NOM,
@@ -1685,7 +1694,7 @@ function genererAttestationsPaiement(data) {
       '{{RESPONSABLE_EMAIL}}': RESPONSABLE_EMAIL
     };
 
-    const nomFichier = 'Attestation de paiement - ' + nomComplet;
+    const nomFichier = 'Attestation de paiement - ' + personne.nomComplet;
     const copie = modeleFichier.makeCopy(nomFichier, dossier);
     const classeurCopie = SpreadsheetApp.openById(copie.getId());
     classeurCopie.getSheets().forEach(function(f) {
@@ -1693,7 +1702,7 @@ function genererAttestationsPaiement(data) {
         f.createTextFinder(jeton).matchEntireCell(false).replaceAllWith(jetons[jeton]);
       });
     });
-    resultats.push({ nom: nomComplet, url: copie.getUrl() });
+    resultats.push({ nom: personne.nomComplet, url: copie.getUrl() });
   });
   SpreadsheetApp.flush();
 
