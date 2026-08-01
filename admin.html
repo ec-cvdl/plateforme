@@ -23,12 +23,6 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
   <input type="password" id="mdp" placeholder="Mot de passe" style="width:100%">
   <button class="action pleine" id="btn-connexion">Ouvrir le suivi</button>
   <div id="retour-connexion"></div>
-  <div class="barre-progression-connexion" id="barre-progression-connexion" hidden>
-    <div class="barre-progression-connexion-piste">
-      <div class="barre-progression-connexion-remplissage" id="barre-progression-connexion-remplissage"></div>
-    </div>
-    <div class="barre-progression-connexion-texte" id="barre-progression-connexion-texte"></div>
-  </div>
   <button type="button" class="lien-aide-installation" id="btn-ouvrir-installation">Besoin d'aide pour l'installation ?</button>
 </div>
 
@@ -750,6 +744,16 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
       </div>
 
       <div class="carte-reglage">
+        <h3>Email logistique</h3>
+        <p class="reglage-texte">Reçoit un mail à chaque commande passée en attente de validation (étape Reçue → Validée), avec un lien à cliquer pour confirmer.</p>
+        <div class="ligne-reglage">
+          <input type="email" id="email-logistique-input" placeholder="logistique@exemple.fr">
+          <button type="button" class="action claire" id="btn-email-logistique-enregistrer">Enregistrer</button>
+        </div>
+        <div id="retour-email-logistique"></div>
+      </div>
+
+      <div class="carte-reglage">
         <h3>Modèle d'email — suivi Colissimo SAV</h3>
         <p class="reglage-texte">
           Utilisé quand tu envoies le suivi Colissimo par email depuis un ticket SAV. Jetons disponibles :
@@ -819,10 +823,8 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
 <!-- Modale : statut de la commande et livraison -->
 <div class="voile-modale" id="modale-statut" hidden>
   <div class="modale">
-    <h2>Statut &amp; livraison</h2>
+    <h2>Date de livraison</h2>
     <p class="sous-titre" id="modale-statut-ref"></p>
-    <label for="modale-statut-select">Statut de la commande</label>
-    <select id="modale-statut-select" class="statut"></select>
     <div id="bloc-date-livraison">
       <label for="modale-statut-date-livraison">Date de livraison</label>
       <input type="date" id="modale-statut-date-livraison" lang="fr">

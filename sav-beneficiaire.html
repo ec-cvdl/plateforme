@@ -197,7 +197,7 @@ function jsonp(params){
   return new Promise((ok, ko) => {
     const nom = 'cb' + Date.now() + Math.floor(Math.random()*1000);
     const balise = document.createElement('script');
-    const t = setTimeout(() => { nettoyer(); ko(new Error('Délai dépassé')); }, 45000);
+    const t = setTimeout(() => { nettoyer(); ko(new Error('Délai dépassé')); }, 90000);
     function nettoyer(){ clearTimeout(t); window[nom] = () => {}; balise.remove(); }
     window[nom] = data => { nettoyer(); ok(data); };
     balise.src = API + '?' + new URLSearchParams({...params, callback:nom});
