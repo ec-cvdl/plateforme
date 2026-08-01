@@ -78,6 +78,13 @@ body{
   letter-spacing:.12em;text-transform:uppercase;color:var(--gris);
 }
 
+.barre-retour-portail{max-width:640px;margin:16px auto 0;padding:0 20px}
+.lien-retour-portail{
+  display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;
+  color:var(--gris);text-decoration:none;
+}
+.lien-retour-portail:hover{color:#1A2733;text-decoration:underline}
+
 .bascule-mode{display:flex;gap:2px;background:var(--carte);border:1px solid var(--trait);border-radius:8px;padding:3px}
 .bascule-mode button{
   font-family:'IBM Plex Mono', monospace;font-size:10.5px;font-weight:600;

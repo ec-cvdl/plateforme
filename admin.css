@@ -303,7 +303,7 @@ a.action.pleine{width:100%;margin-top:4px}
   position:relative;border-radius:16px;padding:18px 20px;height:100%;
   display:flex;flex-direction:column;
 }
-.ccm-topbar{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.ccm-topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:-2px}
 .ccm-pastille{
   width:34px;height:34px;border-radius:50%;flex-shrink:0;
   display:flex;align-items:center;justify-content:center;color:#fff;
@@ -353,7 +353,13 @@ body.carte-style-terminal .ccm-pastille{background:rgba(255,255,255,.22)}
 .barre-progression-cmd-remplissage.t-orange{background:var(--t-orange-t)}
 .barre-progression-cmd-remplissage.t-vert{background:var(--t-vert-t)}
 .barre-progression-cmd-remplissage.t-gris{background:var(--steel)}
-.ccm-alerte{font-size:11px;font-weight:700;margin-bottom:9px;padding:5px 9px;border-radius:6px;display:inline-block}
+.ccm-alerte{font-size:11px;font-weight:700;margin:10px 0 9px;padding:5px 9px;border-radius:6px;display:inline-block;position:relative}
+.ccm-alerte-fermable{padding-right:26px}
+.ccm-alerte-fermer{
+  position:absolute;top:2px;right:4px;width:18px;height:18px;line-height:16px;text-align:center;
+  border:none;background:transparent;color:inherit;opacity:.65;font-size:15px;cursor:pointer;border-radius:50%;padding:0;
+}
+.ccm-alerte-fermer:hover{opacity:1;background:rgba(0,0,0,.08)}
 .ccm-statut-label{display:flex;align-items:center;gap:8px}
 .ccm-statut{font-size:11.5px;font-weight:700}
 .ccm-pilules-bas{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;margin-top:auto;padding-top:14px}
@@ -368,6 +374,13 @@ body.carte-style-terminal .ccm-pastille{background:rgba(255,255,255,.22)}
 .ccm-pilule-mini.pilule-remplie svg{color:var(--t-bleu-t)}
 .ccm-pilule-mini.ccm-pilule-colissimo.pilule-remplie svg{color:var(--t-ambre-t)}
 .ccm-pilule-mini.ccm-pilule-serie.pilule-remplie svg{color:var(--t-vert-t)}
+.ccm-pilule-badge{
+  min-width:16px;height:16px;padding:0 4px;border-radius:999px;
+  font-size:10px;font-weight:700;line-height:16px;text-align:center;
+  background:var(--steel);color:#fff;
+}
+.ccm-pilule-serie.pilule-remplie .ccm-pilule-badge{background:var(--t-vert-t)}
+.ccm-pilule-colissimo.pilule-remplie .ccm-pilule-badge{background:var(--t-ambre-t)}
 .ccm-pied{display:flex;justify-content:center;margin-top:10px;padding-top:0}
 .ccm-details{
   font-family:inherit;font-size:11.5px;font-weight:600;border:none;border-radius:8px;
@@ -442,7 +455,7 @@ body.carte-style-pastille .ccm-alerte{background:#FBE1DD;color:var(--t-rouge-t, 
 /* ─── Style 4 (proposition 6) : icône produit géante façon météo ─── */
 .ccm-meteo{
   display:none;width:52px;height:52px;border-radius:16px;background:var(--paper);
-  align-items:center;justify-content:center;flex-shrink:0;margin-bottom:12px;font-size:28px;line-height:1;
+  align-items:center;justify-content:center;flex-shrink:0;margin:5px 0 12px;font-size:28px;line-height:1;
 }
 body.carte-style-meteo .carte-cmd-mini{background:#fff;box-shadow:0 2px 10px rgba(0,39,67,.05)}
 body.carte-style-meteo .ccm-meteo{display:flex}

@@ -70,6 +70,14 @@ function toutesLesProprietes() {
   return _proprietesCache;
 }
 
+/** Échappement HTML minimal pour les pages de confirmation générées par doGet (lien de
+ *  paiement, validation logistique) — jamais de contenu utilisateur non échappé dans du HTML. */
+function echapperHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
 function obtenirConfig(nom, valeurParDefaut) {
   const valeur = toutesLesProprietes()[CLES_CONFIG[nom]];
   return (valeur === undefined || valeur === null || valeur === '') ? valeurParDefaut : valeur;
@@ -594,22 +602,27 @@ function lireCacheDecoupe(cle) {
 function doGet(e) {
   const p = e.parameter;
 
-  // Route à part : ce n'est pas une réponse JSON mais une redirection HTML — la structure
-  // clique un lien "Régler cette commande" dans suivi.html, ce lien passe par ici pour tracer
-  // l'horodatage du clic (utile à l'admin pour savoir qu'il faut vérifier le paiement), puis
-  // renvoie immédiatement vers l'URL réelle du lien de paiement. Ne bloque jamais la
-  // redirection même si le traçage échoue : mieux vaut rediriger sans trace qu'un lien mort.
+  // Route à part : ce n'est pas une réponse JSON. La structure clique un lien "Régler cette
+  // commande" dans suivi.html, ce lien passe par ici pour tracer l'horodatage du clic (utile à
+  // l'admin pour savoir qu'il faut vérifier le paiement), puis affiche une page de confirmation
+  // avec un bouton vers l'URL réelle du lien de paiement — pas de redirection automatique
+  // silencieuse : plus fiable, et si le lien n'est pas configuré, ça se voit tout de suite
+  // au lieu d'échouer sans explication.
   if (p.action === 'clic-lien-paiement') {
-    let urlCible = '#';
+    let r = { ok: false };
     try {
-      urlCible = enregistrerClicLienPaiement(p.ref) || '#';
+      r = enregistrerClicLienPaiement(p.ref);
     } catch (err) {
       Logger.log('Échec traçage clic lien de paiement pour ' + p.ref + ' : ' + err);
     }
-    return HtmlService.createHtmlOutput(
-      '<script>location.replace(' + JSON.stringify(urlCible) + ');</script>' +
-      '<p>Redirection… <a href="' + urlCible.replace(/"/g, '&quot;') + '">cliquez ici si rien ne se passe</a>.</p>'
-    );
+    const style = 'font-family:sans-serif;max-width:420px;margin:70px auto;text-align:center;padding:0 20px';
+    const html = r.ok
+      ? '<div style="' + style + '"><h1 style="font-size:20px">' + echapperHtml(r.reference) + '</h1>' +
+        '<p style="color:#555">' + (r.structure ? echapperHtml(r.structure) + ' — ' : '') + 'clique ci-dessous pour accéder au règlement.</p>' +
+        '<a href="' + echapperHtml(r.url) + '" style="display:inline-block;margin-top:18px;padding:13px 30px;background:#0B5FFF;color:#fff;border-radius:8px;text-decoration:none;font-weight:600">Accéder au paiement</a></div>'
+      : '<div style="' + style + '"><h1 style="font-size:20px">Lien introuvable</h1>' +
+        '<p style="color:#555">Aucun lien de paiement n\'est configuré pour cette commande, ou la référence transmise est incorrecte. Contacte-nous directement pour régler cette commande.</p></div>';
+    return HtmlService.createHtmlOutput(html);
   }
 
   // Lien cliqué depuis le mail de validation logistique — page HTML lisible directement,
@@ -622,8 +635,8 @@ function doGet(e) {
       resultat = { ok: false, erreur: String(err) };
     }
     const message = resultat.ok
-      ? '<h1 style="font-family:sans-serif">Commande ' + resultat.reference + ' validée ✅</h1><p style="font-family:sans-serif">Elle passe à l\'étape suivante (préparation).</p>'
-      : '<h1 style="font-family:sans-serif">Validation impossible</h1><p style="font-family:sans-serif">' + (resultat.erreur || 'Erreur inconnue') + '</p>';
+      ? '<h1 style="font-family:sans-serif">Commande ' + echapperHtml(resultat.reference) + ' validée ✅</h1><p style="font-family:sans-serif">Elle passe à l\'étape suivante (préparation).</p>'
+      : '<h1 style="font-family:sans-serif">Validation impossible</h1><p style="font-family:sans-serif">' + echapperHtml(resultat.erreur || 'Erreur inconnue') + '</p>';
     return HtmlService.createHtmlOutput(message);
   }
 
@@ -1599,7 +1612,12 @@ function genererBonLivraisonPdf(data) {
   let copie;
   try {
     const modeleFichier = DriveApp.getFileById(MODELE_BON_LIVRAISON);
-    copie = modeleFichier.makeCopy(nomFichier, DriveApp.getRootFolder());
+    const dossierCible = DRIVE_FOLDER_ID ? DriveApp.getFolderById(DRIVE_FOLDER_ID) : DriveApp.getRootFolder();
+    copie = modeleFichier.makeCopy(nomFichier, dossierCible);
+    // Le dossier configuré (ou la racine du Drive) n'est pas forcément partagé avec qui doit
+    // ouvrir ce lien (structure, logistique...) — on rend donc CE fichier accessible par lien,
+    // sans dépendre du partage du dossier qui le contient.
+    copie.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   } catch (e) {
     return { ok: false, erreur: 'Copie du modèle impossible : ' + e.message };
   }
@@ -1652,7 +1670,9 @@ function genererBonOrientationPdf(data) {
   let copie;
   try {
     const modeleFichier = DriveApp.getFileById(MODELE_BON_ORIENTATION);
-    copie = modeleFichier.makeCopy(nomFichier, DriveApp.getRootFolder());
+    const dossierCible = DRIVE_FOLDER_ID ? DriveApp.getFolderById(DRIVE_FOLDER_ID) : DriveApp.getRootFolder();
+    copie = modeleFichier.makeCopy(nomFichier, dossierCible);
+    copie.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   } catch (e) {
     return { ok: false, erreur: 'Copie du modèle impossible : ' + e.message };
   }
@@ -1747,6 +1767,7 @@ function genererAttestationsPaiement(data) {
 
     const nomFichier = 'Attestation de paiement - ' + personne.nomComplet;
     const copie = modeleFichier.makeCopy(nomFichier, dossier);
+    copie.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
     const classeurCopie = SpreadsheetApp.openById(copie.getId());
     classeurCopie.getSheets().forEach(function(f) {
       Object.keys(jetons).forEach(function(jeton) {
@@ -2044,12 +2065,10 @@ function listerCommandesParCode(data) {
 
 /** Appelée quand une structure clique le lien "Régler cette commande" dans suivi.html.
  *  Trace l'horodatage du clic (colonne 29) pour signaler à l'admin qu'il faut vérifier le
- *  paiement, puis renvoie l'URL réelle vers laquelle rediriger. Ne renvoie jamais d'erreur
- *  visible : si la référence est introuvable, on redirige quand même vers '#' plutôt que
- *  de laisser la structure bloquée sur une page cassée. */
+ *  paiement, puis renvoie de quoi construire la page de confirmation (voir Routeur.gs). */
 function enregistrerClicLienPaiement(reference) {
   const ref = String(reference || '').trim();
-  if (!ref) return '#';
+  if (!ref) return { ok: false };
 
   const feuille = feuilleCommandes();
   const lignes = feuille.getDataRange().getValues();
@@ -2057,9 +2076,10 @@ function enregistrerClicLienPaiement(reference) {
     if (String(lignes[i][0]).trim() !== ref) continue;
     feuille.getRange(i + 1, 29).setValue(new Date());
     invaliderCacheCommandes();
-    return String(lignes[i][13] || '#'); // colonne 14 : Lien de paiement
+    const url = String(lignes[i][13] || '').trim(); // colonne 14 : Lien de paiement
+    return { ok: !!url, url: url, reference: ref, structure: lignes[i][3] || '' };
   }
-  return '#';
+  return { ok: false };
 }
 
 /** Étape "Reçue → Validée" : ne bascule plus jamais le statut à la main. On envoie un mail à
@@ -3719,11 +3739,15 @@ function genererFacturePdf(data) {
 
   let copie;
   try {
-    // Copie conservée telle quelle (pas de PDF, pas d'autorisation supplémentaire requise) :
-    // la personne l'ouvre, vérifie, et exporte elle-même en PDF depuis Sheets si besoin
-    // (Fichier → Télécharger → PDF), ou la classe directement dans le dossier d'archivage.
+    // Copie conservée telle quelle (pas de PDF, pas d'export supplémentaire) : la personne
+    // l'ouvre, vérifie, et exporte elle-même en PDF depuis Sheets si besoin (Fichier →
+    // Télécharger → PDF), ou la classe directement dans le dossier d'archivage.
     const modeleFichier = DriveApp.getFileById(MODELE_FACTURATION);
-    copie = modeleFichier.makeCopy(nomFichier, DriveApp.getRootFolder());
+    const dossierCible = DRIVE_FOLDER_ID ? DriveApp.getFolderById(DRIVE_FOLDER_ID) : DriveApp.getRootFolder();
+    copie = modeleFichier.makeCopy(nomFichier, dossierCible);
+    // Le dossier cible n'est pas forcément partagé avec qui reçoit ce lien : on partage donc
+    // explicitement CE fichier, sans dépendre du partage du dossier qui le contient.
+    copie.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   } catch (e) {
     return { ok: false, erreur: 'Copie du modèle impossible : ' + e.message };
   }
@@ -3784,7 +3808,9 @@ function genererDevisPdf(data) {
   let copie;
   try {
     const modeleFichier = DriveApp.getFileById(MODELE_FACTURATION);
-    copie = modeleFichier.makeCopy(nomFichier, DriveApp.getRootFolder());
+    const dossierCible = DRIVE_FOLDER_ID ? DriveApp.getFolderById(DRIVE_FOLDER_ID) : DriveApp.getRootFolder();
+    copie = modeleFichier.makeCopy(nomFichier, dossierCible);
+    copie.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   } catch (e) {
     return { ok: false, erreur: 'Copie du modèle impossible : ' + e.message };
   }
