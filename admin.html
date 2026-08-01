@@ -12,7 +12,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="admin.css?v=20260801-2">
+<link rel="stylesheet" href="admin.css?v=20260802-1">
 </head>
 <body>
 
@@ -254,6 +254,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
         <span id="texte-pagination"></span>
         <button type="button" class="action claire" id="btn-page-suivante">Suivant →</button>
       </div>
+      <div id="zone-prioritaires" hidden></div>
       <div id="liste"></div>
     </section>
 
@@ -660,8 +661,11 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
         <h3>Modèle flotte matériel (structures)</h3>
         <p class="reglage-texte">
           Modèle Google Sheets que chaque structure copie dans son propre Drive pour tenir l'inventaire
-          des appareils reçus (colonnes : Numéro de série, Personne, Statut, Date de livraison, Date de vente, Payé, Lien de paiement).
-          Le statut (En stock / Vendu / En SAV) est pré-rempli à "En stock" pour chaque nouvel appareil, avec une liste déroulante posée automatiquement sur la colonne.
+          des appareils reçus (colonnes : Numéro de série, Marque, Modèle, Prix d'achat de base, Personne, Statut,
+          Date de livraison, Date de vente, Payé, Lien de paiement). Le statut (En stock / Vendu / En SAV) est
+          pré-rempli à "En stock" pour chaque nouvel appareil, avec une liste déroulante posée automatiquement sur la colonne.
+          Depuis le portail structure, tout est modifiable sauf le numéro de série, le prix d'achat, la date de
+          livraison et le lien de paiement (renseignés automatiquement, jamais par la structure).
           Une fois la structure copie partagée en modification et son lien collé dans le portail, on la pré-remplit
           automatiquement avec les appareils déjà livrés.
         </p>
@@ -1469,15 +1473,15 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
   </div>
 </div>
 
-<script src="js/Core.js?v=20260801-2"></script>
-<script src="js/Commandes.js?v=20260801-2"></script>
-<script src="js/Bilan.js?v=20260801-2"></script>
-<script src="js/Structures.js?v=20260801-2"></script>
-<script src="js/Produits.js?v=20260801-2"></script>
-<script src="js/DevisEtReglages.js?v=20260801-2"></script>
-<script src="js/Factures.js?v=20260801-2"></script>
-<script src="js/ModalesPartagees.js?v=20260801-2"></script>
-<script src="js/CodeBackendIntegre.js?v=20260801-2"></script>
-<script src="js/Installateur.js?v=20260801-2"></script>
+<script src="js/Core.js?v=20260802-1"></script>
+<script src="js/Commandes.js?v=20260802-1"></script>
+<script src="js/Bilan.js?v=20260802-1"></script>
+<script src="js/Structures.js?v=20260802-1"></script>
+<script src="js/Produits.js?v=20260802-1"></script>
+<script src="js/DevisEtReglages.js?v=20260802-1"></script>
+<script src="js/Factures.js?v=20260802-1"></script>
+<script src="js/ModalesPartagees.js?v=20260802-1"></script>
+<script src="js/CodeBackendIntegre.js?v=20260802-1"></script>
+<script src="js/Installateur.js?v=20260802-1"></script>
 </body>
 </html>

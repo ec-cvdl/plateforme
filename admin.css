@@ -293,6 +293,13 @@ a.action.pleine{width:100%;margin-top:4px}
 .btn-icone-fiche.danger:hover{background:var(--t-rouge-f);color:var(--t-rouge-t);border-color:var(--t-rouge-b)}
 
 #liste{display:grid;grid-template-columns:1fr;gap:18px;align-items:start}
+#zone-prioritaires{margin-bottom:22px;padding-bottom:22px;border-bottom:2px dashed var(--line)}
+#zone-prioritaires[hidden]{display:none}
+.entete-zone-prioritaires{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:14px}
+.grille-prioritaires{display:grid;grid-template-columns:1fr;gap:18px;align-items:start}
+body:has(#liste.grille-2) .grille-prioritaires{grid-template-columns:repeat(2,1fr)}
+body:has(#liste.grille-3) .grille-prioritaires{grid-template-columns:repeat(3,1fr)}
+@media(max-width:900px){.grille-prioritaires{grid-template-columns:1fr !important}}
 #liste.grille-2{grid-template-columns:repeat(2,1fr)}
 #liste.grille-3{grid-template-columns:repeat(3,1fr)}
 @media(max-width:900px){#liste.grille-2,#liste.grille-3{grid-template-columns:1fr}}
@@ -910,76 +917,83 @@ select.statut option{background:#fff;color:var(--ink);font-weight:500}
 
 #liste-sav{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 @media(max-width:900px){#liste-sav{grid-template-columns:1fr}}
-.ticket-sav-conteneur{position:relative}
+.ticket-sav-conteneur{position:relative;height:100%}
+.ticket-sav-conteneur .badge-nouvelle{left:-8px;top:-8px}
 
-/* ═══ Ticket SAV — design "carte flottante" : icône à cheval sur le bord, bandeau de
-   statut coloré en pied. Silhouette volontairement très différente d'une fiche commande. ═══ */
+/* ═══ Ticket SAV — accent latéral coloré par statut, badge icône, pastille de statut
+   en texte, pilules discrètes pour n° série/garantie/colissimo. ═══ */
 .tsc-a{
-  position:relative;background:#fff;border-radius:22px;padding:26px 20px 0;
-  box-shadow:0 6px 20px rgba(0,39,67,.08);border:1px solid var(--line);
-  border-top:4px solid var(--line);
+  position:relative;background:var(--card);border-radius:12px;padding:16px 18px;
+  border:1px solid var(--line);border-left:3px solid var(--steel);
   display:flex;flex-direction:column;height:100%;
 }
-.ticket-sav-conteneur{height:100%}
-.ticket-sav-conteneur .badge-nouvelle{left:-22px}
+.tsc-a-haut{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.tsc-a-identite{display:flex;gap:10px;align-items:center;min-width:0}
 .tsc-a-icone{
-  position:absolute;top:-18px;left:20px;width:52px;height:52px;border-radius:16px;
-  background:var(--steel);display:flex;align-items:center;justify-content:center;flex-shrink:0;
-  box-shadow:0 4px 14px rgba(0,0,0,.14);
+  width:36px;height:36px;border-radius:10px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
 }
-.tsc-a-icone svg{width:26px;height:26px;color:#fff}
-.tsc-a-entete{margin:14px 0 0 84px;min-height:36px}
-.tsc-a-nom{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15.5px;color:var(--ink)}
-.tsc-a-ref{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--steel);margin-top:1px}
-.tsc-a-symptome{font-size:13.5px;margin:16px 0 12px;font-weight:600;color:var(--ink)}
+.tsc-a-icone svg{width:18px;height:18px}
+.tsc-a-entete{min-width:0}
+.tsc-a-nom{font-weight:700;font-size:14.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tsc-a-ref{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--steel);margin-top:1px;white-space:nowrap}
+.tsc-a-statut-pastille{
+  font-size:11px;font-weight:700;padding:4px 11px;border-radius:999px;white-space:nowrap;flex-shrink:0;
+}
+.tsc-a-symptome{font-size:13px;margin:11px 0 0;color:var(--steel);line-height:1.4}
 
-.tsc-delai{margin:0 -20px 14px;padding:8px 20px;font-size:11.5px;font-weight:700}
-.tsc-delai.niveau-1{background:var(--t-ambre-f);color:var(--t-ambre-t)}
-.tsc-delai.niveau-2{background:#FDE4C8;color:#8A4B00}
-.tsc-delai.niveau-3{background:var(--t-rouge-f);color:var(--t-rouge-t)}
+.tsc-pilules{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px}
+.pilule-info-sav{
+  display:inline-flex;align-items:center;gap:5px;flex-shrink:0;
+  font-size:11px;font-weight:600;
+  padding:5px 10px;border-radius:999px;white-space:nowrap;
+  text-decoration:none;max-width:160px;overflow:hidden;text-overflow:ellipsis;
+  background:var(--paper);color:var(--steel);
+}
+.pilule-info-sav svg{width:12px;height:12px;flex-shrink:0}
+.pilule-info-sav.type-serie{background:var(--t-bleu-f);color:var(--t-bleu-t)}
+.pilule-info-sav.type-commande{background:var(--t-turquoise-f);color:var(--t-turquoise-t)}
+.pilule-info-sav.type-colis{background:var(--t-ambre-f);color:var(--t-ambre-t);cursor:pointer;transition:background .15s}
+.pilule-info-sav.type-colis:hover{background:var(--t-ambre-b)}
+.pilule-info-sav.vide{background:var(--paper);color:var(--steel);font-style:italic;font-weight:500}
 
-.tsc-a-footer-mini{display:flex;align-items:center;gap:12px;margin:14px 0;font-size:11.5px;color:var(--steel)}
-.tsc-a-footer-mini .btn-icone-fiche{margin-left:auto}
-.tsc-garantie{font-size:11.5px;font-weight:700}
+.tsc-delai{margin-top:9px;font-size:11px;font-weight:600;color:var(--steel)}
+.tsc-delai.niveau-1{color:var(--t-ambre-t)}
+.tsc-delai.niveau-2{color:#8A4B00}
+.tsc-delai.niveau-3{color:var(--t-rouge-t)}
+.tsc-garantie{font-size:11px;font-weight:600;color:var(--steel)}
 .tsc-garantie.avertissement{color:var(--t-ambre-t)}
 .tsc-garantie.hors-garantie{color:var(--t-rouge-t)}
 
 .tsc-a-bandeau{
-  margin:auto -20px 0;padding:13px 20px;border-radius:0 0 20px 20px;background:var(--steel);
+  margin-top:auto;padding-top:12px;border-top:1px solid var(--line);
   display:flex;align-items:center;justify-content:space-between;gap:10px;
 }
-.tsc-a-bandeau select.statut{
-  background-color:rgba(255,255,255,.16)!important;color:#fff!important;
-  border:1px solid rgba(255,255,255,.4)!important;width:auto;flex:1;min-width:0;
-  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='white' stroke-width='1.6'/></svg>")!important;
-}
-.tsc-a-bandeau .action{
-  background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.4);
-  flex-shrink:0;white-space:nowrap;
-}
-.tsc-a-bandeau .action:hover{background:rgba(255,255,255,.28)}
+.tsc-a-bandeau select.statut{width:auto;flex:1;min-width:0;font-size:12px;padding:6px 10px}
+.tsc-a-bandeau .action{flex-shrink:0;white-space:nowrap;font-size:12px;padding:6px 12px}
+.tsc-a-bandeau .btn-icone-fiche{flex-shrink:0}
 
-.tsc-a.teinte-t-ambre .tsc-a-icone, .tsc-a.teinte-t-ambre .tsc-a-bandeau{background:var(--t-ambre-t)}
-.tsc-a.teinte-t-bleu .tsc-a-icone, .tsc-a.teinte-t-bleu .tsc-a-bandeau{background:var(--t-bleu-t)}
-.tsc-a.teinte-t-violet .tsc-a-icone, .tsc-a.teinte-t-violet .tsc-a-bandeau{background:var(--t-violet-t)}
-.tsc-a.teinte-t-turquoise .tsc-a-icone, .tsc-a.teinte-t-turquoise .tsc-a-bandeau{background:var(--t-turquoise-t)}
-.tsc-a.teinte-t-vert .tsc-a-icone, .tsc-a.teinte-t-vert .tsc-a-bandeau{background:var(--t-vert-t)}
-.tsc-a.teinte-t-rouge .tsc-a-icone, .tsc-a.teinte-t-rouge .tsc-a-bandeau{background:var(--t-rouge-t)}
-.tsc-a.teinte-t-gris .tsc-a-icone, .tsc-a.teinte-t-gris .tsc-a-bandeau{background:var(--t-gris-t)}
-
-.tsc-pilules{display:flex;flex-wrap:wrap;gap:7px;margin-top:2px}
-.pilule-info-sav{
-  display:inline-flex;align-items:center;gap:6px;flex-shrink:0;
-  font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;
-  padding:7px 14px;border-radius:20px;white-space:nowrap;border:1px solid transparent;
-  text-decoration:none;max-width:200px;overflow:hidden;text-overflow:ellipsis;
-}
-.pilule-info-sav svg{width:14px;height:14px;flex-shrink:0}
-.pilule-info-sav.type-serie{background:var(--t-bleu-f);color:var(--t-bleu-t);border-color:var(--t-bleu-b)}
-.pilule-info-sav.type-commande{background:var(--t-turquoise-f);color:var(--t-turquoise-t);border-color:var(--t-turquoise-b)}
-.pilule-info-sav.type-colis{background:var(--t-ambre-f);color:var(--t-ambre-t);border-color:var(--t-ambre-b);cursor:pointer;transition:background .15s}
-.pilule-info-sav.type-colis:hover{background:var(--t-ambre-b)}
-.pilule-info-sav.vide{background:var(--paper);color:var(--steel);border-color:var(--line);font-style:italic;font-weight:500;border-style:dashed}
+.tsc-a.teinte-t-ambre{border-left-color:var(--t-ambre-t)}
+.tsc-a.teinte-t-ambre .tsc-a-icone{background:var(--t-ambre-f);color:var(--t-ambre-t)}
+.tsc-a.teinte-t-ambre .tsc-a-statut-pastille{background:var(--t-ambre-f);color:var(--t-ambre-t)}
+.tsc-a.teinte-t-bleu{border-left-color:var(--t-bleu-t)}
+.tsc-a.teinte-t-bleu .tsc-a-icone{background:var(--t-bleu-f);color:var(--t-bleu-t)}
+.tsc-a.teinte-t-bleu .tsc-a-statut-pastille{background:var(--t-bleu-f);color:var(--t-bleu-t)}
+.tsc-a.teinte-t-violet{border-left-color:var(--t-violet-t)}
+.tsc-a.teinte-t-violet .tsc-a-icone{background:var(--t-violet-f);color:var(--t-violet-t)}
+.tsc-a.teinte-t-violet .tsc-a-statut-pastille{background:var(--t-violet-f);color:var(--t-violet-t)}
+.tsc-a.teinte-t-turquoise{border-left-color:var(--t-turquoise-t)}
+.tsc-a.teinte-t-turquoise .tsc-a-icone{background:var(--t-turquoise-f);color:var(--t-turquoise-t)}
+.tsc-a.teinte-t-turquoise .tsc-a-statut-pastille{background:var(--t-turquoise-f);color:var(--t-turquoise-t)}
+.tsc-a.teinte-t-vert{border-left-color:var(--t-vert-t)}
+.tsc-a.teinte-t-vert .tsc-a-icone{background:var(--t-vert-f);color:var(--t-vert-t)}
+.tsc-a.teinte-t-vert .tsc-a-statut-pastille{background:var(--t-vert-f);color:var(--t-vert-t)}
+.tsc-a.teinte-t-rouge{border-left-color:var(--t-rouge-t)}
+.tsc-a.teinte-t-rouge .tsc-a-icone{background:var(--t-rouge-f);color:var(--t-rouge-t)}
+.tsc-a.teinte-t-rouge .tsc-a-statut-pastille{background:var(--t-rouge-f);color:var(--t-rouge-t)}
+.tsc-a.teinte-t-gris{border-left-color:var(--t-gris-t)}
+.tsc-a.teinte-t-gris .tsc-a-icone{background:var(--t-gris-f);color:var(--t-gris-t)}
+.tsc-a.teinte-t-gris .tsc-a-statut-pastille{background:var(--t-gris-f);color:var(--t-gris-t)}
 
 .config-statuts-sav{
   background:var(--card);border:1px solid var(--line);border-radius:var(--r);

@@ -708,6 +708,8 @@ function doGet(e) {
       res = listerCommandesParCode(p);
     } else if (p.action === 'flotte-obtenir') {
       res = flotteObtenir(p);
+    } else if (p.action === 'flotte-lister') {
+      res = flotteListerAppareils(p);
     } else if (p.action === 'sav-par-numero-serie') {
       res = listerTicketsSavParNumeroSerie(p);
     } else if (p.action === 'sav-par-code') {
@@ -802,6 +804,8 @@ function doPost(e) {
       res = flotteLier(data);
     } else if (data.action === 'flotte-actualiser') {
       res = flotteActualiser(data);
+    } else if (data.action === 'flotte-modifier') {
+      res = flotteModifierAppareil(data);
     } else if (data.action === 'commande-delete') {
       res = supprimerCommande(data);
     } else if (data.action === 'devis-create') {
@@ -1028,6 +1032,81 @@ function majStructure(data) {
   return { ok: true };
 }
 
+/** Renvoie tous les appareils du tableau flotte lié à cette structure, avec leur numéro de
+ *  ligne (nécessaire pour les modifications ciblées ensuite). */
+function flotteListerAppareils(data) {
+  const code = String(data.code || '').trim();
+  const structure = lireStructures()[code];
+  if (!structure) return { ok: false, erreur: 'Code inconnu' };
+  if (!structure.lienFlotte) return { ok: false, erreur: 'Aucun tableau flotte lié pour le moment' };
+
+  const id = extraireIdFichier(structure.lienFlotte);
+  let feuilleFlotte;
+  try {
+    feuilleFlotte = SpreadsheetApp.openById(id).getSheets()[0];
+  } catch (e) {
+    return { ok: false, erreur: 'Impossible d\'accéder au tableau — l\'accès a peut-être été retiré côté partage.' };
+  }
+
+  const lignes = feuilleFlotte.getDataRange().getValues();
+  const appareils = [];
+  for (let i = 1; i < lignes.length; i++) {
+    if (!lignes[i][0]) continue;
+    appareils.push({
+      ligne: i + 1,
+      numeroSerie: lignes[i][0],
+      marque: lignes[i][1] || '',
+      modele: lignes[i][2] || '',
+      prixAchat: lignes[i][3],
+      personne: lignes[i][4] || '',
+      statut: lignes[i][5] || 'En stock',
+      dateLivraison: lignes[i][6] instanceof Date ? Utilities.formatDate(lignes[i][6], Session.getScriptTimeZone(), 'dd/MM/yyyy') : (lignes[i][6] || ''),
+      dateVente: lignes[i][7] instanceof Date ? Utilities.formatDate(lignes[i][7], Session.getScriptTimeZone(), 'dd/MM/yyyy') : (lignes[i][7] || ''),
+      paye: lignes[i][8] || '',
+      lienPaiement: lignes[i][9] || ''
+    });
+  }
+  return { ok: true, appareils: appareils };
+}
+
+/** Modifie un seul champ d'un appareil, uniquement parmi ceux autorisés (voir
+ *  CHAMPS_FLOTTE_MODIFIABLES) — le numéro de série, le prix d'achat, la date de livraison et
+ *  le lien de paiement restent en lecture seule depuis cette interface, quoi qu'il arrive. */
+function flotteModifierAppareil(data) {
+  const code = String(data.code || '').trim();
+  const structure = lireStructures()[code];
+  if (!structure) return { ok: false, erreur: 'Code inconnu' };
+  if (!structure.lienFlotte) return { ok: false, erreur: 'Aucun tableau flotte lié pour le moment' };
+
+  const colonne = CHAMPS_FLOTTE_MODIFIABLES[data.champ];
+  if (!colonne) return { ok: false, erreur: 'Champ non modifiable depuis cette interface' };
+
+  if (data.champ === 'statut' && STATUTS_FLOTTE.indexOf(data.valeur) === -1) {
+    return { ok: false, erreur: 'Statut invalide' };
+  }
+  if (data.champ === 'paye' && ['Oui', 'Non', ''].indexOf(data.valeur) === -1) {
+    return { ok: false, erreur: 'Valeur invalide' };
+  }
+
+  const ligne = parseInt(data.ligne, 10);
+  if (!ligne || ligne < 2) return { ok: false, erreur: 'Ligne invalide' };
+
+  const id = extraireIdFichier(structure.lienFlotte);
+  let feuilleFlotte;
+  try {
+    feuilleFlotte = SpreadsheetApp.openById(id).getSheets()[0];
+  } catch (e) {
+    return { ok: false, erreur: 'Impossible d\'accéder au tableau — l\'accès a peut-être été retiré côté partage.' };
+  }
+
+  // Sécurité minimale : vérifier que cette ligne a bien un numéro de série, pour éviter
+  // d'écrire au hasard sur une ligne vide si le numéro de ligne transmis est erroné.
+  if (!feuilleFlotte.getRange(ligne, 1).getValue()) return { ok: false, erreur: 'Ligne introuvable' };
+
+  feuilleFlotte.getRange(ligne, colonne).setValue(data.valeur);
+  return { ok: true };
+}
+
 function supprimerStructure(data) {
   if (data.password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
   feuilleStructures().deleteRow(data.ligne);
@@ -1041,8 +1120,9 @@ function supprimerStructure(data) {
    notre côté après ça — juste l'URL, gardée pour permettre une actualisation ultérieure si
    la structure le souhaite (bouton "Actualiser"). */
 
-const ENTETES_FLOTTE = ['Numéro de série', 'Personne', 'Statut', 'Date de livraison', 'Date de vente', 'Payé', 'Lien de paiement'];
+const ENTETES_FLOTTE = ['Numéro de série', 'Marque', 'Modèle', 'Prix d\'achat de base', 'Personne', 'Statut', 'Date de livraison', 'Date de vente', 'Payé', 'Lien de paiement'];
 const STATUTS_FLOTTE = ['En stock', 'Vendu', 'En SAV'];
+const CHAMPS_FLOTTE_MODIFIABLES = { marque: 2, modele: 3, personne: 5, statut: 6, dateVente: 8, paye: 9 }; // colonnes 1-indexées ; num série (1), prix d'achat (4), date livraison (7) et lien paiement (10) restent en lecture seule depuis l'interface
 
 /** Renvoie de quoi afficher le bouton "Gérer ma flotte" côté portail : soit le lien déjà
  *  enregistré (tableau déjà lié), soit le lien de copie du modèle si rien n'est encore lié. */
@@ -1133,6 +1213,25 @@ function synchroniserFlotteMateriel(codeStructure, feuilleFlotte) {
     if (s) seriesDejaPresentes[s] = true;
   }
 
+  const lignesFactures = feuilleFactures().getDataRange().getValues();
+  const montantsParFacture = {};
+  for (let i = 1; i < lignesFactures.length; i++) montantsParFacture[lignesFactures[i][0]] = lignesFactures[i][10];
+
+  const produits = lireProduits();
+  const structure = lireStructures()[codeStructure];
+  const estRN = !!(structure && structure.rn);
+
+  // Lu une seule fois avant la boucle plutôt qu'à chaque commande sans facture — sinon,
+  // une structure avec beaucoup de commandes livrées non facturées relirait la feuille
+  // LignesCommande en entier à chaque itération.
+  const toutesLignesDetail = feuilleLignesCommande().getDataRange().getValues();
+  const lignesDetailParReference = {};
+  for (let i = 1; i < toutesLignesDetail.length; i++) {
+    const ref = String(toutesLignesDetail[i][0]).trim();
+    if (!lignesDetailParReference[ref]) lignesDetailParReference[ref] = [];
+    lignesDetailParReference[ref].push({ produit: toutesLignesDetail[i][1], quantite: parseInt(toutesLignesDetail[i][2], 10) || 0 });
+  }
+
   const lignesCommandes = feuilleCommandes().getDataRange().getValues();
   const nouvellesLignes = [];
 
@@ -1148,10 +1247,25 @@ function synchroniserFlotteMateriel(codeStructure, feuilleFlotte) {
     const paye = l[12] === 'Payé' ? 'Oui' : 'Non';
     const lienPaiement = String(l[13] || '').split('\n')[0] || ''; // premier lien si plusieurs (paiement séparé) : au moins une base à corriger à la main
 
+    // Prix moyen par appareil pour cette commande — même approximation que pour les
+    // attestations de paiement, faute de prix unitaire attaché à chaque numéro de série
+    // individuellement (une commande peut mélanger plusieurs produits à prix différents).
+    const referenceFacture = l[18];
+    const quantiteTotale = parseInt(l[8], 10) || numerosSerie.length;
+    let montantCommande = referenceFacture && montantsParFacture[referenceFacture] != null ? montantsParFacture[referenceFacture] : null;
+    if (montantCommande == null) {
+      const lignesDetail = lignesDetailParReference[String(l[0]).trim()] || [{ produit: l[7], quantite: quantiteTotale }];
+      montantCommande = lignesDetail.reduce(function(somme, ld) {
+        const p = produits[ld.produit];
+        return somme + (p ? (estRN ? p.prixRN : p.prixStandard) * ld.quantite : 0);
+      }, 0);
+    }
+    const prixParAppareil = quantiteTotale ? Math.round((montantCommande / quantiteTotale) * 100) / 100 : '';
+
     numerosSerie.forEach(function(numeroSerie) {
       if (seriesDejaPresentes[numeroSerie]) return;
       seriesDejaPresentes[numeroSerie] = true;
-      nouvellesLignes.push([numeroSerie, '', 'En stock', dateLivraison, '', paye, lienPaiement]);
+      nouvellesLignes.push([numeroSerie, '', '', prixParAppareil, '', 'En stock', dateLivraison, '', paye, lienPaiement]);
     });
   }
 
@@ -2051,7 +2165,17 @@ function listerCommandes(password, limite, decalage, recherche) {
   const limiteNombre = parseInt(limite, 10) || 0;
   const decalageNombre = parseInt(decalage, 10) || 0;
   const limitees = limiteNombre > 0 ? toutes.slice(decalageNombre, decalageNombre + limiteNombre) : toutes;
-  return { ok: true, commandes: limitees, total: toutes.length, aLivrer: aLivrer, nombreNouvelles: nombreNouvelles, nombreImpayees: nombreImpayees };
+
+  // Les commandes non traitées (Reçue) et les commandes urgentes ne doivent jamais passer
+  // à la trappe simplement parce qu'elles sont anciennes et repoussées au-delà de la
+  // première page par des commandes plus récentes — toujours renvoyées en entier, à part,
+  // peu importe la pagination. Plafonné pour éviter un retour disproportionné si vraiment
+  // beaucoup de commandes sont en attente.
+  const prioritaires = toutes.filter(function(c) {
+    return c.statutCommande === 'Reçue' || c.dateLivraisonSouhaitee === 'ASAP';
+  }).slice(0, 100);
+
+  return { ok: true, commandes: limitees, total: toutes.length, prioritaires: prioritaires, aLivrer: aLivrer, nombreNouvelles: nombreNouvelles, nombreImpayees: nombreImpayees };
 }
 
 /** Le vrai travail coûteux de listerCommandes — isolé pour pouvoir être mis en cache.

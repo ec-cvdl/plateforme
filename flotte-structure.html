@@ -33,6 +33,23 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
     text-align:center;margin-top:18px;
   }
   .carte-flotte-liee .compteur-ajouts{font-size:13px;color:#5C6D7C;margin-top:10px}
+
+  .barre-outils-flotte{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:6px}
+  .barre-outils-flotte a{font-size:13px;color:#5C6D7C}
+  .compteur-ajouts{font-size:12.5px;color:#5C6D7C;margin-top:8px;min-height:1em}
+  .liste-appareils{display:flex;flex-direction:column;gap:12px;margin-top:16px}
+  .carte-appareil{background:var(--carte);border:1px solid var(--trait);border-radius:12px;padding:14px 16px}
+  .carte-appareil-entete{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .carte-appareil-entete .mono{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600}
+  .prix-appareil{font-size:13px;color:#5C6D7C;font-weight:600}
+  .grille-champs-appareil{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px}
+  .grille-champs-appareil label{display:flex;flex-direction:column;gap:4px;font-size:11.5px;font-weight:600;color:#5C6D7C}
+  .grille-champs-appareil input,.grille-champs-appareil select{
+    font-family:inherit;font-size:13.5px;padding:7px 9px;border:1px solid var(--trait);border-radius:7px;background:#fff;
+  }
+  .pied-appareil{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--trait);font-size:12px;color:#5C6D7C}
+  .pied-appareil a{color:#5C6D7C}
+  @media(max-width:480px){.grille-champs-appareil{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -130,33 +147,129 @@ async function verifierCode(){
 $('btn-verifier').addEventListener('click', verifierCode);
 $('code').addEventListener('keydown', e => { if(e.key === 'Enter') verifierCode(); });
 
+let lienFlotteActuel = '';
+
+async function chargerAppareils(lienFlotte){
+  lienFlotteActuel = lienFlotte;
+  $('zone-flotte').innerHTML = '<p class="sous-question">Chargement de la flotte…</p>';
+  try{
+    const r = await jsonp({action:'flotte-lister', code: codeValide});
+    if(!r.ok){ $('zone-flotte').innerHTML = `<p class="msg msg-erreur">${echapper(r.erreur || 'Chargement impossible.')}</p>`; return; }
+    rendreAppareils(r.appareils);
+  }catch(e){
+    $('zone-flotte').innerHTML = '<p class="msg msg-erreur">Chargement impossible — réessaie.</p>';
+  }
+}
+
+function rendreAppareils(appareils){
+  const barreOutils = `
+    <div class="barre-outils-flotte">
+      <button type="button" class="bouton-retour" id="btn-actualiser-flotte">🔄 Actualiser depuis mes commandes livrées</button>
+      <a href="${echapper(lienFlotteActuel)}" target="_blank" rel="noopener">Ouvrir dans Google Sheets ↗</a>
+    </div>
+    <div id="retour-actualiser-flotte" class="compteur-ajouts"></div>`;
+
+  if(!appareils.length){
+    $('zone-flotte').innerHTML = barreOutils + '<p class="sous-question" style="margin-top:14px">Aucun appareil pour le moment — ils apparaîtront ici automatiquement dès qu\'une commande sera livrée.</p>';
+    cablerBarreOutils();
+    return;
+  }
+
+  const lignesHtml = appareils.map(a => `
+    <div class="carte-appareil">
+      <div class="carte-appareil-entete">
+        <span class="mono">${echapper(a.numeroSerie)}</span>
+        <span class="prix-appareil">${a.prixAchat !== '' && a.prixAchat != null ? Math.round(a.prixAchat) + ' €' : '—'}</span>
+      </div>
+      <div class="grille-champs-appareil">
+        <label>Marque
+          <input type="text" data-ligne="${a.ligne}" data-champ="marque" value="${echapper(a.marque)}" placeholder="Non renseignée">
+        </label>
+        <label>Modèle
+          <input type="text" data-ligne="${a.ligne}" data-champ="modele" value="${echapper(a.modele)}" placeholder="Non renseigné">
+        </label>
+        <label>Personne
+          <input type="text" data-ligne="${a.ligne}" data-champ="personne" value="${echapper(a.personne)}" placeholder="Non associée">
+        </label>
+        <label>Statut
+          <select data-ligne="${a.ligne}" data-champ="statut">
+            <option value="En stock"${a.statut === 'En stock' ? ' selected' : ''}>En stock</option>
+            <option value="Vendu"${a.statut === 'Vendu' ? ' selected' : ''}>Vendu</option>
+            <option value="En SAV"${a.statut === 'En SAV' ? ' selected' : ''}>En SAV</option>
+          </select>
+        </label>
+        <label>Date de vente
+          <input type="date" data-ligne="${a.ligne}" data-champ="dateVente" value="${dateVersISO(a.dateVente)}">
+        </label>
+        <label>Payé
+          <select data-ligne="${a.ligne}" data-champ="paye">
+            <option value=""${!a.paye ? ' selected' : ''}>—</option>
+            <option value="Oui"${a.paye === 'Oui' ? ' selected' : ''}>Oui</option>
+            <option value="Non"${a.paye === 'Non' ? ' selected' : ''}>Non</option>
+          </select>
+        </label>
+      </div>
+      <div class="pied-appareil">
+        <span>Livré le ${a.dateLivraison ? echapper(a.dateLivraison) : '—'}</span>
+        ${a.lienPaiement ? `<a href="${echapper(a.lienPaiement)}" target="_blank" rel="noopener">Lien de paiement ↗</a>` : ''}
+      </div>
+    </div>`).join('');
+
+  $('zone-flotte').innerHTML = barreOutils + `<div class="liste-appareils">${lignesHtml}</div>`;
+  cablerBarreOutils();
+
+  document.querySelectorAll('.liste-appareils [data-champ]').forEach(champ => {
+    champ.addEventListener('change', async () => {
+      const ligne = champ.dataset.ligne;
+      const nomChamp = champ.dataset.champ;
+      const valeur = champ.value;
+      champ.disabled = true;
+      try{
+        const r = await poster({ action:'flotte-modifier', code: codeValide, ligne, champ: nomChamp, valeur });
+        if(!r.ok) alert(r.erreur || 'Enregistrement impossible.');
+      }catch(e){
+        alert('Enregistrement impossible — réessaie.');
+      }
+      champ.disabled = false;
+    });
+  });
+}
+
+function cablerBarreOutils(){
+  const bouton = $('btn-actualiser-flotte');
+  if(!bouton) return;
+  bouton.addEventListener('click', async () => {
+    bouton.disabled = true;
+    $('retour-actualiser-flotte').textContent = 'Actualisation…';
+    try{
+      const rA = await poster({ action:'flotte-actualiser', code: codeValide });
+      if(rA.ok){
+        $('retour-actualiser-flotte').textContent = rA.ajoutes > 0 ? rA.ajoutes + ' nouvel(aux) appareil(s) ajouté(s).' : 'Déjà à jour, rien de nouveau.';
+        await chargerAppareils(lienFlotteActuel);
+      }else{
+        $('retour-actualiser-flotte').textContent = rA.erreur || 'Actualisation impossible.';
+      }
+    }catch(e){
+      $('retour-actualiser-flotte').textContent = 'Actualisation impossible.';
+    }
+    bouton.disabled = false;
+  });
+}
+
+function dateVersISO(dateStr){
+  if(!dateStr) return '';
+  const [j, m, a] = dateStr.split('/');
+  if(!j || !m || !a) return '';
+  return `${a}-${m}-${j}`;
+}
+
 async function chargerFlotte(){
   try{
     const r = await jsonp({action:'flotte-obtenir', code: codeValide});
     if(!r.ok){ $('zone-flotte').innerHTML = '<p class="msg msg-erreur">Chargement impossible.</p>'; return; }
 
     if(r.lienFlotte){
-      $('zone-flotte').innerHTML = `
-        <div class="carte-flotte-liee">
-          <a class="bouton-principal" href="${echapper(r.lienFlotte)}" target="_blank" rel="noopener" style="display:inline-block;text-decoration:none">Ouvrir mon tableau de flotte</a>
-          <div style="margin-top:14px">
-            <button type="button" class="bouton-retour" id="btn-actualiser-flotte">🔄 Actualiser depuis mes commandes livrées</button>
-          </div>
-          <div id="retour-actualiser-flotte" class="compteur-ajouts"></div>
-        </div>`;
-      $('btn-actualiser-flotte').addEventListener('click', async () => {
-        $('btn-actualiser-flotte').disabled = true;
-        $('retour-actualiser-flotte').textContent = 'Actualisation…';
-        try{
-          const rA = await poster({ action:'flotte-actualiser', code: codeValide });
-          $('retour-actualiser-flotte').textContent = rA.ok
-            ? (rA.ajoutes > 0 ? rA.ajoutes + ' nouvel(aux) appareil(s) ajouté(s).' : 'Déjà à jour, rien de nouveau.')
-            : (rA.erreur || 'Actualisation impossible.');
-        }catch(e){
-          $('retour-actualiser-flotte').textContent = 'Actualisation impossible.';
-        }
-        $('btn-actualiser-flotte').disabled = false;
-      });
+      await chargerAppareils(r.lienFlotte);
       return;
     }
 
