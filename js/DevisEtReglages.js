@@ -72,6 +72,7 @@ async function chargerReglages(){
       $('modele-bon-livraison-input').value = r.modeleBonLivraison || '';
       $('modele-bon-orientation-input').value = r.modeleBonOrientation || '';
       $('modele-attestation-input').value = r.modeleAttestationPaiement || '';
+      $('modele-flotte-input').value = r.modeleFlotteMateriel || '';
       $('dossier-attestations-input').value = r.dossierAttestations || '';
       $('responsable-nom-input').value = r.responsableNom || '';
       $('responsable-telephone-input').value = r.responsableTelephone || '';
@@ -383,6 +384,7 @@ function creerHandlerReglageSimple(idBouton, idChamp, idRetour, cle){
 }
 creerHandlerReglageSimple('btn-modele-bon-orientation-enregistrer', 'modele-bon-orientation-input', 'retour-modele-bon-orientation', 'modeleBonOrientation');
 creerHandlerReglageSimple('btn-modele-attestation-enregistrer', 'modele-attestation-input', 'retour-modele-attestation', 'modeleAttestationPaiement');
+creerHandlerReglageSimple('btn-modele-flotte-enregistrer', 'modele-flotte-input', 'retour-modele-flotte', 'modeleFlotteMateriel');
 creerHandlerReglageSimple('btn-dossier-attestations-enregistrer', 'dossier-attestations-input', 'retour-dossier-attestations', 'dossierAttestations');
 
 $('btn-responsable-enregistrer').addEventListener('click', async () => {
@@ -880,7 +882,7 @@ $('liste-devis').addEventListener('click', async e => {
     const ligne = parseInt(bPdf.dataset.genererPdfDevis, 10);
     const zoneRetour = $('retour-pdf-devis-' + ligne);
     bPdf.disabled = true;
-    bPdf.textContent = 'Remplissage…';
+    bPdf.innerHTML = '<span class="spinner-etat-sombre"></span><span>Remplissage…</span>';
     zoneRetour.innerHTML = '';
     try{
       const r = await poster({action:'devis-generer-pdf', password:motDePasse, ligne});

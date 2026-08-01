@@ -100,7 +100,8 @@ function filtrer(){
       const structureFiltre = structures.find(s => s.code === c.code);
       if(structureFiltre && (structureFiltre.esn || structureFiltre.interne)) return false;
     }
-    if(filtre !== 'tout' && filtre !== 'impaye' && c.statutCommande !== filtre) return false;
+    if(filtre === 'urgent' && c.dateLivraisonSouhaitee !== 'ASAP') return false;
+    if(filtre !== 'tout' && filtre !== 'impaye' && filtre !== 'urgent' && c.statutCommande !== filtre) return false;
     if(!q) return true;
     return (c.reference + ' ' + c.nom + ' ' + c.email + ' ' + c.produit + ' ' + (c.numerosSerie || '')).toLowerCase().includes(q);
   });
@@ -243,6 +244,7 @@ function rendre(){
           <div class="ccm-statut-label">
             <div class="ccm-pastille ${teinte}">${iconeStatutPastille}</div>
             <span class="ccm-statut">${echapper(c.statutCommande)}</span>
+            ${c.dateLivraisonSouhaitee === 'ASAP' ? '<span class="ccm-badge-urgent" title="Livraison la plus rapide possible">⚡</span>' : ''}
           </div>
           ${zoneEtapeSuivante}
         </div>
@@ -344,10 +346,11 @@ function construireDetailsCommande(ligne){
       <div id="resultat-attestations-${c.ligne}"></div>
 
       <div class="fiche-boutons-modales" style="margin-top:16px">
-        <button type="button" class="btn-ouvrir-modale" data-ouvrir-modale-statut="${c.ligne}">
-          Date de livraison
-          <span class="sous-statut">${c.dateLivraison ? echapper(c.dateLivraison) : 'Non renseignée'}</span>
+        <button type="button" class="btn-ouvrir-modale" data-ouvrir-date-souhaitee="${c.ligne}">
+          Date de livraison souhaitée
+          <span class="sous-statut">${c.dateLivraisonSouhaitee === 'ASAP' ? '⚡ Le plus rapidement possible' : (c.dateLivraisonSouhaitee ? echapper(c.dateLivraisonSouhaitee) : 'Non renseignée')}</span>
         </button>
+        ${c.dateLivraison ? `<p class="sous-statut" style="margin:0 0 4px">Livrée le ${echapper(c.dateLivraison)}</p>` : ''}
         ${estEsnCommande ? '' : `<button type="button" class="btn-ouvrir-modale style-paiement" data-ouvrir-modale-paiement="${c.ligne}">
           Paiement &amp; facturation
           <span class="sous-statut">${echapper(c.statutPaiement)}${typeof c.montantFacture === 'number' ? ' · ' + formaterMontant(c.montantFacture) : ''}</span>
@@ -375,13 +378,19 @@ document.addEventListener('click', e => {
   demanderRaisonAnnulation(parseInt(b.dataset.annulerCommande, 10));
 });
 
-document.addEventListener('click', async e => {
-  const b = e.target.closest('[data-demander-validation], [data-renvoyer-validation]');
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-demander-validation]');
   if(!b) return;
-  const ligne = parseInt(b.dataset.demanderValidation || b.dataset.renvoyerValidation, 10);
+  ouvrirModaleDateSouhaitee(parseInt(b.dataset.demanderValidation, 10), true);
+});
+
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-renvoyer-validation]');
+  if(!b) return;
+  const ligne = parseInt(b.dataset.renvoyerValidation, 10);
   const c = commandes.find(x => x.ligne === ligne);
   if(!c) return;
-  if(!confirm(`Envoyer un mail de validation logistique pour la commande ${c.reference} ?`)) return;
+  if(!confirm(`Renvoyer le mail de validation logistique pour la commande ${c.reference} ?`)) return;
 
   b.disabled = true;
   try{
@@ -783,6 +792,8 @@ $('modale-modifier-enregistrer').addEventListener('click', async () => {
 
 let paiementModaleLigneCourante = null;
 
+let lienPaiementValeurPrecedente = '';
+
 function ouvrirModalePaiement(ligne){
   const c = commandes.find(x => x.ligne === ligne);
   if(!c) return;
@@ -801,10 +812,21 @@ function ouvrirModalePaiement(ligne){
   $('modale-paiement-moyen').dataset.champ = 'moyenPaiement';
 
   const cb = c.moyenPaiement === 'Paiement en ligne (CB)';
+  const personnesListe = (c.personnes || '').split('\n').map(p => p.trim()).filter(Boolean);
+  if(c.paiementSepare && personnesListe.length > 1){
+    $('modale-paiement-lien-label').textContent = 'Liens de paiement (un par ligne, dans l\'ordre ci-dessous)';
+    $('modale-paiement-lien-aide').textContent = 'Un lien par bénéficiaire, à distribuer par la structure : ' + personnesListe.join(' · ');
+    $('modale-paiement-lien').rows = Math.max(2, personnesListe.length);
+  }else{
+    $('modale-paiement-lien-label').textContent = 'Lien de paiement';
+    $('modale-paiement-lien-aide').textContent = '';
+    $('modale-paiement-lien').rows = 2;
+  }
   $('modale-paiement-lien').value = c.lienPaiement || '';
   $('modale-paiement-lien').disabled = !cb;
   $('modale-paiement-lien').dataset.ligne = ligne;
   $('modale-paiement-lien').dataset.champ = 'lienPaiement';
+  lienPaiementValeurPrecedente = (c.lienPaiement || '').trim();
 
   $('modale-paiement-devis-zone').innerHTML = c.referenceDevis
     ? `<label for="modale-paiement-devis">Référence devis</label>
@@ -839,7 +861,26 @@ $('modale-paiement-moyen').addEventListener('change', e => {
   enregistrer(e.target);
   $('modale-paiement-lien').disabled = e.target.value !== 'Paiement en ligne (CB)';
 });
-$('modale-paiement-lien').addEventListener('change', e => enregistrer(e.target));
+$('modale-paiement-lien').addEventListener('change', async e => {
+  const nouvelleValeur = e.target.value.trim();
+  const ligne = parseInt(e.target.dataset.ligne, 10);
+  await enregistrer(e.target);
+
+  // On ne propose l'envoi du mail que si un lien vient d'être ajouté ou changé (pas retiré,
+  // pas juste rouvert sans y toucher) — comparé à la valeur qu'il avait à l'ouverture de la modale.
+  if(nouvelleValeur && nouvelleValeur !== lienPaiementValeurPrecedente){
+    const c = commandes.find(x => x.ligne === ligne);
+    if(confirm(`Envoyer un mail à ${c ? c.nom : 'la structure'} pour l'informer que le paiement en ligne est disponible ?`)){
+      try{
+        const r = await poster({ action:'notifier-lien-paiement', ligne });
+        etat(r.ok ? 'Mail envoyé à la structure' : (r.erreur || 'Envoi impossible'), r.ok ? 'succes' : 'erreur');
+      }catch(err){
+        etat('Envoi impossible', 'erreur');
+      }
+    }
+  }
+  lienPaiementValeurPrecedente = nouvelleValeur;
+});
 
 // Le bouton "Facturer directement"/"Faire un devis" et les champs de référence sont injectés
 // dynamiquement dans #modale-paiement-devis-zone / #modale-paiement-facture-zone —
@@ -852,7 +893,7 @@ $('modale-paiement').addEventListener('click', async e => {
   if(bDevis){
     const ligne = parseInt(bDevis.dataset.devisDirectLigne, 10);
     bDevis.disabled = true;
-    bDevis.textContent = 'Génération…';
+    bDevis.innerHTML = '<span class="spinner-etat-sombre"></span><span>Génération…</span>';
     try{
       const r = await poster({ action:'commande-devis-direct', ligne });
       if(r.ok){

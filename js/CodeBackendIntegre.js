@@ -49,6 +49,7 @@ const CLES_CONFIG = {
   MODELE_BON_LIVRAISON: 'CONFIG_MODELE_BON_LIVRAISON',
   MODELE_BON_ORIENTATION: 'CONFIG_MODELE_BON_ORIENTATION',
   MODELE_ATTESTATION_PAIEMENT: 'CONFIG_MODELE_ATTESTATION_PAIEMENT',
+  MODELE_FLOTTE_MATERIEL: 'CONFIG_MODELE_FLOTTE_MATERIEL',
   DOSSIER_ATTESTATIONS: 'CONFIG_DOSSIER_ATTESTATIONS',
   QUANTITE_MAX_DEFAUT: 'CONFIG_QUANTITE_MAX_DEFAUT',
   QUANTITE_MAX_DEFAUT_ESN: 'CONFIG_QUANTITE_MAX_DEFAUT_ESN',
@@ -169,6 +170,7 @@ const MODELE_FACTURATION = obtenirConfig('MODELE_FACTURATION', '1buUwl_I6t2MXw96
 const MODELE_BON_LIVRAISON = obtenirConfig('MODELE_BON_LIVRAISON', ''); // ID du Sheets modèle de bon de livraison
 const MODELE_BON_ORIENTATION = obtenirConfig('MODELE_BON_ORIENTATION', ''); // ID du Sheets modèle de bon d'orientation
 const MODELE_ATTESTATION_PAIEMENT = obtenirConfig('MODELE_ATTESTATION_PAIEMENT', ''); // ID du Sheets modèle d'attestation de paiement (par personne)
+const MODELE_FLOTTE_MATERIEL = obtenirConfig('MODELE_FLOTTE_MATERIEL', ''); // ID du Sheets modèle que chaque structure copie dans son propre Drive
 const DOSSIER_ATTESTATIONS = obtenirConfig('DOSSIER_ATTESTATIONS', ''); // Dossier Drive où déposer les attestations générées
 const QUANTITE_MAX_DEFAUT = parseInt(obtenirConfig('QUANTITE_MAX_DEFAUT', '5'), 10) || 5; // par produit, sauf réglage propre au produit
 const QUANTITE_MAX_DEFAUT_ESN = parseInt(obtenirConfig('QUANTITE_MAX_DEFAUT_ESN', '5'), 10) || 5; // idem, pour les structures ESN
@@ -207,6 +209,7 @@ function obtenirReglages(data) {
     modeleBonOrientation: MODELE_BON_ORIENTATION,
     modeleAttestationPaiement: MODELE_ATTESTATION_PAIEMENT,
     dossierAttestations: DOSSIER_ATTESTATIONS,
+    modeleFlotteMateriel: MODELE_FLOTTE_MATERIEL,
     quantiteMaxDefaut: QUANTITE_MAX_DEFAUT,
     quantiteMaxDefautEsn: QUANTITE_MAX_DEFAUT_ESN,
     badgeNouvelleJours: BADGE_NOUVELLE_JOURS,
@@ -390,6 +393,15 @@ function definirReglages(data) {
     definirConfig('MODELE_ATTESTATION_PAIEMENT', id);
   }
 
+  if (data.modeleFlotteMateriel !== undefined) {
+    const id = extraireIdFichier(data.modeleFlotteMateriel);
+    if (id) {
+      try { SpreadsheetApp.openById(id); }
+      catch (e) { return { ok: false, erreur: 'Ce modèle de flotte matériel est introuvable ou inaccessible avec ce compte Google' }; }
+    }
+    definirConfig('MODELE_FLOTTE_MATERIEL', id);
+  }
+
   if (data.dossierAttestations !== undefined) {
     const id = extraireIdDossierDrive(data.dossierAttestations);
     if (id) {
@@ -510,7 +522,7 @@ const ENTETES_COMMANDES = [
   'Nombre de fichiers', 'Référence devis', 'Référence facture', 'Statut comptable', 'Numéro de dépôt',
   'Devis demandé', 'Suivi Colissimo', 'Date de livraison', 'Fichier CSV tec.tech',
   'Caractéristiques matériel', 'Bon de livraison', 'Personnes bénéficiaires', 'Dernier clic lien de paiement',
-  'Jeton validation logistique'
+  'Jeton validation logistique', 'Date de livraison souhaitée', 'Paiement séparé'
 ];
 
 const STATUTS_COMPTABLES = ['Non rapproché', 'Rapproché', 'Clôturé'];
@@ -521,7 +533,7 @@ const ENTETES_DEVIS = [
   'Statut', 'Référence facture'
 ];
 
-const ENTETES_STRUCTURES = ['Code', 'Nom', 'Email', 'Téléphone', 'Adresse', 'RN', 'ESN', 'Interne'];
+const ENTETES_STRUCTURES = ['Code', 'Nom', 'Email', 'Téléphone', 'Adresse', 'RN', 'ESN', 'Interne', 'Lien flotte matériel'];
 
 const ENTETES_PRODUITS = ['Nom', 'Prix standard', 'Prix RN', 'Stock', 'Visible', 'Message si épuisé', 'Disque dur', 'RAM', 'Système', 'Icône', 'Quantité max', 'SKU Tech.tec'];
 
@@ -617,13 +629,13 @@ function doGet(e) {
   if (p.action === 'clic-lien-paiement') {
     let r = { ok: false };
     try {
-      r = enregistrerClicLienPaiement(p.ref);
+      r = enregistrerClicLienPaiement(p.ref, p.index);
     } catch (err) {
       Logger.log('Échec traçage clic lien de paiement pour ' + p.ref + ' : ' + err);
     }
     const style = 'font-family:sans-serif;max-width:420px;margin:70px auto;text-align:center;padding:0 20px';
     const html = r.ok
-      ? '<div style="' + style + '"><h1 style="font-size:20px">' + echapperHtml(r.reference) + '</h1>' +
+      ? '<div style="' + style + '"><h1 style="font-size:20px">' + echapperHtml(r.reference) + (r.beneficiaire ? ' — ' + echapperHtml(r.beneficiaire) : '') + '</h1>' +
         '<p style="color:#555">' + (r.structure ? echapperHtml(r.structure) + ' — ' : '') + 'clique ci-dessous pour accéder au règlement.</p>' +
         '<a href="' + echapperHtml(r.url) + '" style="display:inline-block;margin-top:18px;padding:13px 30px;background:#0B5FFF;color:#fff;border-radius:8px;text-decoration:none;font-weight:600">Accéder au paiement</a></div>'
       : '<div style="' + style + '"><h1 style="font-size:20px">Lien introuvable</h1>' +
@@ -631,19 +643,17 @@ function doGet(e) {
     return HtmlService.createHtmlOutput(html);
   }
 
-  // Lien cliqué depuis le mail de validation logistique — page HTML lisible directement,
-  // pas de redirection : c'est la destination finale du clic.
+  // Lien cliqué depuis le mail de validation logistique — affiche un petit formulaire
+  // (quantités modifiables + commentaire) plutôt que de valider tout de suite : la
+  // validation elle-même se fait via un appel POST déclenché par ce formulaire.
   if (p.action === 'confirmer-validation-logistique') {
-    let resultat;
+    let html;
     try {
-      resultat = confirmerValidationLogistique(p.ref, p.jeton);
+      html = construirePageValidationLogistique(p.ref, p.jeton);
     } catch (err) {
-      resultat = { ok: false, erreur: String(err) };
+      html = '<div style="font-family:sans-serif;max-width:420px;margin:70px auto;text-align:center;padding:0 20px"><h1 style="font-size:20px">Erreur</h1><p style="color:#555">' + echapperHtml(String(err)) + '</p></div>';
     }
-    const message = resultat.ok
-      ? '<h1 style="font-family:sans-serif">Commande ' + echapperHtml(resultat.reference) + ' validée ✅</h1><p style="font-family:sans-serif">Elle passe à l\\'étape suivante (préparation).</p>'
-      : '<h1 style="font-family:sans-serif">Validation impossible</h1><p style="font-family:sans-serif">' + echapperHtml(resultat.erreur || 'Erreur inconnue') + '</p>';
-    return HtmlService.createHtmlOutput(message);
+    return HtmlService.createHtmlOutput(html);
   }
 
   let res;
@@ -661,6 +671,8 @@ function doGet(e) {
       res = verifierCode(p.code);
     } else if (p.action === 'commandes-par-code') {
       res = listerCommandesParCode(p);
+    } else if (p.action === 'flotte-obtenir') {
+      res = flotteObtenir(p);
     } else if (p.action === 'sav-par-numero-serie') {
       res = listerTicketsSavParNumeroSerie(p);
     } else if (p.action === 'sav-par-code') {
@@ -747,6 +759,14 @@ function doPost(e) {
       res = creerCommandeManuelle(data);
     } else if (data.action === 'demander-validation-logistique') {
       res = demanderValidationLogistique(data);
+    } else if (data.action === 'valider-avec-modifications') {
+      res = validerCommandeAvecModifications(data);
+    } else if (data.action === 'notifier-lien-paiement') {
+      res = notifierLienPaiement(data);
+    } else if (data.action === 'flotte-lier') {
+      res = flotteLier(data);
+    } else if (data.action === 'flotte-actualiser') {
+      res = flotteActualiser(data);
     } else if (data.action === 'commande-delete') {
       res = supprimerCommande(data);
     } else if (data.action === 'devis-create') {
@@ -862,7 +882,8 @@ function lireStructures() {
       adresse:   String(lignes[i][4] || '').trim(),
       rn:        lignes[i][5] === true || String(lignes[i][5]).trim().toUpperCase() === 'TRUE',
       esn:       lignes[i][6] === true || String(lignes[i][6]).trim().toUpperCase() === 'TRUE',
-      interne:   lignes[i][7] === true || String(lignes[i][7]).trim().toUpperCase() === 'TRUE'
+      interne:   lignes[i][7] === true || String(lignes[i][7]).trim().toUpperCase() === 'TRUE',
+      lienFlotte: String(lignes[i][8] || '').trim()
     };
   }
   return structures;
@@ -969,6 +990,133 @@ function supprimerStructure(data) {
   if (data.password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
   feuilleStructures().deleteRow(data.ligne);
   return { ok: true };
+}
+
+/* ══════════════ Flotte matériel (inventaire léger tenu par chaque structure) ══════════════
+   Le tableau appartient entièrement à la structure : elle le crée en copiant notre modèle
+   dans son propre Drive, le partage en modification par lien, puis nous donne l'URL une seule
+   fois pour qu'on le pré-remplisse avec les appareils déjà livrés. Aucun accès permanent de
+   notre côté après ça — juste l'URL, gardée pour permettre une actualisation ultérieure si
+   la structure le souhaite (bouton "Actualiser"). */
+
+const ENTETES_FLOTTE = ['Numéro de série', 'Personne', 'Statut', 'Date de livraison', 'Date de vente', 'Payé', 'Lien de paiement'];
+const STATUTS_FLOTTE = ['En stock', 'Vendu', 'En SAV'];
+
+/** Renvoie de quoi afficher le bouton "Gérer ma flotte" côté portail : soit le lien déjà
+ *  enregistré (tableau déjà lié), soit le lien de copie du modèle si rien n'est encore lié. */
+function flotteObtenir(data) {
+  const structure = lireStructures()[String(data.code || '').trim()];
+  if (!structure) return { ok: false, erreur: 'Code inconnu' };
+
+  if (structure.lienFlotte) {
+    return { ok: true, lienFlotte: structure.lienFlotte };
+  }
+  if (!MODELE_FLOTTE_MATERIEL) {
+    return { ok: true, lienFlotte: '', lienModele: '' }; // pas encore configuré côté admin
+  }
+  return { ok: true, lienFlotte: '', lienModele: 'https://docs.google.com/spreadsheets/d/' + MODELE_FLOTTE_MATERIEL + '/copy' };
+}
+
+/** Appelée une fois que la structure a copié le modèle, l'a partagé en modification, et colle
+ *  l'URL de sa copie. Vérifie qu'on peut bien y accéder (donc que le partage est fait), puis
+ *  pré-remplit avec tous les appareils déjà livrés à cette structure. */
+function flotteLier(data) {
+  const code = String(data.code || '').trim();
+  const structure = lireStructures()[code];
+  if (!structure) return { ok: false, erreur: 'Code inconnu' };
+
+  const id = extraireIdFichier(data.lienFlotte);
+  if (!id) return { ok: false, erreur: 'Lien invalide' };
+
+  let feuilleFlotte;
+  try {
+    const classeurFlotte = SpreadsheetApp.openById(id);
+    feuilleFlotte = classeurFlotte.getSheets()[0];
+  } catch (e) {
+    return { ok: false, erreur: 'Impossible d\\'accéder à ce tableau — vérifie qu\\'il est bien partagé en modification via le lien (Partager → "Toute personne disposant du lien" → Éditeur), puis réessaie.' };
+  }
+
+  feuilleStructures().getRange(structure.ligne, 9).setValue(data.lienFlotte);
+
+  let resultat;
+  try {
+    resultat = synchroniserFlotteMateriel(code, feuilleFlotte);
+  } catch (e) {
+    return { ok: true, ajoutes: 0, avertissement: 'Tableau lié, mais le pré-remplissage a échoué : ' + e.message };
+  }
+  return { ok: true, ajoutes: resultat.ajoutes };
+}
+
+/** Rappelable à tout moment par la structure (bouton "Actualiser") pour récupérer les
+ *  appareils livrés depuis la dernière synchronisation — n'ajoute jamais de doublon (comparé
+ *  aux numéros de série déjà présents en colonne A) et ne touche jamais aux lignes existantes. */
+function flotteActualiser(data) {
+  const code = String(data.code || '').trim();
+  const structure = lireStructures()[code];
+  if (!structure) return { ok: false, erreur: 'Code inconnu' };
+  if (!structure.lienFlotte) return { ok: false, erreur: 'Aucun tableau flotte lié pour le moment' };
+
+  const id = extraireIdFichier(structure.lienFlotte);
+  let feuilleFlotte;
+  try {
+    feuilleFlotte = SpreadsheetApp.openById(id).getSheets()[0];
+  } catch (e) {
+    return { ok: false, erreur: 'Impossible d\\'accéder au tableau — l\\'accès a peut-être été retiré côté partage.' };
+  }
+
+  const resultat = synchroniserFlotteMateriel(code, feuilleFlotte);
+  return { ok: true, ajoutes: resultat.ajoutes };
+}
+
+/** Cœur de la synchronisation : une ligne par numéro de série livré à cette structure et pas
+ *  déjà présent dans le tableau. Le nom de la personne, la date de vente et le statut détaillé
+ *  restent entièrement à la main de la structure — on ne les écrase jamais. */
+function synchroniserFlotteMateriel(codeStructure, feuilleFlotte) {
+  if (feuilleFlotte.getLastRow() === 0) {
+    feuilleFlotte.appendRow(ENTETES_FLOTTE);
+    feuilleFlotte.getRange(1, 1, 1, ENTETES_FLOTTE.length).setFontWeight('bold');
+  }
+
+  // Liste déroulante sur toute la colonne Statut (au-delà des lignes déjà remplies, pour
+  // que les prochains ajouts — d'ici ou faits à la main par la structure — en bénéficient
+  // aussi). Repose la règle à chaque synchronisation : sans effet si elle est déjà en place.
+  const colonneStatut = ENTETES_FLOTTE.indexOf('Statut') + 1;
+  const regleStatut = SpreadsheetApp.newDataValidation().requireValueInList(STATUTS_FLOTTE, true).setAllowInvalid(true).build();
+  feuilleFlotte.getRange(2, colonneStatut, Math.max(feuilleFlotte.getMaxRows() - 1, 500)).setDataValidation(regleStatut);
+
+  const donneesExistantes = feuilleFlotte.getDataRange().getValues();
+  const seriesDejaPresentes = {};
+  for (let i = 1; i < donneesExistantes.length; i++) {
+    const s = String(donneesExistantes[i][0] || '').trim();
+    if (s) seriesDejaPresentes[s] = true;
+  }
+
+  const lignesCommandes = feuilleCommandes().getDataRange().getValues();
+  const nouvellesLignes = [];
+
+  for (let i = 1; i < lignesCommandes.length; i++) {
+    const l = lignesCommandes[i];
+    if (!l[0] || String(l[2]).trim() !== codeStructure) continue;
+    if (l[11] !== 'Livrée') continue;
+
+    const numerosSerie = String(l[15] || '').split('\\n').map(function(s) { return s.trim(); }).filter(Boolean);
+    if (!numerosSerie.length) continue;
+
+    const dateLivraison = l[23] ? Utilities.formatDate(new Date(l[23]), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '';
+    const paye = l[12] === 'Payé' ? 'Oui' : 'Non';
+    const lienPaiement = String(l[13] || '').split('\\n')[0] || ''; // premier lien si plusieurs (paiement séparé) : au moins une base à corriger à la main
+
+    numerosSerie.forEach(function(numeroSerie) {
+      if (seriesDejaPresentes[numeroSerie]) return;
+      seriesDejaPresentes[numeroSerie] = true;
+      nouvellesLignes.push([numeroSerie, '', 'En stock', dateLivraison, '', paye, lienPaiement]);
+    });
+  }
+
+  if (nouvellesLignes.length) {
+    feuilleFlotte.getRange(feuilleFlotte.getLastRow() + 1, 1, nouvellesLignes.length, ENTETES_FLOTTE.length).setValues(nouvellesLignes);
+  }
+  return { ajoutes: nouvellesLignes.length };
 }
 
 /**
@@ -1308,7 +1456,7 @@ function creerCommande(data) {
     : '';
   const commentaireFinal = commentaireDoublon + String(data.commentaire || '');
 
-  const resultat = inserer(structure, infosResumees.resume, infosResumees.total, data.moyenPaiement, fichiers, commentaireFinal, null, null, null, !!data.demandeDevis, data.personnes);
+  const resultat = inserer(structure, infosResumees.resume, infosResumees.total, data.moyenPaiement, fichiers, commentaireFinal, null, null, null, !!data.demandeDevis, data.personnes, data.paiementSepare);
 
   // Écrit le détail des lignes, puis décrémente le stock — chacun en un seul appel Sheets,
   // quel que soit le nombre de produits différents dans la commande.
@@ -1446,7 +1594,7 @@ function detecterCommandeDoublonRecente(codeStructure, resumeProduit) {
   return false;
 }
 
-function inserer(structure, resumeProduits, quantiteTotale, moyenPaiement, fichiers, commentaire, dateForcee, statutCommande, statutPaiement, devisDemande, personnes) {
+function inserer(structure, resumeProduits, quantiteTotale, moyenPaiement, fichiers, commentaire, dateForcee, statutCommande, statutPaiement, devisDemande, personnes, paiementSepare) {
   const feuille  = feuilleCommandes();
   const annee    = (dateForcee || new Date()).getFullYear();
   const numero   = feuille.getLastRow();
@@ -1491,7 +1639,11 @@ function inserer(structure, resumeProduits, quantiteTotale, moyenPaiement, fichi
     '', // Fichier CSV tec.tech
     '', // Caractéristiques matériel
     '', // Bon de livraison
-    (personnes && personnes.length) ? personnes.filter(function(p){ return String(p || '').trim(); }).join('\\n') : ''
+    (personnes && personnes.length) ? personnes.filter(function(p){ return String(p || '').trim(); }).join('\\n') : '',
+    '', // Dernier clic lien de paiement
+    '', // Jeton validation logistique
+    '', // Date de livraison souhaitée
+    paiementSepare === 'Oui' ? 'Oui' : 'Non'
   ]);
 
   invaliderCacheCommandes();
@@ -1951,7 +2103,9 @@ function construireBaseCommandes() {
       bonLivraison: l[26] || '',
       personnes: l[27] || '',
       dernierClicLienPaiement: l[28] ? Utilities.formatDate(new Date(l[28]), Session.getScriptTimeZone(), 'dd/MM/yyyy à HH:mm') : '',
-      validationLogistiqueEnAttente: !!l[29]
+      validationLogistiqueEnAttente: !!l[29],
+      dateLivraisonSouhaitee: (l[30] instanceof Date) ? Utilities.formatDate(l[30], Session.getScriptTimeZone(), 'dd/MM/yyyy') : String(l[30] || '').trim(),
+      paiementSepare: l[31] === 'Oui'
     });
   }
 
@@ -2061,6 +2215,8 @@ function listerCommandesParCode(data) {
       moyenPaiement:   estEsnOuInterne ? null : l[9],
       statutPaiement:  estEsnOuInterne ? null : l[12],
       lienPaiement:    estEsnOuInterne ? '' : (l[13] || ''),
+      paiementSepare:  l[31] === 'Oui',
+      personnes:       l[27] || '',
       bonLivraison:    urlExportPdfDepuisUrlSheets(l[26]),
       commentaire:     l[11] === 'Annulée' ? (l[14] || '') : ''
     });
@@ -2069,10 +2225,12 @@ function listerCommandesParCode(data) {
   return { ok: true, nomStructure: structure.nom, commandes: commandes.reverse() };
 }
 
-/** Appelée quand une structure clique le lien "Régler cette commande" dans suivi.html.
+/** Appelée quand une structure clique un lien "Régler cette commande" dans suivi.html.
  *  Trace l'horodatage du clic (colonne 29) pour signaler à l'admin qu'il faut vérifier le
- *  paiement, puis renvoie de quoi construire la page de confirmation (voir Routeur.gs). */
-function enregistrerClicLienPaiement(reference) {
+ *  paiement, puis renvoie de quoi construire la page de confirmation (voir Routeur.gs).
+ *  \`index\` distingue quel lien a été cliqué quand plusieurs bénéficiaires règlent séparément
+ *  (un lien par ligne dans la colonne, dans le même ordre que les personnes) — 0 par défaut. */
+function enregistrerClicLienPaiement(reference, index) {
   const ref = String(reference || '').trim();
   if (!ref) return { ok: false };
 
@@ -2082,8 +2240,11 @@ function enregistrerClicLienPaiement(reference) {
     if (String(lignes[i][0]).trim() !== ref) continue;
     feuille.getRange(i + 1, 29).setValue(new Date());
     invaliderCacheCommandes();
-    const url = String(lignes[i][13] || '').trim(); // colonne 14 : Lien de paiement
-    return { ok: !!url, url: url, reference: ref, structure: lignes[i][3] || '' };
+    const liens = String(lignes[i][13] || '').split('\\n').map(function(s) { return s.trim(); }).filter(Boolean);
+    const idx = parseInt(index, 10) || 0;
+    const url = liens[idx] || liens[0] || '';
+    const personnesListe = String(lignes[i][27] || '').split('\\n').map(function(s) { return s.trim(); }).filter(Boolean);
+    return { ok: !!url, url: url, reference: ref, structure: lignes[i][3] || '', beneficiaire: personnesListe[idx] || '' };
   }
   return { ok: false };
 }
@@ -2110,10 +2271,21 @@ function demanderValidationLogistique(data) {
   const urlValidation = ScriptApp.getService().getUrl() + '?action=confirmer-validation-logistique&ref='
     + encodeURIComponent(c[0]) + '&jeton=' + encodeURIComponent(jeton);
 
+  const dateSouhaitee = c[30];
+  let ligneDateSouhaitee = '';
+  if (dateSouhaitee === 'ASAP') {
+    ligneDateSouhaitee = 'Livraison souhaitée : ⚡ le plus rapidement possible\\n\\n';
+  } else if (dateSouhaitee instanceof Date) {
+    ligneDateSouhaitee = 'Livraison souhaitée : ' + Utilities.formatDate(dateSouhaitee, Session.getScriptTimeZone(), 'dd/MM/yyyy') + '\\n\\n';
+  } else if (dateSouhaitee) {
+    ligneDateSouhaitee = 'Livraison souhaitée : ' + dateSouhaitee + '\\n\\n';
+  }
+
   const corps = 'Bonjour,\\n\\nUne commande attend une validation logistique avant préparation :\\n\\n'
     + 'Référence : ' + c[0] + '\\n'
     + 'Structure : ' + c[3] + '\\n'
     + 'Adresse : ' + c[6] + '\\n\\n'
+    + ligneDateSouhaitee
     + 'Matériel demandé :\\n' + detailTexte + '\\n\\n'
     + 'Pour valider cette commande et la faire passer à l\\'étape suivante, cliquez ce lien :\\n'
     + urlValidation + '\\n\\nCordialement,\\n' + NOM_ORGANISATION;
@@ -2123,34 +2295,210 @@ function demanderValidationLogistique(data) {
   return { ok: true };
 }
 
-/** Appelée par le clic sur le lien du mail ci-dessus. Ne renvoie jamais de JSON — voir
- *  Routeur.gs, la route retourne une page HTML lisible directement dans le navigateur. */
-function confirmerValidationLogistique(reference, jetonRecu) {
+/** Vérifie qu'un jeton correspond bien à une commande encore au statut "Reçue" avec ce jeton
+ *  non consommé. Renvoie la ligne de la feuille (1-indexé) ou 0 si invalide — jamais d'erreur
+ *  levée, pour que les appelants (page publique) restent simples à écrire. */
+function ligneCommandeSiJetonValide(reference, jetonRecu) {
   const ref = String(reference || '').trim();
   const jeton = String(jetonRecu || '').trim();
-  if (!ref || !jeton) return { ok: false, erreur: 'Lien invalide' };
-
-  const feuille = feuilleCommandes();
-  const lignes = feuille.getDataRange().getValues();
+  if (!ref || !jeton) return 0;
+  const lignes = feuilleCommandes().getDataRange().getValues();
   for (let i = 1; i < lignes.length; i++) {
     if (String(lignes[i][0]).trim() !== ref) continue;
     const jetonEnBase = String(lignes[i][29] || '');
-    if (!jetonEnBase || jetonEnBase !== jeton) {
-      return { ok: false, erreur: 'Ce lien a déjà été utilisé ou n\\'est plus valide' };
-    }
-    feuille.getRange(i + 1, 12).setValue('Validée'); // colonne 12 : Statut commande
-    feuille.getRange(i + 1, 30).setValue('');        // jeton consommé
-
-    // Devis automatique, même règle qu'un passage manuel en "Validée" — la structure a pu
-    // le demander depuis le formulaire public.
-    const devisDemande = lignes[i][21];
-    if (devisDemande === 'Oui') {
-      try { genererDevis(i + 1); } catch (e) { Logger.log('Devis auto (validation logistique) échoué pour ' + ref + ' : ' + e); }
-    }
-    invaliderCacheCommandes();
-    return { ok: true, reference: ref };
+    return (jetonEnBase && jetonEnBase === jeton) ? i + 1 : 0;
   }
-  return { ok: false, erreur: 'Commande introuvable' };
+  return 0;
+}
+
+/** Données nécessaires pour afficher le formulaire de validation logistique (voir Routeur.gs) :
+ *  détail des lignes produit/quantité modifiables, et infos d'affichage. Lignes issues d'une
+ *  commande antérieure à LignesCommande (ligne=null) ne sont pas modifiables individuellement
+ *  ici — juste affichées, pour rester simple. */
+function donneesPageValidationLogistique(reference, jetonRecu) {
+  const ligneCmd = ligneCommandeSiJetonValide(reference, jetonRecu);
+  if (!ligneCmd) return { ok: false };
+  const c = feuilleCommandes().getRange(ligneCmd, 1, 1, ENTETES_COMMANDES.length).getValues()[0];
+  const lignesDetail = lireLignesCommande(c[0], c[7], c[8]);
+  return {
+    ok: true,
+    reference: c[0],
+    structure: c[3],
+    adresse: c[6],
+    lignes: lignesDetail,
+    commentaire: c[14] || ''
+  };
+}
+
+/** Appelée depuis la page de validation logistique : applique les éventuelles modifications
+ *  de quantité, ajoute le commentaire laissé, puis valide la commande (même effet que l'ancien
+ *  clic direct). Jamais de mot de passe ici — c'est le jeton qui fait foi. */
+function validerCommandeAvecModifications(data) {
+  const ligneCmd = ligneCommandeSiJetonValide(data.ref, data.jeton);
+  if (!ligneCmd) return { ok: false, erreur: 'Ce lien a déjà été utilisé ou n\\'est plus valide' };
+
+  const feuille = feuilleCommandes();
+  const c = feuille.getRange(ligneCmd, 1, 1, ENTETES_COMMANDES.length).getValues()[0];
+  const referenceCommande = c[0];
+  const produits = lireProduits();
+
+  const modifications = Array.isArray(data.lignes) ? data.lignes : [];
+  modifications.forEach(function(mod) {
+    const ligneDetail = parseInt(mod.ligne, 10);
+    const nouvelleQuantite = parseInt(mod.quantite, 10);
+    if (!ligneDetail || !nouvelleQuantite || nouvelleQuantite < 1) return; // ligne non modifiable, ou valeur invalide : on l'ignore plutôt que de bloquer toute la validation
+
+    const feuilleLignes = feuilleLignesCommande();
+    const valeursActuelles = feuilleLignes.getRange(ligneDetail, 1, 1, 3).getValues()[0];
+    if (String(valeursActuelles[0]).trim() !== referenceCommande) return; // sécurité : cette ligne détail n'appartient pas à cette commande
+    const nomProduit = valeursActuelles[1];
+    const ancienneQuantite = parseInt(valeursActuelles[2], 10) || 0;
+    if (nouvelleQuantite === ancienneQuantite) return;
+
+    const produit = produits[nomProduit];
+    if (produit) {
+      const stockDisponible = produit.stock + ancienneQuantite;
+      if (stockDisponible < nouvelleQuantite) return; // pas assez de stock : on laisse la quantité initiale plutôt que de bloquer
+      ajusterStock(nomProduit, ancienneQuantite - nouvelleQuantite);
+    }
+    feuilleLignes.getRange(ligneDetail, 3).setValue(nouvelleQuantite);
+  });
+  if (modifications.length) recalculerResumeCommande(ligneCmd, referenceCommande);
+
+  const commentaireAjoute = String(data.commentaire || '').trim();
+  if (commentaireAjoute) {
+    const commentaireExistant = String(feuille.getRange(ligneCmd, 15).getValue() || '').trim();
+    feuille.getRange(ligneCmd, 15).setValue(
+      (commentaireExistant ? commentaireExistant + '\\n\\n' : '') + '[Logistique] ' + commentaireAjoute
+    );
+  }
+
+  feuille.getRange(ligneCmd, 12).setValue('Validée'); // colonne 12 : Statut commande
+  feuille.getRange(ligneCmd, 30).setValue('');        // jeton consommé
+
+  // Devis automatique, même règle qu'un passage manuel en "Validée" — la structure a pu
+  // le demander depuis le formulaire public.
+  const devisDemande = feuille.getRange(ligneCmd, 22).getValue();
+  if (devisDemande === 'Oui') {
+    try { genererDevis(ligneCmd); } catch (e) { Logger.log('Devis auto (validation logistique) échoué pour ' + referenceCommande + ' : ' + e); }
+  }
+
+  invaliderCacheCommandes();
+  return { ok: true, reference: referenceCommande };
+}
+
+/** Envoyé manuellement par l'admin (avec confirmation côté front) quand un lien de paiement
+ *  vient d'être ajouté ou changé sur une commande — passe par la route tracée, comme le lien
+ *  affiché dans suivi.html, pour que le clic depuis ce mail soit tracé lui aussi. */
+function notifierLienPaiement(data) {
+  if (data.password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
+
+  const ligne = parseInt(data.ligne, 10);
+  const c = feuilleCommandes().getRange(ligne, 1, 1, ENTETES_COMMANDES.length).getValues()[0];
+  if (!c[0]) return { ok: false, erreur: 'Commande introuvable' };
+
+  const email = String(c[4] || '').trim();
+  const lien = String(c[13] || '').trim();
+  if (!email) return { ok: false, erreur: 'Aucun email connu pour cette structure' };
+  if (!lien) return { ok: false, erreur: 'Aucun lien de paiement enregistré' };
+
+  const paiementSepare = c[31] === 'Oui';
+  const personnesListe = String(c[27] || '').split('\\n').map(function(s) { return s.trim(); }).filter(Boolean);
+  const liensListe = lien.split('\\n').map(function(s) { return s.trim(); }).filter(Boolean);
+
+  let corpsLiens;
+  if (paiementSepare && liensListe.length > 1) {
+    corpsLiens = liensListe.map(function(_, idx) {
+      const urlTracee = ScriptApp.getService().getUrl() + '?action=clic-lien-paiement&ref=' + encodeURIComponent(c[0]) + '&index=' + idx;
+      return '- ' + (personnesListe[idx] || 'Bénéficiaire ' + (idx + 1)) + ' : ' + urlTracee;
+    }).join('\\n');
+  } else {
+    const urlTracee = ScriptApp.getService().getUrl() + '?action=clic-lien-paiement&ref=' + encodeURIComponent(c[0]);
+    corpsLiens = urlTracee;
+  }
+
+  const corps = 'Bonjour,\\n\\nLe paiement en ligne de votre commande ' + c[0] + ' est maintenant disponible.\\n\\n'
+    + (paiementSepare && liensListe.length > 1
+      ? 'Un lien de règlement par bénéficiaire :\\n' + corpsLiens
+      : 'Vous pouvez la régler directement ici :\\n' + corpsLiens)
+    + '\\n\\nCordialement,\\n' + NOM_ORGANISATION;
+
+  MailApp.sendEmail(email, 'Paiement disponible — commande ' + c[0], corps);
+  return { ok: true };
+}
+
+/** Construit la page HTML affichée au clic sur le lien du mail de validation logistique :
+ *  quantités modifiables (pour les lignes qui le permettent), commentaire libre, et un bouton
+ *  qui valide la commande par un appel POST vers ce même script (jeton en guise d'auth). */
+function construirePageValidationLogistique(reference, jetonRecu) {
+  const donnees = donneesPageValidationLogistique(reference, jetonRecu);
+
+  if (!donnees.ok) {
+    return \`<div style="font-family:sans-serif;max-width:420px;margin:70px auto;text-align:center;padding:0 20px">
+      <h1 style="font-size:20px">Lien invalide</h1>
+      <p style="color:#555">Ce lien a déjà été utilisé, ou la commande n'est plus en attente de validation.</p>
+    </div>\`;
+  }
+
+  const lignesHtml = donnees.lignes.map(function(l, i) {
+    const champQuantite = l.ligne
+      ? \`<input type="number" min="1" value="\${l.quantite}" data-ligne-detail="\${l.ligne}" style="width:64px;padding:6px;border:1px solid #D8DEE4;border-radius:6px;font-size:14px">\`
+      : \`<span style="color:#8592A0">\${l.quantite}</span>\`; // commande ancienne, sans ligne détail modifiable individuellement
+    return \`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;\${i > 0 ? 'border-top:1px solid #EEF1F4' : ''}">
+      <span>\${echapperHtml(l.produit)}</span>\${champQuantite}
+    </div>\`;
+  }).join('');
+
+  const urlScript = ScriptApp.getService().getUrl();
+  const refJson = JSON.stringify(donnees.reference);
+  const jetonJson = JSON.stringify(jetonRecu);
+  const urlJson = JSON.stringify(urlScript);
+
+  return \`<div style="font-family:sans-serif;max-width:460px;margin:50px auto;padding:0 20px;color:#1A2733">
+    <h1 style="font-size:19px;margin-bottom:4px">Validation logistique</h1>
+    <p style="color:#555;margin-top:0">\${echapperHtml(donnees.reference)} — \${echapperHtml(donnees.structure)}</p>
+    <p style="color:#8592A0;font-size:13px">\${echapperHtml(donnees.adresse)}</p>
+    <div style="margin-top:18px">\${lignesHtml}</div>
+    <label style="display:block;margin-top:18px;font-size:13px;font-weight:600">Commentaire (optionnel)</label>
+    <textarea id="commentaire-logistique" rows="3" style="width:100%;margin-top:6px;padding:8px;border:1px solid #D8DEE4;border-radius:6px;font-size:14px;box-sizing:border-box;font-family:inherit"></textarea>
+    <div id="retour-validation" style="margin-top:12px;font-size:13px"></div>
+    <button id="btn-valider" style="width:100%;margin-top:14px;padding:13px;background:#0B5FFF;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer">Valider cette commande</button>
+    <script>
+      document.getElementById('btn-valider').addEventListener('click', function(){
+        var bouton = this;
+        bouton.disabled = true;
+        bouton.textContent = 'Validation…';
+        var lignes = Array.prototype.map.call(document.querySelectorAll('[data-ligne-detail]'), function(i){
+          return { ligne: i.dataset.ligneDetail, quantite: i.value };
+        });
+        fetch(\${urlJson}, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'valider-avec-modifications',
+            ref: \${refJson},
+            jeton: \${jetonJson},
+            lignes: lignes,
+            commentaire: document.getElementById('commentaire-logistique').value
+          })
+        }).then(function(r){ return r.json(); }).then(function(r){
+          if(r.ok){
+            document.body.innerHTML = '<div style="font-family:sans-serif;max-width:460px;margin:70px auto;text-align:center;padding:0 20px">'
+              + '<h1 style="font-size:20px">Commande ' + r.reference + ' validée ✅</h1>'
+              + '<p style="color:#555">Elle passe à l\\\\'étape suivante (préparation).</p></div>';
+          } else {
+            document.getElementById('retour-validation').innerHTML = '<span style="color:#C0392B">' + (r.erreur || 'Erreur inconnue') + '</span>';
+            bouton.disabled = false;
+            bouton.textContent = 'Valider cette commande';
+          }
+        }).catch(function(){
+          document.getElementById('retour-validation').innerHTML = '<span style="color:#C0392B">Validation impossible — réessaie.</span>';
+          bouton.disabled = false;
+          bouton.textContent = 'Valider cette commande';
+        });
+      });
+    </script>
+  </div>\`;
 }
 
 function supprimerCommande(data) {
@@ -2176,7 +2524,8 @@ function majCommande(data) {
     colissimo:        23,
     dateLivraison:    24,
     csvTectech:       25,
-    caracteristiquesMateriel: 26
+    caracteristiquesMateriel: 26,
+    dateLivraisonSouhaitee: 31
   };
 
   const colonne = colonnes[data.champ];
@@ -2207,10 +2556,11 @@ function majCommande(data) {
       if (data.valeur === 'Préparée') {
         const structurePourControle = lireStructures()[String(ligneActuellePourControle[2]).trim()];
         const estInterne = !!(structurePourControle && structurePourControle.interne);
-        const numerosSerieRenseignes = String(ligneActuellePourControle[15] || '').trim().length > 0;
+        const numerosSerieListe = String(ligneActuellePourControle[15] || '').split('\\n').map(function(s) { return s.trim(); }).filter(Boolean);
+        const quantiteAttendue = parseInt(ligneActuellePourControle[8], 10) || 0;
         const facturationOk = estInterne || ligneActuellePourControle[17] || ligneActuellePourControle[18]; // devis ou facture
-        if (!numerosSerieRenseignes) {
-          return { ok: false, erreur: 'Renseigne d\\'abord au moins un numéro de série avant de passer cette commande en Préparée.' };
+        if (numerosSerieListe.length !== quantiteAttendue) {
+          return { ok: false, erreur: 'Il faut exactement ' + quantiteAttendue + ' numéro' + (quantiteAttendue > 1 ? 's' : '') + ' de série (un par appareil) avant de passer cette commande en Préparée — il y en a actuellement ' + numerosSerieListe.length + '.' };
         }
         if (!facturationOk) {
           return { ok: false, erreur: 'Génère d\\'abord un devis ou une facture avant de passer cette commande en Préparée (sauf structure Interne).' };

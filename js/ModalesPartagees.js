@@ -1,3 +1,74 @@
+/* ══════════════ MODALE : DATE DE LIVRAISON SOUHAITÉE ══════════════ */
+
+let dateSouhaiteeLigneCourante = null;
+let dateSouhaiteeContexteEnvoi = false;
+
+function ouvrirModaleDateSouhaitee(ligne, contexteEnvoi){
+  const c = commandes.find(x => x.ligne === ligne);
+  if(!c) return;
+  dateSouhaiteeLigneCourante = ligne;
+  dateSouhaiteeContexteEnvoi = !!contexteEnvoi;
+  $('date-souhaitee-ref').textContent = c.reference + ' — ' + c.nom
+    + (contexteEnvoi ? ' — avant l\'envoi à la logistique' : '');
+  $('date-souhaitee-champ').value = (c.dateLivraisonSouhaitee && c.dateLivraisonSouhaitee !== 'ASAP')
+    ? dateLivraisonISO(c.dateLivraisonSouhaitee) : '';
+  $('retour-date-souhaitee').innerHTML = '';
+  $('date-souhaitee-confirmer').textContent = contexteEnvoi ? 'Confirmer et envoyer' : 'Confirmer';
+  $('modale-date-souhaitee').hidden = false;
+}
+
+async function validerDateSouhaitee(valeur){
+  $('retour-date-souhaitee').innerHTML = '';
+  $('date-souhaitee-confirmer').disabled = true;
+  $('date-souhaitee-urgent').disabled = true;
+  try{
+    const r = await poster({ action:'update', ligne: dateSouhaiteeLigneCourante, champ:'dateLivraisonSouhaitee', valeur });
+    if(!r.ok){
+      $('retour-date-souhaitee').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur || 'Enregistrement impossible')}</div>`;
+      $('date-souhaitee-confirmer').disabled = false;
+      $('date-souhaitee-urgent').disabled = false;
+      return;
+    }
+    const c = commandes.find(x => x.ligne === dateSouhaiteeLigneCourante);
+    if(c) c.dateLivraisonSouhaitee = valeur;
+
+    if(dateSouhaiteeContexteEnvoi){
+      const rValidation = await poster({ action:'demander-validation-logistique', ligne: dateSouhaiteeLigneCourante });
+      if(rValidation.ok){
+        if(c) c.validationLogistiqueEnAttente = true;
+        etat('Mail de validation envoyé', 'succes');
+      }else{
+        etat(rValidation.erreur || 'Envoi impossible', 'erreur');
+      }
+    }else{
+      etat('Date souhaitée enregistrée', 'succes');
+    }
+    $('modale-date-souhaitee').hidden = true;
+    rendre();
+  }catch(err){
+    $('retour-date-souhaitee').innerHTML = '<div class="msg msg-erreur">Enregistrement impossible.</div>';
+  }
+  $('date-souhaitee-confirmer').disabled = false;
+  $('date-souhaitee-urgent').disabled = false;
+}
+
+$('date-souhaitee-confirmer').addEventListener('click', () => {
+  const valeur = $('date-souhaitee-champ').value; // ISO yyyy-mm-dd, ou vide
+  if(!valeur){
+    $('retour-date-souhaitee').innerHTML = '<div class="msg msg-erreur">Choisis une date, ou clique "Le plus rapidement possible".</div>';
+    return;
+  }
+  validerDateSouhaitee(valeur);
+});
+$('date-souhaitee-urgent').addEventListener('click', () => validerDateSouhaitee('ASAP'));
+$('date-souhaitee-annuler').addEventListener('click', () => $('modale-date-souhaitee').hidden = true);
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-ouvrir-date-souhaitee]');
+  if(!b) return;
+  ouvrirModaleDateSouhaitee(parseInt(b.dataset.ouvrirDateSouhaitee, 10), false);
+});
+
 /* ══════════════ MODALE : NUMÉROS DE SÉRIE ══════════════ */
 
 let serieLigneCourante = null;
@@ -25,7 +96,7 @@ document.addEventListener('click', async e => {
   const ligne = parseInt(b.dataset.bonLivraisonLigne, 10);
   b.disabled = true;
   const contenuInitial = b.innerHTML;
-  b.innerHTML = '<span>Génération…</span>';
+  b.innerHTML = '<span class="spinner-etat-sombre"></span><span>Génération…</span>';
   try{
     const r = await poster({ action: 'commande-generer-bon-livraison', password: motDePasse, ligne: ligne });
     if(r.ok){
@@ -52,7 +123,7 @@ document.addEventListener('click', async e => {
   const ligne = parseInt(b.dataset.bonOrientationLigne, 10);
   b.disabled = true;
   const contenuInitial = b.innerHTML;
-  b.innerHTML = '<span>Génération…</span>';
+  b.innerHTML = '<span class="spinner-etat-sombre"></span><span>Génération…</span>';
   try{
     const r = await poster({ action: 'commande-generer-bon-orientation', password: motDePasse, ligne: ligne });
     if(r.ok){
@@ -79,7 +150,7 @@ document.addEventListener('click', async e => {
   const ligne = parseInt(b.dataset.attestationsLigne, 10);
   b.disabled = true;
   const contenuInitial = b.innerHTML;
-  b.innerHTML = '<span>Génération…</span>';
+  b.innerHTML = '<span class="spinner-etat-sombre"></span><span>Génération…</span>';
   try{
     const r = await poster({ action: 'commande-generer-attestations', password: motDePasse, ligne: ligne });
     if(r.ok){
@@ -453,6 +524,8 @@ $('facturer-confirmer').addEventListener('click', async () => {
     return;
   }
   $('facturer-confirmer').disabled = true;
+  const contenuInitialFacturer = $('facturer-confirmer').innerHTML;
+  $('facturer-confirmer').innerHTML = '<span class="spinner-etat-sombre"></span><span>Création…</span>';
   try{
     const r = await poster({ action:'commande-facturer-direct', ligne: facturerLigneCourante, numeroFacture });
     if(r.ok){
@@ -467,6 +540,7 @@ $('facturer-confirmer').addEventListener('click', async () => {
     $('retour-facturer').innerHTML = '<div class="msg msg-erreur">Création impossible.</div>';
   }
   $('facturer-confirmer').disabled = false;
+  $('facturer-confirmer').innerHTML = contenuInitialFacturer;
 });
 
 /* ══════════════ MODALE : NOUVELLE COMMANDE MANUELLE ══════════════ */

@@ -675,7 +675,7 @@ $('liste-factures').addEventListener('click', async e => {
     const ligne = parseInt(bPdf.dataset.genererPdf, 10);
     const zoneRetour = $('retour-pdf-' + ligne);
     bPdf.disabled = true;
-    bPdf.textContent = 'Remplissage…';
+    bPdf.innerHTML = '<span class="spinner-etat-sombre"></span><span>Remplissage…</span>';
     zoneRetour.innerHTML = '';
     try{
       const r = await poster({action:'facture-generer-pdf', password:motDePasse, ligne});

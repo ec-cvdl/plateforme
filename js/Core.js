@@ -83,7 +83,9 @@ const LIBELLES_ETAPE_SUIVANTE = {
  *  reste la seule source de vérité. */
 function conditionBloquanteEtapeSuivante(c, estInterne){
   if(c.statutCommande === 'Validée'){
-    if(!(c.numerosSerie || '').trim()) return 'Renseigne au moins un numéro de série avant de continuer.';
+    const nbSeriesSaisis = (c.numerosSerie || '').split('\n').map(s => s.trim()).filter(Boolean).length;
+    const quantiteAttendue = parseInt(c.quantite, 10) || 0;
+    if(nbSeriesSaisis !== quantiteAttendue) return `Il faut exactement ${quantiteAttendue} numéro${quantiteAttendue > 1 ? 's' : ''} de série (un par appareil) avant de continuer — il y en a actuellement ${nbSeriesSaisis}.`;
     if(!estInterne && !c.referenceDevis && !c.referenceFacture) return 'Génère un devis ou une facture avant de continuer (sauf structure Interne).';
   }
   if(c.statutCommande === 'Préparée'){
