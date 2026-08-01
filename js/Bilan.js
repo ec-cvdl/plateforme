@@ -11,10 +11,15 @@ async function chargerDonneesBilan(){
   if(bilanDonneesChargees) return; // déjà chargé une fois cette session : pas la peine de rejouer un gros téléchargement à chaque clic
   $('bilan-contenu').innerHTML = '<p class="sous-question">Chargement des statistiques…</p>';
   try{
-    const [rc, rs] = await Promise.all([
+    const promesses = [
       jsonp({action:'list', password:motDePasse, limite:0}),
       jsonp({action:'sav-list', password:motDePasse, limite:0})
-    ]);
+    ];
+    // Le Bilan utilise le tableau global "factures" (calcul du chiffre d'affaires par période) —
+    // depuis que Factures n'est plus chargé systématiquement à la connexion, on s'assure ici
+    // qu'il l'est avant de calculer, sinon le bilan financier serait silencieusement à zéro.
+    if(!facturesChargeesUneFois) promesses.push(chargerFactures(true));
+    const [rc, rs] = await Promise.all(promesses);
     if(rc.ok){ commandesBilan = rc.commandes; appliquerAgregatsCommandes(rc); }
     if(rs.ok){ savBilan = rs.tickets; appliquerAgregatsSav(rs); }
     bilanDonneesChargees = true;

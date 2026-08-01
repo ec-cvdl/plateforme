@@ -636,12 +636,13 @@ $('suppr-confirmer').addEventListener('click', async () => {
 /* ══════════════ COMPTABILITÉ ══════════════ */
 
 let compta = [];
+let comptaChargeUneFois = false;
 
 async function chargerComptabilite(silencieux){
   if(!silencieux) etat('Chargement de la comptabilité…', 'chargement');
   try{
     const r = await jsonp({action:'comptabilite', password:motDePasse});
-    if(r.ok){ compta = r.lignes; rendreComptabilite(); if(!silencieux) $('etat').classList.remove('visible'); }
+    if(r.ok){ compta = r.lignes; comptaChargeUneFois = true; rendreComptabilite(); if(!silencieux) $('etat').classList.remove('visible'); }
     else if(!silencieux) etat(r.erreur || 'Chargement de la comptabilité impossible', 'erreur');
   }catch(e){ if(!silencieux) etat('Chargement de la comptabilité impossible', 'erreur'); }
 }

@@ -69,6 +69,65 @@ function badgeStatut(statut){
     `${echapper(statut)}</span>`;
 }
 
+/** Statuts non manuels : un seul chemin possible, dans cet ordre, via le bouton "étape
+ *  suivante" de la carte (voir construireZoneEtapeSuivante). "Annulée" reste accessible à
+ *  part, depuis n'importe quelle étape non finale. */
+const LIBELLES_ETAPE_SUIVANTE = {
+  'Validée': 'Marquer préparée',
+  'Préparée': 'Marquer en livraison',
+  'En cours de livraison': 'Marquer livrée'
+};
+
+/** Vérification côté client, uniquement pour donner un message immédiat sans aller-retour
+ *  serveur — le backend revérifie tout de toute façon (majCommande dans Commandes.gs), qui
+ *  reste la seule source de vérité. */
+function conditionBloquanteEtapeSuivante(c, estInterne){
+  if(c.statutCommande === 'Validée'){
+    if(!(c.numerosSerie || '').trim()) return 'Renseigne au moins un numéro de série avant de continuer.';
+    if(!estInterne && !c.referenceDevis && !c.referenceFacture) return 'Génère un devis ou une facture avant de continuer (sauf structure Interne).';
+  }
+  if(c.statutCommande === 'Préparée'){
+    if(!c.bonLivraison) return 'Génère le bon de livraison avant de continuer.';
+    if(!(c.colissimo || '').trim()) return 'Renseigne le numéro Colissimo avant de continuer.';
+  }
+  if(c.statutCommande === 'En cours de livraison' && !c.dateLivraison) return 'Renseigne la date de livraison avant de continuer.';
+  return null;
+}
+
+/** Zone en haut à droite de la carte commande : soit le bouton d'étape suivante (ou
+ *  "Envoyer pour validation" / "Renvoyer" pour l'étape Reçue, qui déclenche un mail plutôt
+ *  qu'un changement de statut direct), soit rien pour les commandes déjà closes. Le bouton
+ *  Annuler reste accessible à côté, sauf une fois Livrée. */
+function construireZoneEtapeSuivante(c){
+  if(c.statutCommande === 'Livrée') return '';
+  const btnAnnuler = `<button type="button" class="ccm-annuler-icone" data-annuler-commande="${c.ligne}" title="Annuler la commande" aria-label="Annuler la commande">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+  </button>`;
+
+  if(c.statutCommande === 'Reçue'){
+    if(c.validationLogistiqueEnAttente){
+      return `<div class="ccm-etape-actions">
+        <span class="ccm-etape-attente">En attente de validation logistique</span>
+        <button type="button" class="ccm-etape-suivante" data-renvoyer-validation="${c.ligne}" title="Renvoyer le mail de validation">Renvoyer</button>
+        ${btnAnnuler}
+      </div>`;
+    }
+    return `<div class="ccm-etape-actions">
+      <button type="button" class="ccm-etape-suivante" data-demander-validation="${c.ligne}">Envoyer pour validation</button>
+      ${btnAnnuler}
+    </div>`;
+  }
+
+  const libelle = LIBELLES_ETAPE_SUIVANTE[c.statutCommande] || 'Étape suivante';
+  return `<div class="ccm-etape-actions">
+    <button type="button" class="ccm-etape-suivante" data-etape-suivante="${c.ligne}">
+      ${libelle}
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+    </button>
+    ${btnAnnuler}
+  </div>`;
+}
+
 const $ = id => document.getElementById(id);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
 
@@ -299,7 +358,7 @@ function jsonpVersUrl(url, params){
   return new Promise((ok, ko) => {
     const nom = 'cb' + Date.now() + Math.floor(Math.random()*1000);
     const balise = document.createElement('script');
-    const t = setTimeout(() => { nettoyer(); ko(new Error('Délai dépassé')); }, 45000);
+    const t = setTimeout(() => { nettoyer(); ko(new Error('Délai dépassé')); }, 90000);
     function nettoyer(){
       clearTimeout(t);
       // On ne supprime jamais complètement window[nom] : la balise <script> peut avoir déjà
@@ -322,7 +381,7 @@ function poster(data){
 }
 function posterVersUrl(url, data){
   const controleur = new AbortController();
-  const delai = setTimeout(() => controleur.abort(), 25000);
+  const delai = setTimeout(() => controleur.abort(), 90000);
   return fetch(url, {
     method:'POST',
     headers:{'Content-Type':'text/plain;charset=utf-8'},
@@ -429,17 +488,14 @@ async function connecter(){
         document.querySelectorAll('.separateur-onglets').forEach(s => s.hidden = true);
         $('chiffres').hidden = true;
         document.querySelector('[data-vue="comptabilite"]').click();
-        chargerComptabilite();
         return;
       }
 
       // Préchargement complet à la connexion : tout est chargé une bonne fois pour toutes,
-      // avec une barre de progression, pour que la navigation entre onglets soit ensuite
-      // instantanée (plus rien à recharger au clic).
-      const barre = $('barre-progression-connexion');
-      const remplissage = $('barre-progression-connexion-remplissage');
-      const texteProgression = $('barre-progression-connexion-texte');
-      barre.hidden = false;
+      // pour que la navigation entre onglets soit ensuite instantanée (plus rien à recharger
+      // au clic). Le loader "état" (spinner + libellé de l'étape en cours) reste affiché tout
+      // du long — pas de barre de progression séparée, une seule source de vérité visuelle.
+      etat('Chargement…', 'chargement');
 
       const etapesChargement = [
         { label: 'Commandes', fn: () => jsonp({action:'list', password:mdp, limite:LIMITE_COMMANDES_DEFAUT}).then(res => {
@@ -463,10 +519,7 @@ async function connecter(){
           }) },
         { label: 'Structures', fn: chargerStructures },
         { label: 'Produits', fn: chargerProduits },
-        { label: 'Devis', fn: () => chargerDevis(true) },
-        { label: 'Factures', fn: () => chargerFactures(true) },
-        { label: 'SAV', fn: () => chargerStatutsSav().then(() => chargerSav(true)) },
-        { label: 'Comptabilité', fn: () => chargerComptabilite(true) }
+        { label: 'SAV', fn: () => chargerStatutsSav().then(() => chargerSav(true)) }
       ];
 
       let termines = 0;
@@ -475,16 +528,13 @@ async function connecter(){
       async function lancerSuivant(){
         if(curseur >= etapesChargement.length) return;
         const etape = etapesChargement[curseur++];
+        etat('Chargement… ' + (termines + 1) + '/' + etapesChargement.length + ' (' + etape.label + ')', 'chargement');
         try{ await etape.fn(); }catch(e){ /* on continue malgré une étape en échec */ }
         termines++;
-        const pourcentage = Math.round((termines / etapesChargement.length) * 100);
-        remplissage.style.width = pourcentage + '%';
-        texteProgression.textContent = 'Chargement… ' + termines + '/' + etapesChargement.length + ' (' + etape.label + ')';
         await lancerSuivant();
       }
       await Promise.all(Array.from({length: CONCURRENCE_MAX}, lancerSuivant));
 
-      barre.hidden = true;
       $('connexion').hidden = true;
       $('app').hidden = false;
       rendre();
@@ -504,7 +554,7 @@ async function connecter(){
   }catch(e){
     $('retour-connexion').innerHTML = '<div class="msg msg-erreur">Connexion impossible. Vérifiez l\'URL du script.</div>';
   }
-  $('barre-progression-connexion').hidden = true;
+  $('etat').classList.remove('visible');
   $('btn-connexion').disabled = false;
   $('btn-connexion').textContent = 'Ouvrir le suivi';
 }
@@ -554,6 +604,12 @@ document.querySelector('.onglets').addEventListener('click', e => {
   $('vue-comptabilite').hidden = b.dataset.vue !== 'comptabilite';
   $('vue-bilan').hidden = b.dataset.vue !== 'bilan';
   if(b.dataset.vue === 'bilan'){ chargerDonneesBilan().then(() => { rendreBilan(); rendreBilanSav(); }); }
+  // Rechargé depuis l'API à chaque ouverture (pas de cache) : une erreur de stock ici a un
+  // impact logistique direct, mieux vaut un aller-retour réseau de plus qu'un chiffre périmé.
+  if(b.dataset.vue === 'produits'){ etat('Actualisation du stock…', 'chargement'); chargerProduits().then(() => etat('Stock à jour', 'succes')); }
+  if(b.dataset.vue === 'devis' && !devisChargeUneFois) chargerDevis();
+  if(b.dataset.vue === 'factures' && !facturesChargeesUneFois) chargerFactures();
+  if(b.dataset.vue === 'comptabilite' && !comptaChargeUneFois) chargerComptabilite();
   $('vue-reglages').hidden = b.dataset.vue !== 'reglages';
   if(b.dataset.vue === 'reglages') chargerReglages();
 });

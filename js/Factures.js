@@ -1,6 +1,7 @@
 /* ══════════════ FACTURES ══════════════ */
 
 let factures = [];
+let facturesChargeesUneFois = false;
 let sav = [];
 const LIMITE_SAV_DEFAUT = 20;
 let limiteSavActuelle = LIMITE_SAV_DEFAUT;
@@ -13,7 +14,7 @@ async function chargerFactures(silencieux){
   if(!silencieux) etat('Chargement des factures…', 'chargement');
   try{
     const r = await jsonp({action:'factures', password:motDePasse});
-    if(r.ok){ factures = r.factures; rendreFactures(); }
+    if(r.ok){ factures = r.factures; facturesChargeesUneFois = true; rendreFactures(); }
     if(!silencieux) $('etat').classList.remove('visible');
   }catch(e){ if(!silencieux) etat('Chargement des factures impossible', 'erreur'); }
 }

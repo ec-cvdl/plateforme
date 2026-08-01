@@ -202,6 +202,9 @@ function rendre(){
     const alerteDoublon = String(c.commentaire || '').startsWith('⚠️ DOUBLON POTENTIEL DÉTECTÉ')
       ? `<div class="ccm-alerte">⚠️ Doublon potentiel détecté — vérifier les précédentes commandes de cette structure</div>` : '';
 
+    const alerteLienPaiementClique = (!estEsnCommande && c.dernierClicLienPaiement && c.statutPaiement !== 'Payé' && c.statutPaiement !== 'Remboursé')
+      ? `<div class="ccm-alerte">Lien de paiement consulté le ${echapper(c.dernierClicLienPaiement)} — vérifier le statut du paiement</div>` : '';
+
     const badgeNouvelle = (c.statutCommande === 'Reçue' && estNouvelleCommande(c.date, c.heure))
       ? '<div class="badge-nouvelle">NEW</div>' : '';
 
@@ -212,13 +215,33 @@ function rendre(){
       ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONES_STATUT[c.statutCommande]}</svg>`
       : '';
 
+    const zoneEtapeSuivante = estAnnulee ? '' : construireZoneEtapeSuivante(c);
+
+    const pilule = (classe, svgPath, libelle, remplie, dataAttr) => `
+      <button type="button" class="ccm-pilule-mini ${classe}${remplie ? ' pilule-remplie' : ''}" ${dataAttr}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svgPath}</svg>
+        <span>${libelle}</span>
+      </button>`;
+    const pilulesBas = estAnnulee ? '' : `
+      <div class="ccm-pilules-bas">
+        ${pilule('ccm-pilule-commentaire', '<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>', 'Commentaire', !!(c.commentaire || '').trim(), `data-commentaire-ligne="${c.ligne}" data-commentaire-valeur="${echapper(c.commentaire)}"`)}
+        ${pilule('ccm-pilule-serie', '<path d="M4 7h13l3 3.5-3 3.5H4z"/><circle cx="8" cy="10.5" r="0.9" fill="currentColor" stroke="none"/>', 'N° série', !!(c.numerosSerie || '').trim(), `data-serie-ligne="${c.ligne}" data-serie-valeur="${echapper(c.numerosSerie)}"`)}
+        ${pilule('ccm-pilule-colissimo', '<path d="M21 8.5v7l-9 4.5-9-4.5v-7L12 4z"/><path d="M3.3 8.2 12 12.5l8.7-4.3M12 12.5V21"/>', 'Colissimo', !!(c.colissimo || '').trim(), `data-colissimo-ligne="${c.ligne}" data-colissimo-valeur="${echapper(c.colissimo)}"`)}
+      </div>`;
+
     return `
     <div class="fiche-conteneur">
       ${badgeNouvelle}
       <article class="carte-cmd-mini ${teinte}${estAnnulee ? ' annulee' : ''}">
-        <div class="ccm-pastille ${teinte}">${iconeStatutPastille}</div>
+        <div class="ccm-topbar">
+          <div class="ccm-statut-label">
+            <div class="ccm-pastille ${teinte}">${iconeStatutPastille}</div>
+            <span class="ccm-statut">${echapper(c.statutCommande)}</span>
+          </div>
+          ${zoneEtapeSuivante}
+        </div>
         ${estAnnulee ? '<div class="ruban-annule">Commande annulée</div>' : ''}
-        ${alerteImpayee}${alerteFactureManquante}${alerteDoublon}
+        ${alerteImpayee}${alerteFactureManquante}${alerteDoublon}${alerteLienPaiementClique}
         <div class="ccm-meteo">${iconeMeteo}</div>
         <div class="ccm-haut">
           <span class="ccm-ref">${echapper(c.reference)}</span>
@@ -228,8 +251,8 @@ function rendre(){
         <div class="ccm-materiel">${materielResume}</div>
         ${c.devisDemande === 'Oui' ? '<div class="ccm-devis">Devis demandé</div>' : ''}
         ${!estAnnulee ? construireBarreProgressionCommande(c.statutCommande) : ''}
+        ${pilulesBas}
         <div class="ccm-pied">
-          <span class="ccm-statut">${echapper(c.statutCommande)}</span>
           <button type="button" class="ccm-details" data-ouvrir-details-commande="${c.ligne}">Détails</button>
         </div>
       </article>
@@ -246,10 +269,7 @@ function construireDetailsCommande(ligne){
   const structureCommande = structures.find(s => s.code === c.code);
   const estEsnCommande = !!(structureCommande && (structureCommande.esn || structureCommande.interne));
   const nbFichiers = parseInt(c.nombreFichiers, 10) || 0;
-  const nbSeries = (c.numerosSerie || '').split('\n').map(s => s.trim()).filter(Boolean).length;
   const liensColissimoCommande = (c.colissimo || '').split('\n').map(s => s.trim()).filter(Boolean);
-  const nbColissimo = liensColissimoCommande.length;
-  const nbCommentaire = (c.commentaire || '').trim().length;
 
   $('details-commande-titre').textContent = `${c.reference} — ${c.nom}`;
 
@@ -291,21 +311,7 @@ function construireDetailsCommande(ligne){
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8A2 2 0 0 1 21 9.5V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>
               <span>Aucun fichier</span>
             </span>`}
-        <button type="button" class="pilule-action pilule-notif ${nbCommentaire ? 'pilule-remplie' : ''}" data-commentaire-ligne="${c.ligne}" data-commentaire-valeur="${echapper(c.commentaire)}">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
-          <span>Commentaire</span>
-          ${nbCommentaire ? '<span class="point-notif"></span>' : ''}
-        </button>
-        <button type="button" class="pilule-action pilule-colissimo ${nbColissimo ? 'pilule-remplie' : ''}" data-colissimo-ligne="${c.ligne}" data-colissimo-valeur="${echapper(c.colissimo)}">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8.5v7l-9 4.5-9-4.5v-7L12 4z"/><path d="M3.3 8.2 12 12.5l8.7-4.3M12 12.5V21"/></svg>
-          <span>Colissimo</span>
-          ${nbColissimo ? `<span class="pilule-badge pilule-badge-colissimo">${nbColissimo}</span>` : ''}
-        </button>
-        <button type="button" class="pilule-action pilule-serie ${nbSeries ? 'pilule-remplie' : ''}" data-serie-ligne="${c.ligne}" data-serie-valeur="${echapper(c.numerosSerie)}">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h13l3 3.5-3 3.5H4z"/><circle cx="8" cy="10.5" r="0.9" fill="currentColor" stroke="none"/></svg>
-          <span>N° série</span>
-          ${nbSeries ? `<span class="pilule-badge pilule-badge-serie">${nbSeries}</span>` : ''}
-        </button>
+
         ${c.bonLivraison
           ? `<a class="pilule-action pilule-remplie" href="${echapper(c.bonLivraison)}" target="_blank" rel="noopener">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12h6M9 16h6M9 8h2"/><path d="M6 3h9l3 3v15H6z"/></svg>
@@ -333,8 +339,8 @@ function construireDetailsCommande(ligne){
 
       <div class="fiche-boutons-modales" style="margin-top:16px">
         <button type="button" class="btn-ouvrir-modale" data-ouvrir-modale-statut="${c.ligne}">
-          Statut &amp; livraison
-          <span class="sous-statut">${echapper(c.statutCommande)}${c.dateLivraison ? ' · ' + echapper(c.dateLivraison) : ''}</span>
+          Date de livraison
+          <span class="sous-statut">${c.dateLivraison ? echapper(c.dateLivraison) : 'Non renseignée'}</span>
         </button>
         ${estEsnCommande ? '' : `<button type="button" class="btn-ouvrir-modale style-paiement" data-ouvrir-modale-paiement="${c.ligne}">
           Paiement &amp; facturation
@@ -358,6 +364,79 @@ function construireDetailsCommande(ligne){
 }
 
 document.addEventListener('click', e => {
+  const b = e.target.closest('[data-annuler-commande]');
+  if(!b) return;
+  demanderRaisonAnnulation(parseInt(b.dataset.annulerCommande, 10));
+});
+
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-demander-validation], [data-renvoyer-validation]');
+  if(!b) return;
+  const ligne = parseInt(b.dataset.demanderValidation || b.dataset.renvoyerValidation, 10);
+  const c = commandes.find(x => x.ligne === ligne);
+  if(!c) return;
+  if(!confirm(`Envoyer un mail de validation logistique pour la commande ${c.reference} ?`)) return;
+
+  b.disabled = true;
+  try{
+    const r = await poster({ action:'demander-validation-logistique', ligne });
+    if(r.ok){
+      c.validationLogistiqueEnAttente = true;
+      etat('Mail de validation envoyé', 'succes');
+      rendre();
+    }else{
+      etat(r.erreur || 'Envoi impossible', 'erreur');
+    }
+  }catch(err){
+    etat('Envoi impossible', 'erreur');
+  }
+  b.disabled = false;
+});
+
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-etape-suivante]');
+  if(!b) return;
+  const ligne = parseInt(b.dataset.etapeSuivante, 10);
+  const c = commandes.find(x => x.ligne === ligne);
+  if(!c) return;
+
+  // La date de livraison n'a pas de pilule dédiée sur la carte (contrairement au n° de série,
+  // au bon de livraison ou au Colissimo) : on ouvre directement la modale plutôt que de
+  // juste afficher un message d'erreur qui laisserait la personne chercher où la renseigner.
+  if(c.statutCommande === 'En cours de livraison' && !c.dateLivraison){
+    etat('Renseigne d\'abord la date de livraison', 'erreur');
+    ouvrirModaleStatut(ligne);
+    return;
+  }
+
+  const structureCommande = structures.find(s => s.code === c.code);
+  const estInterne = !!(structureCommande && structureCommande.interne);
+  const blocage = conditionBloquanteEtapeSuivante(c, estInterne);
+  if(blocage){ etat(blocage, 'erreur'); return; }
+
+  const indexActuel = ETAPES_TIMELINE_COMMANDE.indexOf(c.statutCommande);
+  const suivant = ETAPES_TIMELINE_COMMANDE[indexActuel + 1];
+  if(!suivant) return;
+  if(!confirm(`Faire passer la commande ${c.reference} au statut « ${suivant} » ?`)) return;
+
+  b.disabled = true;
+  try{
+    const r = await poster({ action:'update', ligne, champ:'statutCommande', valeur: suivant });
+    if(r.ok){
+      c.statutCommande = suivant;
+      if(r.devis) etat(`Devis ${r.devis} généré — ${formaterMontant(r.montant)}`, 'succes');
+      else etat('Étape suivante validée', 'succes');
+      rendre();
+    }else{
+      etat(r.erreur || 'Impossible de passer à l\'étape suivante', 'erreur');
+    }
+  }catch(err){
+    etat('Impossible de passer à l\'étape suivante', 'erreur');
+  }
+  b.disabled = false;
+});
+
+document.addEventListener('click', e => {
   const b = e.target.closest('[data-ouvrir-details-commande]');
   if(!b) return;
   const ligne = parseInt(b.dataset.ouvrirDetailsCommande, 10);
@@ -367,19 +446,22 @@ document.addEventListener('click', e => {
 $('details-commande-fermer').addEventListener('click', () => $('modale-details-commande').hidden = true);
 
 let annulationSelectCourant = null;
-let annulationValeurPrecedente = null;
 
-function demanderRaisonAnnulation(el){
-  const ligne = parseInt(el.dataset.ligne, 10);
-  const c = commandes.find(x => x.ligne === ligne);
+function demanderRaisonAnnulation(ligne){
+  // Élément synthétique (jamais inséré dans le DOM) pour pouvoir réutiliser enregistrer(),
+  // qui attend un contrôle avec .dataset.ligne/.champ/.value — plus de <select> lié depuis
+  // que les statuts ne sont plus modifiables librement.
+  const el = document.createElement('input');
+  el.type = 'hidden';
+  el.dataset.ligne = ligne;
+  el.dataset.champ = 'statutCommande';
+  el.value = 'Annulée';
   annulationSelectCourant = el;
-  annulationValeurPrecedente = c ? c.statutCommande : el.value;
   $('raison-annulation-texte').value = '';
   $('retour-raison-annulation').innerHTML = '';
   $('modale-raison-annulation').hidden = false;
 }
 $('raison-annulation-annuler').addEventListener('click', () => {
-  if(annulationSelectCourant) annulationSelectCourant.value = annulationValeurPrecedente;
   $('modale-raison-annulation').hidden = true;
   annulationSelectCourant = null;
 });
@@ -452,13 +534,13 @@ document.addEventListener('change', e => {
 
   // Une annulation est irréversible sur le stock : on demande une raison avant d'appliquer
   if(el.dataset.champ === 'statutCommande' && el.value === 'Annulée'){
-    demanderRaisonAnnulation(el);
+    demanderRaisonAnnulation(parseInt(el.dataset.ligne, 10));
     return;
   }
   enregistrer(el);
 });
 
-/* ══════════════ Modale Statut & livraison ══════════════ */
+/* ══════════════ Modale Date de livraison ══════════════ */
 
 let statutModaleLigneCourante = null;
 
@@ -468,16 +550,9 @@ function ouvrirModaleStatut(ligne){
   statutModaleLigneCourante = ligne;
   $('modale-statut-ref').textContent = c.reference + ' — ' + c.nom;
 
-  $('modale-statut-select').innerHTML = STATUTS_COMMANDE.map(s =>
-    `<option value="${echapper(s)}"${s === c.statutCommande ? ' selected' : ''}>${echapper(s)}</option>`).join('');
-  $('modale-statut-select').className = 'statut ' + (TEINTES[c.statutCommande] || 't-gris');
-  $('modale-statut-select').dataset.ligne = ligne;
-  $('modale-statut-select').dataset.champ = 'statutCommande';
-
   $('modale-statut-date-livraison').value = dateLivraisonISO(c.dateLivraison);
   $('modale-statut-date-livraison').dataset.ligne = ligne;
   $('modale-statut-date-livraison').dataset.champ = 'dateLivraison';
-  $('bloc-date-livraison').hidden = c.statutCommande !== 'Livrée';
 
   $('modale-statut').hidden = false;
 }
@@ -596,25 +671,6 @@ $('ligne-produit-enregistrer').addEventListener('click', async () => {
   $('ligne-produit-enregistrer').disabled = false;
 });
 
-$('modale-statut-select').addEventListener('change', async e => {
-  if(e.target.value === 'Annulée'){
-    demanderRaisonAnnulation(e.target);
-    return;
-  }
-  if(e.target.value === 'Livrée' && !$('modale-statut-date-livraison').value){
-    const c = commandes.find(x => x.ligne === statutModaleLigneCourante);
-    e.target.value = c ? c.statutCommande : e.target.value;
-    $('bloc-date-livraison').hidden = false;
-    etat('Renseigne d\'abord la date de livraison avant de passer la commande en Livrée', 'erreur');
-    $('modale-statut-date-livraison').focus();
-    return;
-  }
-  $('bloc-date-livraison').hidden = e.target.value !== 'Livrée';
-  await enregistrer(e.target);
-  // Reste ouverte : juste rafraîchie une fois la confirmation serveur reçue (commandes[]
-  // mis à jour dans enregistrer()). La fermeture reste un geste manuel de la personne.
-  ouvrirModaleStatut(statutModaleLigneCourante);
-});
 $('modale-statut-date-livraison').addEventListener('change', e => enregistrer(e.target));
 
 /* ══════════════ Modale Modifier la commande (produit, quantité, paiement, commentaire) ══════════════ */

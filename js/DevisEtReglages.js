@@ -1,12 +1,13 @@
 /* ══════════════ DEVIS ══════════════ */
 
 let devis = [];
+let devisChargeUneFois = false;
 
 async function chargerDevis(silencieux){
   if(!silencieux) etat('Chargement des devis…', 'chargement');
   try{
     const r = await jsonp({action:'devis', password:motDePasse});
-    if(r.ok){ devis = r.devis; rendreDevis(); }
+    if(r.ok){ devis = r.devis; devisChargeUneFois = true; rendreDevis(); }
     if(!silencieux) $('etat').classList.remove('visible');
   }catch(e){ if(!silencieux) etat('Chargement des devis impossible', 'erreur'); }
 }
@@ -48,6 +49,7 @@ async function chargerReglages(){
       if(r.symptomesSav && r.symptomesSav.length) symptomesSav = r.symptomesSav;
       $('symptomes-sav-input').value = (r.symptomesSav || symptomesSav).join('\n');
       $('email-contact-sav-input').value = r.emailContactSav || '';
+      $('email-logistique-input').value = r.emailLogistique || '';
       $('email-modele-sav-input').value = r.emailModeleSav || '';
       peuplerCasesOngletsVisibles(r.ongletsMasques || '');
       appliquerOngletsVisibles(r.ongletsMasques || '');
@@ -445,6 +447,24 @@ $('btn-email-contact-sav-enregistrer').addEventListener('click', async () => {
     $('retour-email-contact-sav').innerHTML = '<div class="msg msg-erreur">Enregistrement impossible.</div>';
   }
   $('btn-email-contact-sav-enregistrer').disabled = false;
+});
+
+$('btn-email-logistique-enregistrer').addEventListener('click', async () => {
+  const email = $('email-logistique-input').value.trim();
+  $('btn-email-logistique-enregistrer').disabled = true;
+  $('retour-email-logistique').innerHTML = '';
+  try{
+    const r = await poster({ action:'reglages-set', password:motDePasse, emailLogistique: email });
+    if(r.ok){
+      $('retour-email-logistique').innerHTML = '<div class="msg msg-succes">Enregistré.</div>';
+      etat('Réglages enregistrés', 'succes');
+    }else{
+      $('retour-email-logistique').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur)}</div>`;
+    }
+  }catch(e){
+    $('retour-email-logistique').innerHTML = '<div class="msg msg-erreur">Enregistrement impossible.</div>';
+  }
+  $('btn-email-logistique-enregistrer').disabled = false;
 });
 
 $('btn-email-modele-sav-enregistrer').addEventListener('click', async () => {

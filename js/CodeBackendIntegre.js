@@ -59,7 +59,8 @@ const CLES_CONFIG = {
   SYMPTOMES_SAV: 'CONFIG_SYMPTOMES_SAV',
   EMAIL_CONTACT_SAV: 'CONFIG_EMAIL_CONTACT_SAV',
   EMAIL_MODELE_SAV: 'CONFIG_EMAIL_MODELE_SAV',
-  ONGLETS_MASQUES: 'CONFIG_ONGLETS_MASQUES'
+  ONGLETS_MASQUES: 'CONFIG_ONGLETS_MASQUES',
+  EMAIL_LOGISTIQUE: 'CONFIG_EMAIL_LOGISTIQUE'
 };
 
 /** Lit une valeur de config : PropertiesService en priorité, sinon la valeur par défaut codée en dur. */
@@ -168,6 +169,7 @@ const BADGE_NOUVELLE_SAV_JOURS = parseFloat(obtenirConfig('BADGE_NOUVELLE_SAV_JO
 const HEURE_FIN_VENDREDI = parseInt(obtenirConfig('HEURE_FIN_VENDREDI', '17'), 10) || 17;
 const HEURE_DEBUT_LUNDI = parseInt(obtenirConfig('HEURE_DEBUT_LUNDI', '8'), 10) || 8;
 const EMAIL_CONTACT_SAV = obtenirConfig('EMAIL_CONTACT_SAV', '');
+const EMAIL_LOGISTIQUE = obtenirConfig('EMAIL_LOGISTIQUE', ''); // reçoit le mail de validation Reçue → Validée avec le lien à cliquer
 const MAX_QUANTITE    = 5;
 const MAX_FICHIER_MO  = 8;   // Mo par fichier, vérifié aussi côté serveur
 const LIMITE_SOUMISSIONS_PAR_HEURE = 5; // par code structure, protège en cas de fuite d'un code
@@ -205,6 +207,7 @@ function obtenirReglages(data) {
     heureDebutLundi: HEURE_DEBUT_LUNDI,
     symptomesSav: SYMPTOMES_SAV,
     emailContactSav: EMAIL_CONTACT_SAV,
+    emailLogistique: EMAIL_LOGISTIQUE,
     emailModeleSav: EMAIL_MODELE_SAV,
     ongletsMasques: ONGLETS_MASQUES
   };
@@ -438,6 +441,14 @@ function definirReglages(data) {
     definirConfig('EMAIL_CONTACT_SAV', email);
   }
 
+  if (data.emailLogistique !== undefined) {
+    const email = String(data.emailLogistique).trim();
+    if (email && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+      return { ok: false, erreur: 'Adresse email logistique invalide' };
+    }
+    definirConfig('EMAIL_LOGISTIQUE', email);
+  }
+
   if (data.emailModeleSav !== undefined) {
     const modele = String(data.emailModeleSav);
     if (!modele.trim()) return { ok: false, erreur: 'Le modèle d\\'email SAV ne peut pas être vide' };
@@ -490,7 +501,8 @@ const ENTETES_COMMANDES = [
   'Statut commande', 'Statut paiement', 'Lien de paiement', 'Commentaire', 'Numéros de série',
   'Nombre de fichiers', 'Référence devis', 'Référence facture', 'Statut comptable', 'Numéro de dépôt',
   'Devis demandé', 'Suivi Colissimo', 'Date de livraison', 'Fichier CSV tec.tech',
-  'Caractéristiques matériel', 'Bon de livraison', 'Personnes bénéficiaires'
+  'Caractéristiques matériel', 'Bon de livraison', 'Personnes bénéficiaires', 'Dernier clic lien de paiement',
+  'Jeton validation logistique'
 ];
 
 const STATUTS_COMPTABLES = ['Non rapproché', 'Rapproché', 'Clôturé'];
@@ -538,6 +550,9 @@ function invaliderCache(nom) {
 }
 function invaliderCacheCommandes() { invaliderCache('commandes'); }
 function invaliderCacheSav() { invaliderCache('sav'); }
+function invaliderCacheFactures() { invaliderCache('factures'); }
+function invaliderCacheDevis() { invaliderCache('devis'); }
+function invaliderCacheComptabilite() { invaliderCache('comptabilite'); }
 
 function mettreEnCacheDecoupe(cle, objet) {
   try {
@@ -584,6 +599,40 @@ function lireCacheDecoupe(cle) {
 
 function doGet(e) {
   const p = e.parameter;
+
+  // Route à part : ce n'est pas une réponse JSON mais une redirection HTML — la structure
+  // clique un lien "Régler cette commande" dans suivi.html, ce lien passe par ici pour tracer
+  // l'horodatage du clic (utile à l'admin pour savoir qu'il faut vérifier le paiement), puis
+  // renvoie immédiatement vers l'URL réelle du lien de paiement. Ne bloque jamais la
+  // redirection même si le traçage échoue : mieux vaut rediriger sans trace qu'un lien mort.
+  if (p.action === 'clic-lien-paiement') {
+    let urlCible = '#';
+    try {
+      urlCible = enregistrerClicLienPaiement(p.ref) || '#';
+    } catch (err) {
+      Logger.log('Échec traçage clic lien de paiement pour ' + p.ref + ' : ' + err);
+    }
+    return HtmlService.createHtmlOutput(
+      '<script>location.replace(' + JSON.stringify(urlCible) + ');</script>' +
+      '<p>Redirection… <a href="' + urlCible.replace(/"/g, '&quot;') + '">cliquez ici si rien ne se passe</a>.</p>'
+    );
+  }
+
+  // Lien cliqué depuis le mail de validation logistique — page HTML lisible directement,
+  // pas de redirection : c'est la destination finale du clic.
+  if (p.action === 'confirmer-validation-logistique') {
+    let resultat;
+    try {
+      resultat = confirmerValidationLogistique(p.ref, p.jeton);
+    } catch (err) {
+      resultat = { ok: false, erreur: String(err) };
+    }
+    const message = resultat.ok
+      ? '<h1 style="font-family:sans-serif">Commande ' + resultat.reference + ' validée ✅</h1><p style="font-family:sans-serif">Elle passe à l\\'étape suivante (préparation).</p>'
+      : '<h1 style="font-family:sans-serif">Validation impossible</h1><p style="font-family:sans-serif">' + (resultat.erreur || 'Erreur inconnue') + '</p>';
+    return HtmlService.createHtmlOutput(message);
+  }
+
   let res;
 
   try {
@@ -683,6 +732,8 @@ function doPost(e) {
       res = apercuEmailColissimoSav(data);
     } else if (data.action === 'commande-create-manuelle') {
       res = creerCommandeManuelle(data);
+    } else if (data.action === 'demander-validation-logistique') {
+      res = demanderValidationLogistique(data);
     } else if (data.action === 'commande-delete') {
       res = supprimerCommande(data);
     } else if (data.action === 'devis-create') {
@@ -1238,9 +1289,9 @@ function creerCommande(data) {
 
   // Détection de doublon — ne bloque jamais l'envoi (un vrai échec de connexion suivi d'un
   // second essai légitime ne doit jamais être empêché), juste un signal pour l'admin à vérifier
-  // manuellement : même structure, même contenu, dans les 5 dernières minutes.
+  // manuellement : même structure, même contenu, dans les 10 dernières minutes.
   const commentaireDoublon = detecterCommandeDoublonRecente(structure.code, infosResumees.resume)
-    ? '⚠️ DOUBLON POTENTIEL DÉTECTÉ : une commande très similaire de cette structure a été reçue il y a moins de 5 minutes — vérifier avant de traiter les deux.\\n\\n'
+    ? '⚠️ DOUBLON POTENTIEL DÉTECTÉ : une commande très similaire de cette structure a été reçue il y a moins de 10 minutes — vérifier avant de traiter les deux.\\n\\n'
     : '';
   const commentaireFinal = commentaireDoublon + String(data.commentaire || '');
 
@@ -1361,11 +1412,11 @@ function definirModeleCommande(data) {
  *  l'appelant. Ne touche plus au stock elle-même : chaque appelant décrémente lui-même,
  *  produit par produit, puisqu'une commande peut désormais en contenir plusieurs. */
 /** Doublon potentiel : même structure, même résumé produit, commande reçue il y a moins de
- *  5 minutes. Sert uniquement à prévenir l'admin (jamais à bloquer) — le cas typique est une
+ *  10 minutes. Sert uniquement à prévenir l'admin (jamais à bloquer) — le cas typique est une
  *  connexion qui plante côté navigateur après que la commande a pourtant bien été enregistrée,
  *  poussant la structure à réessayer en pensant que rien n'est parti. */
 function detecterCommandeDoublonRecente(codeStructure, resumeProduit) {
-  const FENETRE_MINUTES = 5;
+  const FENETRE_MINUTES = 10;
   const maintenant = new Date();
   const lignes = feuilleCommandes().getDataRange().getValues();
 
@@ -1877,7 +1928,9 @@ function construireBaseCommandes() {
       csvTectech:      l[24] || '',
       caracteristiquesMateriel: l[25] || '',
       bonLivraison: l[26] || '',
-      personnes: l[27] || ''
+      personnes: l[27] || '',
+      dernierClicLienPaiement: l[28] ? Utilities.formatDate(new Date(l[28]), Session.getScriptTimeZone(), 'dd/MM/yyyy à HH:mm') : '',
+      validationLogistiqueEnAttente: !!l[29]
     });
   }
 
@@ -1995,6 +2048,91 @@ function listerCommandesParCode(data) {
   return { ok: true, nomStructure: structure.nom, commandes: commandes.reverse() };
 }
 
+/** Appelée quand une structure clique le lien "Régler cette commande" dans suivi.html.
+ *  Trace l'horodatage du clic (colonne 29) pour signaler à l'admin qu'il faut vérifier le
+ *  paiement, puis renvoie l'URL réelle vers laquelle rediriger. Ne renvoie jamais d'erreur
+ *  visible : si la référence est introuvable, on redirige quand même vers '#' plutôt que
+ *  de laisser la structure bloquée sur une page cassée. */
+function enregistrerClicLienPaiement(reference) {
+  const ref = String(reference || '').trim();
+  if (!ref) return '#';
+
+  const feuille = feuilleCommandes();
+  const lignes = feuille.getDataRange().getValues();
+  for (let i = 1; i < lignes.length; i++) {
+    if (String(lignes[i][0]).trim() !== ref) continue;
+    feuille.getRange(i + 1, 29).setValue(new Date());
+    invaliderCacheCommandes();
+    return String(lignes[i][13] || '#'); // colonne 14 : Lien de paiement
+  }
+  return '#';
+}
+
+/** Étape "Reçue → Validée" : ne bascule plus jamais le statut à la main. On envoie un mail à
+ *  la personne logistique (réglage EMAIL_LOGISTIQUE) avec un lien à cliquer ; le clic écrit
+ *  "oui" en base (jeton consommé) et fait passer la commande en "Validée" automatiquement.
+ *  Rappelable plusieurs fois sans risque (renvoie juste un nouveau mail avec un nouveau jeton). */
+function demanderValidationLogistique(data) {
+  if (data.password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
+  if (!EMAIL_LOGISTIQUE) return { ok: false, erreur: 'Aucun email logistique configuré dans les Réglages' };
+
+  const feuille = feuilleCommandes();
+  const ligne = parseInt(data.ligne, 10);
+  const c = feuille.getRange(ligne, 1, 1, ENTETES_COMMANDES.length).getValues()[0];
+  if (!c[0]) return { ok: false, erreur: 'Commande introuvable' };
+  if (c[11] !== 'Reçue') return { ok: false, erreur: 'Cette commande n\\'est plus au statut Reçue' };
+
+  const jeton = Utilities.getUuid();
+  feuille.getRange(ligne, 30).setValue(jeton);
+
+  const detailLignes = lireLignesCommande(c[0], c[7], c[8]);
+  const detailTexte = detailLignes.map(function(l) { return '- ' + l.quantite + ' × ' + l.produit; }).join('\\n');
+  const urlValidation = ScriptApp.getService().getUrl() + '?action=confirmer-validation-logistique&ref='
+    + encodeURIComponent(c[0]) + '&jeton=' + encodeURIComponent(jeton);
+
+  const corps = 'Bonjour,\\n\\nUne commande attend une validation logistique avant préparation :\\n\\n'
+    + 'Référence : ' + c[0] + '\\n'
+    + 'Structure : ' + c[3] + '\\n'
+    + 'Adresse : ' + c[6] + '\\n\\n'
+    + 'Matériel demandé :\\n' + detailTexte + '\\n\\n'
+    + 'Pour valider cette commande et la faire passer à l\\'étape suivante, cliquez ce lien :\\n'
+    + urlValidation + '\\n\\nCordialement,\\n' + NOM_ORGANISATION;
+
+  MailApp.sendEmail(EMAIL_LOGISTIQUE, 'Validation logistique requise — commande ' + c[0], corps);
+  invaliderCacheCommandes();
+  return { ok: true };
+}
+
+/** Appelée par le clic sur le lien du mail ci-dessus. Ne renvoie jamais de JSON — voir
+ *  Routeur.gs, la route retourne une page HTML lisible directement dans le navigateur. */
+function confirmerValidationLogistique(reference, jetonRecu) {
+  const ref = String(reference || '').trim();
+  const jeton = String(jetonRecu || '').trim();
+  if (!ref || !jeton) return { ok: false, erreur: 'Lien invalide' };
+
+  const feuille = feuilleCommandes();
+  const lignes = feuille.getDataRange().getValues();
+  for (let i = 1; i < lignes.length; i++) {
+    if (String(lignes[i][0]).trim() !== ref) continue;
+    const jetonEnBase = String(lignes[i][29] || '');
+    if (!jetonEnBase || jetonEnBase !== jeton) {
+      return { ok: false, erreur: 'Ce lien a déjà été utilisé ou n\\'est plus valide' };
+    }
+    feuille.getRange(i + 1, 12).setValue('Validée'); // colonne 12 : Statut commande
+    feuille.getRange(i + 1, 30).setValue('');        // jeton consommé
+
+    // Devis automatique, même règle qu'un passage manuel en "Validée" — la structure a pu
+    // le demander depuis le formulaire public.
+    const devisDemande = lignes[i][21];
+    if (devisDemande === 'Oui') {
+      try { genererDevis(i + 1); } catch (e) { Logger.log('Devis auto (validation logistique) échoué pour ' + ref + ' : ' + e); }
+    }
+    invaliderCacheCommandes();
+    return { ok: true, reference: ref };
+  }
+  return { ok: false, erreur: 'Commande introuvable' };
+}
+
 function supprimerCommande(data) {
   if (data.password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
   feuilleCommandes().deleteRow(data.ligne);
@@ -2026,14 +2164,51 @@ function majCommande(data) {
 
   const feuille = feuilleCommandes();
 
-  // Rendu du stock si la commande passe en "Annulée", repris si elle en ressort —
-  // boucle sur toutes les lignes de la commande (elle peut contenir plusieurs produits).
-  // Date de livraison obligatoire avant de passer en "Livrée" — refusé plutôt qu'auto-rempli,
-  // pour que ce soit une vraie date choisie et non une date du jour mise par défaut.
-  if (data.champ === 'statutCommande' && data.valeur === 'Livrée') {
-    const dateLivraisonActuelle = feuille.getRange(data.ligne, 24).getValue();
-    if (!dateLivraisonActuelle) {
-      return { ok: false, erreur: 'Renseigne d\\'abord la date de livraison avant de passer cette commande en Livrée.' };
+  // Les statuts de commande ne sont plus modifiables librement : uniquement l'étape suivante
+  // (ou "Annulée", accessible depuis n'importe quel statut non final), chacune avec ses
+  // propres conditions bloquantes vérifiées ici — jamais côté client seul.
+  if (data.champ === 'statutCommande') {
+    const ligneActuellePourControle = feuille.getRange(data.ligne, 1, 1, ENTETES_COMMANDES.length).getValues()[0];
+    const statutActuel = ligneActuellePourControle[11];
+    const ordre = ['Reçue', 'Validée', 'Préparée', 'En cours de livraison', 'Livrée'];
+    const indexActuel = ordre.indexOf(statutActuel);
+    const indexCible = ordre.indexOf(data.valeur);
+
+    if (data.valeur !== 'Annulée') {
+      if (statutActuel === 'Livrée' || statutActuel === 'Annulée') {
+        return { ok: false, erreur: 'Cette commande est déjà clôturée, son statut ne peut plus changer.' };
+      }
+      if (indexCible !== indexActuel + 1) {
+        return { ok: false, erreur: 'Impossible de sauter une étape : le seul statut suivant possible depuis "' + statutActuel + '" est "' + ordre[indexActuel + 1] + '".' };
+      }
+      if (statutActuel === 'Reçue') {
+        return { ok: false, erreur: 'Le passage de Reçue à Validée se fait uniquement via la validation logistique par mail, pas manuellement.' };
+      }
+      if (data.valeur === 'Préparée') {
+        const structurePourControle = lireStructures()[String(ligneActuellePourControle[2]).trim()];
+        const estInterne = !!(structurePourControle && structurePourControle.interne);
+        const numerosSerieRenseignes = String(ligneActuellePourControle[15] || '').trim().length > 0;
+        const facturationOk = estInterne || ligneActuellePourControle[17] || ligneActuellePourControle[18]; // devis ou facture
+        if (!numerosSerieRenseignes) {
+          return { ok: false, erreur: 'Renseigne d\\'abord au moins un numéro de série avant de passer cette commande en Préparée.' };
+        }
+        if (!facturationOk) {
+          return { ok: false, erreur: 'Génère d\\'abord un devis ou une facture avant de passer cette commande en Préparée (sauf structure Interne).' };
+        }
+      }
+      if (data.valeur === 'En cours de livraison') {
+        const bonLivraisonRenseigne = String(ligneActuellePourControle[26] || '').trim().length > 0;
+        const colissimoRenseigne = String(ligneActuellePourControle[22] || '').trim().length > 0;
+        if (!bonLivraisonRenseigne || !colissimoRenseigne) {
+          return { ok: false, erreur: 'Renseigne le bon de livraison et le numéro Colissimo avant de passer cette commande en livraison.' };
+        }
+      }
+      if (data.valeur === 'Livrée') {
+        const dateLivraisonActuelle = feuille.getRange(data.ligne, 24).getValue();
+        if (!dateLivraisonActuelle) {
+          return { ok: false, erreur: 'Renseigne d\\'abord la date de livraison avant de passer cette commande en Livrée.' };
+        }
+      }
     }
   }
 
@@ -3021,6 +3196,7 @@ function inscrireDevis(referenceCommande, codeStructure, nomStructure, email, ad
     referenceDevis, new Date(), referenceCommande || '', nomStructure, email, adresse,
     nomProduit, quantite, moyenPaiement, calcul.prixUnitaire, montant, 'Émis', ''
   ]);
+  invaliderCacheDevis();
 
   return { ok: true, referenceDevis: referenceDevis, montant: montant };
 }
@@ -3069,6 +3245,8 @@ function genererDevis(ligneCommande) {
 
   // La commande garde une trace de son devis, visible et modifiable dans le back-office
   feuilleCmd.getRange(ligneCommande, 18).setValue(referenceDevis);
+  invaliderCacheDevis();
+  invaliderCacheCommandes();
 
   return { ok: true, referenceDevis: referenceDevis, montant: montant };
 }
@@ -3112,6 +3290,7 @@ function creerDevisManuel(data) {
       if (lignes[i][0] === referenceCommande) {
         feuilleCommandes().getRange(i + 1, 18).setValue(resultat.referenceDevis);
         feuilleCommandes().getRange(i + 1, 22).setValue(''); // le devis existe désormais, l'alerte n'a plus lieu d'être
+        invaliderCacheCommandes();
         break;
       }
     }
@@ -3123,6 +3302,7 @@ function creerDevisManuel(data) {
 function supprimerDevis(data) {
   if (data.password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
   feuilleDevis().deleteRow(data.ligne);
+  invaliderCacheDevis();
   return { ok: true };
 }
 
@@ -3131,11 +3311,16 @@ function supprimerDevis(data) {
 function supprimerFacture(data) {
   if (data.password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
   feuilleFactures().deleteRow(data.ligne);
+  invaliderCacheFactures();
   return { ok: true };
 }
 
 function listerDevis(password) {
   if (password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
+
+  const cleCache = 'devis_v' + versionCache('devis');
+  const enCache = lireCacheDecoupe(cleCache);
+  if (enCache) return { ok: true, devis: enCache };
 
   const lignes = feuilleDevis().getDataRange().getValues();
   const devis = [];
@@ -3159,7 +3344,9 @@ function listerDevis(password) {
       referenceFacture:  lignes[i][12]
     });
   }
-  return { ok: true, devis: devis.reverse() };
+  const resultat = devis.reverse();
+  mettreEnCacheDecoupe(cleCache, resultat);
+  return { ok: true, devis: resultat };
 }
 
 /**
@@ -3214,6 +3401,8 @@ function convertirDevisEnFacture(data) {
 
   feuilleDev.getRange(data.ligne, 12).setValue('Converti');
   feuilleDev.getRange(data.ligne, 13).setValue(numeroFacture);
+  invaliderCacheDevis();
+  invaliderCacheFactures();
 
   reporterFactureSurCommande(referenceCommande, numeroFacture);
 
@@ -3393,6 +3582,7 @@ function facturerDirectement(data) {
     numeroFacture, new Date(), referenceCommande, nomStructure, email, adresse,
     resumeProduit, quantiteTotale, moyenPaiement, prixUnitaireAffiche, montantTotal, ''
   ]);
+  invaliderCacheFactures();
 
   reporterFactureSurCommande(referenceCommande, numeroFacture);
 
@@ -3406,6 +3596,7 @@ function reporterFactureSurCommande(referenceCommande, numeroFacture) {
     if (lignes[i][0] === referenceCommande) {
       feuilleCommandes().getRange(i + 1, 19).setValue(numeroFacture);
       feuilleCommandes().getRange(i + 1, 20).setValue('Non rapproché');
+      invaliderCacheCommandes();
       break;
     }
   }
@@ -3413,6 +3604,10 @@ function reporterFactureSurCommande(referenceCommande, numeroFacture) {
 
 function listerFactures(password) {
   if (password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
+
+  const cleCache = 'factures_v' + versionCache('factures');
+  const enCache = lireCacheDecoupe(cleCache);
+  if (enCache) return { ok: true, factures: enCache };
 
   const lignes = feuilleFactures().getDataRange().getValues();
   const factures = [];
@@ -3435,7 +3630,9 @@ function listerFactures(password) {
       commentaire:       lignes[i][11] || ''
     });
   }
-  return { ok: true, factures: factures.reverse() };
+  const resultat = factures.reverse();
+  mettreEnCacheDecoupe(cleCache, resultat);
+  return { ok: true, factures: resultat };
 }
 
 /** Édition manuelle d'une facture déjà émise (produit, quantité, prix, commentaire).
@@ -3624,6 +3821,7 @@ function majFacture(data) {
 
   const feuille = feuilleFactures();
   feuille.getRange(data.ligne, colonne).setValue(data.valeur);
+  invaliderCacheFactures();
 
   if (data.champ === 'quantite' || data.champ === 'prixUnitaire') {
     const ligne = feuille.getRange(data.ligne, 1, 1, ENTETES_FACTURES.length).getValues()[0];
@@ -3645,6 +3843,7 @@ function majDevis(data) {
 
   const feuille = feuilleDevis();
   feuille.getRange(data.ligne, colonne).setValue(data.valeur);
+  invaliderCacheDevis();
 
   if (data.champ === 'quantite' || data.champ === 'prixUnitaire') {
     const ligne = feuille.getRange(data.ligne, 1, 1, ENTETES_DEVIS.length).getValues()[0];
@@ -3686,6 +3885,10 @@ function accesComptaAutorise(password) {
 function listerComptabilite(password) {
   if (!accesComptaAutorise(password)) return { ok: false, erreur: 'Mot de passe incorrect' };
 
+  const cleCache = 'comptabilite_v' + versionCache('commandes') + '_' + versionCache('factures') + '_' + versionCache('comptabilite');
+  const enCache = lireCacheDecoupe(cleCache);
+  if (enCache) return { ok: true, lignes: enCache };
+
   const montantsParFacture = {};
   const lignesFactures = feuilleFactures().getDataRange().getValues();
   for (let i = 1; i < lignesFactures.length; i++) {
@@ -3717,7 +3920,9 @@ function listerComptabilite(password) {
     });
   }
 
-  return { ok: true, lignes: resultats.reverse() };
+  const resultat = resultats.reverse();
+  mettreEnCacheDecoupe(cleCache, resultat);
+  return { ok: true, lignes: resultat };
 }
 
 function majCompta(data) {
@@ -3728,6 +3933,7 @@ function majCompta(data) {
   if (!colonne) return { ok: false, erreur: 'Champ non modifiable depuis cette vue' };
 
   feuilleCommandes().getRange(data.ligne, colonne).setValue(data.valeur);
+  invaliderCacheCommandes();
   return { ok: true };
 }
 `;
