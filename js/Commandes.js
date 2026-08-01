@@ -199,8 +199,10 @@ function rendre(){
     const alerteFactureManquante = facturationOubliee
       ? `<div class="ccm-alerte">Livrée et payée, mais aucune facture liée</div>` : '';
 
-    const alerteDoublon = String(c.commentaire || '').startsWith('⚠️ DOUBLON POTENTIEL DÉTECTÉ')
-      ? `<div class="ccm-alerte">⚠️ Doublon potentiel détecté — vérifier les précédentes commandes de cette structure</div>` : '';
+    const alerteDoublon = (String(c.commentaire || '').startsWith('⚠️ DOUBLON POTENTIEL DÉTECTÉ') && !doublonsRejetes.has(c.reference))
+      ? `<div class="ccm-alerte ccm-alerte-fermable">⚠️ Doublon potentiel détecté — vérifier les précédentes commandes de cette structure
+          <button type="button" class="ccm-alerte-fermer" data-rejeter-alerte-doublon="${echapper(c.reference)}" aria-label="Fermer cette alerte" title="Fermer">×</button>
+        </div>` : '';
 
     const alerteLienPaiementClique = (!estEsnCommande && c.dernierClicLienPaiement && c.statutPaiement !== 'Payé' && c.statutPaiement !== 'Remboursé')
       ? `<div class="ccm-alerte">Lien de paiement consulté le ${echapper(c.dernierClicLienPaiement)} — vérifier le statut du paiement</div>` : '';
@@ -217,17 +219,21 @@ function rendre(){
 
     const zoneEtapeSuivante = estAnnulee ? '' : construireZoneEtapeSuivante(c);
 
-    const pilule = (classe, svgPath, libelle, remplie, dataAttr) => `
+    const pilule = (classe, svgPath, libelle, remplie, dataAttr, nombre) => `
       <button type="button" class="ccm-pilule-mini ${classe}${remplie ? ' pilule-remplie' : ''}" ${dataAttr}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svgPath}</svg>
         <span>${libelle}</span>
+        ${nombre ? `<span class="ccm-pilule-badge">${nombre}</span>` : ''}
       </button>`;
+    const nbSeriesCarte = (c.numerosSerie || '').split('\n').map(s => s.trim()).filter(Boolean).length;
+    const nbColissimoCarte = (c.colissimo || '').split('\n').map(s => s.trim()).filter(Boolean).length;
     const pilulesBas = estAnnulee ? '' : `
       <div class="ccm-pilules-bas">
         ${pilule('ccm-pilule-commentaire', '<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>', 'Commentaire', !!(c.commentaire || '').trim(), `data-commentaire-ligne="${c.ligne}" data-commentaire-valeur="${echapper(c.commentaire)}"`)}
-        ${pilule('ccm-pilule-serie', '<path d="M4 7h13l3 3.5-3 3.5H4z"/><circle cx="8" cy="10.5" r="0.9" fill="currentColor" stroke="none"/>', 'N° série', !!(c.numerosSerie || '').trim(), `data-serie-ligne="${c.ligne}" data-serie-valeur="${echapper(c.numerosSerie)}"`)}
-        ${pilule('ccm-pilule-colissimo', '<path d="M21 8.5v7l-9 4.5-9-4.5v-7L12 4z"/><path d="M3.3 8.2 12 12.5l8.7-4.3M12 12.5V21"/>', 'Colissimo', !!(c.colissimo || '').trim(), `data-colissimo-ligne="${c.ligne}" data-colissimo-valeur="${echapper(c.colissimo)}"`)}
+        ${pilule('ccm-pilule-serie', '<path d="M4 7h13l3 3.5-3 3.5H4z"/><circle cx="8" cy="10.5" r="0.9" fill="currentColor" stroke="none"/>', 'N° série', !!nbSeriesCarte, `data-serie-ligne="${c.ligne}" data-serie-valeur="${echapper(c.numerosSerie)}"`, nbSeriesCarte)}
+        ${pilule('ccm-pilule-colissimo', '<path d="M21 8.5v7l-9 4.5-9-4.5v-7L12 4z"/><path d="M3.3 8.2 12 12.5l8.7-4.3M12 12.5V21"/>', 'Colissimo', !!nbColissimoCarte, `data-colissimo-ligne="${c.ligne}" data-colissimo-valeur="${echapper(c.colissimo)}"`, nbColissimoCarte)}
       </div>`;
+
 
     return `
     <div class="fiche-conteneur">
@@ -561,6 +567,13 @@ document.addEventListener('click', e => {
   const b = e.target.closest('[data-ouvrir-modale-statut]');
   if(!b) return;
   ouvrirModaleStatut(parseInt(b.dataset.ouvrirModaleStatut, 10));
+});
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-rejeter-alerte-doublon]');
+  if(!b) return;
+  rejeterAlerteDoublon(b.dataset.rejeterAlerteDoublon);
+  b.closest('.ccm-alerte').remove();
 });
 
 document.addEventListener('click', e => {

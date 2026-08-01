@@ -283,6 +283,16 @@ function rejeterAlerteFacture(reference){
   facturesManquantesRejetees.add(reference);
   try{ localStorage.setItem('cvdl-factures-manquantes-rejetees', JSON.stringify([...facturesManquantesRejetees])); }catch(e){}
 }
+
+/* Alertes "doublon potentiel" masquées par l'utilisateur — même principe que ci-dessus. */
+let doublonsRejetes = new Set();
+try{
+  doublonsRejetes = new Set(JSON.parse(localStorage.getItem('cvdl-doublons-rejetes') || '[]'));
+}catch(e){}
+function rejeterAlerteDoublon(reference){
+  doublonsRejetes.add(reference);
+  try{ localStorage.setItem('cvdl-doublons-rejetes', JSON.stringify([...doublonsRejetes])); }catch(e){}
+}
 let filtre     = 'tout';
 
 /* ─── Réseau ─── */
