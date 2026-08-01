@@ -180,7 +180,31 @@ function rendre(){
     return;
   }
 
-  $('liste').innerHTML = visibles.map(c => {
+  $('liste').innerHTML = visibles.map(carteCommandeHtml).join('');
+  rendreApercuGeneral();
+
+  // Section "toujours visible" : commandes non traitées ou urgentes, jamais perdues au-delà
+  // de la pagination — seulement affichée sur la 1ère page, sans filtre actif ni recherche
+  // (sinon la liste normale montre déjà ces commandes, doublon inutile).
+  const zonePrioritaires = $('zone-prioritaires');
+  if(zonePrioritaires){
+    const lignesVisibles = new Set(visibles.map(c => c.ligne));
+    const aAfficher = (!rechercheCommandesActive && decalageCommandesActuel === 0 && filtre === 'tout')
+      ? commandesPrioritaires.filter(c => !lignesVisibles.has(c.ligne))
+      : [];
+    if(aAfficher.length){
+      zonePrioritaires.hidden = false;
+      zonePrioritaires.innerHTML = `
+        <div class="entete-zone-prioritaires">🕐 En attente ou urgentes — pas perdues dans l'historique (${aAfficher.length})</div>
+        <div class="grille-prioritaires">${aAfficher.map(carteCommandeHtml).join('')}</div>`;
+    }else{
+      zonePrioritaires.hidden = true;
+      zonePrioritaires.innerHTML = '';
+    }
+  }
+}
+
+function carteCommandeHtml(c){
     const structureCommande = structures.find(s => s.code === c.code);
     const estEsnCommande = !!(structureCommande && (structureCommande.esn || structureCommande.interne));
     const estAnnulee = c.statutCommande === 'Annulée';
@@ -268,8 +292,6 @@ function rendre(){
         </div>
       </article>
     </div>`;
-  }).join('');
-  rendreApercuGeneral();
 }
 
 /** Construit le contenu de la modale Détails à la demande (jamais mis en cache : on relit

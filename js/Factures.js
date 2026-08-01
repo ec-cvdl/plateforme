@@ -358,21 +358,23 @@ function rendreSav(){
     <div class="ticket-sav-conteneur">
       ${badgeNouvelleHtml}
       <article class="tsc-a teinte-${info.couleur}">
-        <div class="tsc-a-icone">${svgIconeSymptome(t.symptome)}</div>
-        <div class="tsc-a-entete">
-          <div class="tsc-a-nom">${echapper(t.nom)}</div>
-          <div class="tsc-a-ref">${echapper(t.reference)} — ${echapper(t.date)}</div>
+        <div class="tsc-a-haut">
+          <div class="tsc-a-identite">
+            <div class="tsc-a-icone">${svgIconeSymptome(t.symptome)}</div>
+            <div class="tsc-a-entete">
+              <div class="tsc-a-nom">${echapper(t.nom)}</div>
+              <div class="tsc-a-ref">${echapper(t.reference)} · ${echapper(t.date)}</div>
+            </div>
+          </div>
+          <span class="tsc-a-statut-pastille">${echapper(t.statut)}</span>
         </div>
-        <div class="tsc-a-symptome">${t.symptome ? echapper(t.symptome) : 'Symptôme non précisé'}</div>
+        <p class="tsc-a-symptome">${t.symptome ? echapper(t.symptome) : 'Symptôme non précisé'}</p>
         <div class="tsc-pilules">
           <span class="pilule-info-sav type-serie${t.numeroSerie ? '' : ' vide'}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5V5a2 2 0 0 1 2-2h6.5L21 11.5a2 2 0 0 1 0 2.8L14.3 21a2 2 0 0 1-2.8 0L3 12.5z"/><circle cx="7.5" cy="7.5" r="1.1" fill="currentColor" stroke="none"/></svg>
-            N° série : ${t.numeroSerie ? echapper(t.numeroSerie) : 'non renseigné'}
+            ${t.numeroSerie ? echapper(t.numeroSerie) : 'N° série non renseigné'}
           </span>
-          <span class="pilule-info-sav type-commande${t.referenceCommande ? '' : ' vide'}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg>
-            ${t.referenceCommande ? 'Commande ' + echapper(t.referenceCommande) : 'Aucune commande liée'}
-          </span>
+          ${garantieHtml ? `<span class="pilule-info-sav">${garantieHtml}</span>` : ''}
           ${montrerColissimo && liensColissimo.length ? liensColissimo.map(l => `
           <a class="pilule-info-sav type-colis" href="${echapper(l)}" target="_blank" rel="noopener">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8.5v7l-9 4.5-9-4.5v-7L12 4z"/><path d="M3.3 8.2 12 12.5l8.7-4.3M12 12.5V21"/></svg>
@@ -380,19 +382,15 @@ function rendreSav(){
           </a>`).join('') : ''}
         </div>
         ${delaiHtml}
-        <div class="tsc-a-footer-mini">
-          ${garantieHtml}
-          <span>${info.terminal && t.dateResolution ? 'Terminé le ' + echapper(t.dateResolution) : ''}</span>
-          <button type="button" class="btn-icone-fiche danger" data-sav-supprimer="${t.ligne}" data-sav-nom="${echapper(t.reference)}" title="Supprimer le ticket" aria-label="Supprimer">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7m2 0v13a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 7 20V7h10z"/><path d="M10 11v6M14 11v6"/></svg>
-          </button>
-        </div>
         ${historiqueHtml}
         <div class="tsc-a-bandeau">
           <select class="statut ${info.couleur}" data-sav-edit="${t.ligne}" data-champ="statut">
             ${statutsSav.map(s => `<option value="${echapper(s.statut)}"${s.statut === t.statut ? ' selected' : ''}>${echapper(s.statut)}</option>`).join('')}
           </select>
           <button type="button" class="action" data-sav-details="${t.ligne}">Voir le détail</button>
+          <button type="button" class="btn-icone-fiche danger" data-sav-supprimer="${t.ligne}" data-sav-nom="${echapper(t.reference)}" title="Supprimer le ticket" aria-label="Supprimer">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7m2 0v13a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 7 20V7h10z"/><path d="M10 11v6M14 11v6"/></svg>
+          </button>
         </div>
       </article>
     </div>`;

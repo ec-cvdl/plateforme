@@ -262,10 +262,12 @@ let chiffresLivraisonGlobal = {};
 let nombreNouvellesGlobal = 0;
 let nombreImpayeesGlobal = 0;
 let nombreSavEnAttenteGlobal = 0;
+let commandesPrioritaires = [];
 function appliquerAgregatsCommandes(res){
   if(res.aLivrer !== undefined) chiffresLivraisonGlobal = res.aLivrer;
   if(res.nombreNouvelles !== undefined) nombreNouvellesGlobal = res.nombreNouvelles;
   if(res.nombreImpayees !== undefined) nombreImpayeesGlobal = res.nombreImpayees;
+  if(res.prioritaires !== undefined) commandesPrioritaires = res.prioritaires;
 }
 function appliquerAgregatsSav(res){
   if(res.nombreEnAttente !== undefined) nombreSavEnAttenteGlobal = res.nombreEnAttente;
@@ -476,9 +478,13 @@ $('btn-deconnexion').addEventListener('click', () => {
 
 let role = 'admin';
 
+let connexionEnCours = false;
+
 async function connecter(){
+  if(connexionEnCours) return; // Entrée pressée plusieurs fois pendant le chargement, ou double-clic : on ignore, une seule connexion à la fois
   const mdp = $('mdp').value;
   if(!mdp) return;
+  connexionEnCours = true;
 
   $('btn-connexion').disabled = true;
   $('btn-connexion').textContent = 'Vérification…';
@@ -502,6 +508,7 @@ async function connecter(){
         document.querySelectorAll('.separateur-onglets').forEach(s => s.hidden = true);
         $('chiffres').hidden = true;
         document.querySelector('[data-vue="comptabilite"]').click();
+        connexionEnCours = false;
         return;
       }
 
@@ -563,6 +570,7 @@ async function connecter(){
         else verifierRappelNouvelleAnnee();
       }
       demarrerRafraichissementSilencieux();
+      connexionEnCours = false;
       return;
     }
     $('retour-connexion').innerHTML = '<div class="msg msg-erreur">Mot de passe incorrect.</div>';
@@ -572,6 +580,7 @@ async function connecter(){
   $('etat').classList.remove('visible');
   $('btn-connexion').disabled = false;
   $('btn-connexion').textContent = 'Ouvrir le suivi';
+  connexionEnCours = false;
 }
 $('btn-connexion').addEventListener('click', connecter);
 $('mdp').addEventListener('keydown', e => { if(e.key === 'Enter') connecter(); });
