@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<script>
+// 👉 C'EST ICI, LA LIGNE JUSTE EN DESSOUS ↓↓↓ — remplace UNIQUEMENT le texte entre guillemets
+const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy9-ZwhkG-hhmh7eI1f8NuMGtdofnXixQhgJAQr4gN0Q/exec';
+// 👆 C'ÉTAIT ICI — fais la même chose dans admin.html, commande.html, sav.html et sav-beneficiaire.html
+</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ma flotte de matériel — CVDL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+  .etape-flotte{max-width:640px;margin:0 auto;padding:0 20px}
+  .tuto-flotte{counter-reset:etape-tuto;margin:22px 0}
+  .tuto-flotte li{
+    list-style:none;position:relative;padding:0 0 22px 40px;margin:0;border-left:2px solid var(--trait);
+  }
+  .tuto-flotte li:last-child{border-left-color:transparent;padding-bottom:0}
+  .tuto-flotte li::before{
+    counter-increment:etape-tuto;content:counter(etape-tuto);
+    position:absolute;left:-15px;top:0;width:28px;height:28px;border-radius:50%;
+    background:var(--ink);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .tuto-flotte .titre-etape{font-weight:600;color:var(--ink);margin-bottom:4px}
+  .tuto-flotte .desc-etape{font-size:13.5px;color:#5C6D7C;line-height:1.55}
+  .carte-flotte-liee{
+    background:var(--carte);border:1px solid var(--trait);border-radius:14px;padding:24px;
+    text-align:center;margin-top:18px;
+  }
+  .carte-flotte-liee .compteur-ajouts{font-size:13px;color:#5C6D7C;margin-top:10px}
+</style>
+</head>
+<body>
+<a href="#contenu-principal" class="lien-evitement">Aller au contenu</a>
+
+<div class="barre-retour-portail">
+  <a href="portail-structure.html" class="lien-retour-portail">← Retour portail</a>
+</div>
+
+<header class="marque-barre">
+  <div class="marque">
+    <img src="logo.png" alt="" onerror="this.style.display='none'">
+    <span class="nom-org">CVDL — Dotation matériel</span>
+  </div>
+</header>
+
+<div class="scene-wrap" id="contenu-principal">
+  <div class="scene etape-flotte" id="scene">
+
+    <section class="etape" data-etape="code">
+      <div class="question">Quel est votre <em>code structure</em> ?</div>
+      <p class="sous-question">Le même code que pour commander ou suivre vos commandes.</p>
+      <label for="code" class="sr-only">Code structure</label>
+      <input type="text" class="champ-texte" id="code" autocomplete="off" spellcheck="false" placeholder="Saisissez votre code">
+      <div id="retour-code" aria-live="polite"></div>
+      <div class="suite">
+        <button type="button" class="bouton-principal" id="btn-verifier">Continuer →</button>
+      </div>
+      <div class="astuce-clavier">Appuyez sur Entrée ↵</div>
+    </section>
+
+    <section class="etape" data-etape="flotte" hidden>
+      <div class="question">Ma <em>flotte de matériel</em></div>
+      <p class="sous-question">Un tableau qui vous appartient entièrement, pour associer chaque appareil reçu à la personne qui l'utilise.</p>
+      <div id="zone-flotte"><p class="sous-question">Chargement…</p></div>
+    </section>
+
+  </div>
+</div>
+
+<script>
+const $  = id => document.getElementById(id);
+
+function jsonp(params){
+  return new Promise((ok, ko) => {
+    const nom = 'cb' + Date.now() + Math.floor(Math.random()*1000);
+    const balise = document.createElement('script');
+    const t = setTimeout(() => { nettoyer(); ko(new Error('Délai dépassé')); }, 90000);
+    function nettoyer(){ clearTimeout(t); window[nom] = () => {}; balise.remove(); }
+    window[nom] = data => { nettoyer(); ok(data); };
+    balise.src = API + '?' + new URLSearchParams({...params, callback:nom});
+    balise.onerror = () => { nettoyer(); ko(new Error('Connexion impossible')); };
+    document.body.appendChild(balise);
+  });
+}
+function poster(data){
+  return fetch(API, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify(data)
+  }).then(r => r.json());
+}
+function afficherMsg(cible, texte, type){
+  $(cible).innerHTML = texte ? '<div class="msg msg-' + type + '">' + texte + '</div>' : '';
+}
+function echapper(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+
+let codeValide = '';
+
+async function verifierCode(){
+  const code = $('code').value.trim();
+  if(!code) return;
+  $('btn-verifier').disabled = true;
+  $('btn-verifier').innerHTML = '<span class="spinner-inline"></span>Vérification…';
+  try{
+    const r = await jsonp({action:'check', code: code});
+    if(r.ok){
+      codeValide = code;
+      document.querySelector('.etape[data-etape="code"]').hidden = true;
+      document.querySelector('.etape[data-etape="flotte"]').hidden = false;
+      chargerFlotte();
+    }else{
+      afficherMsg('retour-code', echapper(r.erreur || 'Code invalide'), 'erreur');
+    }
+  }catch(e){
+    afficherMsg('retour-code', 'Connexion impossible — réessaie.', 'erreur');
+  }
+  $('btn-verifier').disabled = false;
+  $('btn-verifier').textContent = 'Continuer →';
+}
+$('btn-verifier').addEventListener('click', verifierCode);
+$('code').addEventListener('keydown', e => { if(e.key === 'Enter') verifierCode(); });
+
+async function chargerFlotte(){
+  try{
+    const r = await jsonp({action:'flotte-obtenir', code: codeValide});
+    if(!r.ok){ $('zone-flotte').innerHTML = '<p class="msg msg-erreur">Chargement impossible.</p>'; return; }
+
+    if(r.lienFlotte){
+      $('zone-flotte').innerHTML = `
+        <div class="carte-flotte-liee">
+          <a class="bouton-principal" href="${echapper(r.lienFlotte)}" target="_blank" rel="noopener" style="display:inline-block;text-decoration:none">Ouvrir mon tableau de flotte</a>
+          <div style="margin-top:14px">
+            <button type="button" class="bouton-retour" id="btn-actualiser-flotte">🔄 Actualiser depuis mes commandes livrées</button>
+          </div>
+          <div id="retour-actualiser-flotte" class="compteur-ajouts"></div>
+        </div>`;
+      $('btn-actualiser-flotte').addEventListener('click', async () => {
+        $('btn-actualiser-flotte').disabled = true;
+        $('retour-actualiser-flotte').textContent = 'Actualisation…';
+        try{
+          const rA = await poster({ action:'flotte-actualiser', code: codeValide });
+          $('retour-actualiser-flotte').textContent = rA.ok
+            ? (rA.ajoutes > 0 ? rA.ajoutes + ' nouvel(aux) appareil(s) ajouté(s).' : 'Déjà à jour, rien de nouveau.')
+            : (rA.erreur || 'Actualisation impossible.');
+        }catch(e){
+          $('retour-actualiser-flotte').textContent = 'Actualisation impossible.';
+        }
+        $('btn-actualiser-flotte').disabled = false;
+      });
+      return;
+    }
+
+    if(!r.lienModele){
+      $('zone-flotte').innerHTML = '<p class="msg msg-erreur">Cette fonctionnalité n\'est pas encore configurée — contactez-nous directement.</p>';
+      return;
+    }
+
+    $('zone-flotte').innerHTML = `
+      <ol class="tuto-flotte">
+        <li>
+          <div class="titre-etape">Copiez le modèle dans votre propre Google Drive</div>
+          <div class="desc-etape">Cliquez ce lien, connecté à votre compte Google : <a href="${echapper(r.lienModele)}" target="_blank" rel="noopener">Créer ma copie du modèle</a>. Une copie s'ouvre, qui vous appartient entièrement.</div>
+        </li>
+        <li>
+          <div class="titre-etape">Partagez-la en modification par lien</div>
+          <div class="desc-etape">Dans votre copie : bouton <b>Partager</b> (en haut à droite) → sous "Accès général", choisissez <b>"Toute personne disposant du lien"</b> → rôle <b>Éditeur</b> → Copier le lien.</div>
+        </li>
+        <li>
+          <div class="titre-etape">Collez ce lien ici</div>
+          <div class="desc-etape">On le vérifie, puis on pré-remplit automatiquement avec tous les appareils déjà livrés à votre structure — vous n'aurez plus qu'à indiquer qui utilise chaque appareil.</div>
+          <label for="lien-flotte-champ" class="sr-only">Lien de votre tableau</label>
+          <input type="text" class="champ-texte" id="lien-flotte-champ" placeholder="Collez le lien de votre copie ici" style="margin-top:10px">
+          <div id="retour-lien-flotte" aria-live="polite"></div>
+          <button type="button" class="bouton-principal" id="btn-valider-flotte" style="margin-top:10px">Valider et pré-remplir</button>
+        </li>
+      </ol>`;
+
+    $('btn-valider-flotte').addEventListener('click', async () => {
+      const lien = $('lien-flotte-champ').value.trim();
+      if(!lien){ afficherMsg('retour-lien-flotte', 'Colle d\'abord le lien de ta copie.', 'erreur'); return; }
+      $('btn-valider-flotte').disabled = true;
+      $('btn-valider-flotte').textContent = 'Vérification…';
+      afficherMsg('retour-lien-flotte', '', 'info');
+      try{
+        const rL = await poster({ action:'flotte-lier', code: codeValide, lienFlotte: lien });
+        if(rL.ok){
+          chargerFlotte(); // réaffiche la carte "déjà lié", avec le nombre d'appareils ajoutés
+        }else{
+          afficherMsg('retour-lien-flotte', echapper(rL.erreur || 'Erreur inconnue'), 'erreur');
+        }
+      }catch(e){
+        afficherMsg('retour-lien-flotte', 'Connexion impossible — réessaie.', 'erreur');
+      }
+      $('btn-valider-flotte').disabled = false;
+      $('btn-valider-flotte').textContent = 'Valider et pré-remplir';
+    });
+  }catch(e){
+    $('zone-flotte').innerHTML = '<p class="msg msg-erreur">Chargement impossible — réessaie.</p>';
+  }
+}
+</script>
+</body>
+</html>

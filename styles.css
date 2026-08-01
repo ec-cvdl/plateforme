@@ -174,7 +174,7 @@ body.mode-accessible .compteur .champ-nombre::-webkit-inner-spin-button{-webkit-
 .carte-choix{
   border:2px solid var(--trait);border-radius:11px;padding:16px 15px;
   cursor:pointer;background:var(--carte);display:flex;align-items:center;gap:11px;
-  position:relative;
+  position:relative;min-height:78px;
 }
 .carte-choix:hover{border-color:var(--gris)}
 .carte-choix.selectionne{border-color:var(--primaire);background:#EEF1FB}

@@ -233,6 +233,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
           <button data-f="En cours de livraison">En livraison</button>
           <button data-f="Livrée">Livrées</button>
           <button data-f="impaye">Impayées</button>
+          <button data-f="urgent">⚡ Urgent</button>
         </div>
         <input type="text" id="recherche" placeholder="Structure, référence, numéro de série…">
         <div class="selecteur-style-carte" id="selecteur-style-carte" role="group" aria-label="Style des cartes commande">
@@ -646,6 +647,22 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
       </div>
 
       <div class="carte-reglage">
+        <h3>Modèle flotte matériel (structures)</h3>
+        <p class="reglage-texte">
+          Modèle Google Sheets que chaque structure copie dans son propre Drive pour tenir l'inventaire
+          des appareils reçus (colonnes : Numéro de série, Personne, Statut, Date de livraison, Date de vente, Payé, Lien de paiement).
+          Le statut (En stock / Vendu / En SAV) est pré-rempli à "En stock" pour chaque nouvel appareil, avec une liste déroulante posée automatiquement sur la colonne.
+          Une fois la structure copie partagée en modification et son lien collé dans le portail, on la pré-remplit
+          automatiquement avec les appareils déjà livrés.
+        </p>
+        <div class="ligne-reglage">
+          <input type="text" id="modele-flotte-input" placeholder="URL ou ID du Sheets modèle">
+          <button type="button" class="action claire" id="btn-modele-flotte-enregistrer">Enregistrer</button>
+        </div>
+        <div id="retour-modele-flotte"></div>
+      </div>
+
+      <div class="carte-reglage">
         <h3>Dossier Drive des attestations</h3>
         <p class="reglage-texte">Où déposer les attestations de paiement générées (un fichier par personne).</p>
         <div class="ligne-reglage">
@@ -835,6 +852,23 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
   </div>
 </div>
 
+<!-- Modale : date de livraison souhaitée — ouverte à l'envoi pour validation logistique
+     (étape Reçue), mais aussi modifiable ensuite à tout moment depuis la fiche commande. -->
+<div class="voile-modale" id="modale-date-souhaitee" hidden>
+  <div class="modale">
+    <h2>Date de livraison souhaitée</h2>
+    <p class="sous-titre" id="date-souhaitee-ref"></p>
+    <label for="date-souhaitee-champ">Date programmée</label>
+    <input type="date" id="date-souhaitee-champ" lang="fr">
+    <button type="button" class="action claire" id="date-souhaitee-urgent" style="width:100%;margin-top:10px">⚡ Le plus rapidement possible</button>
+    <div id="retour-date-souhaitee"></div>
+    <div class="pied-modale">
+      <button type="button" class="action claire" id="date-souhaitee-annuler">Annuler</button>
+      <button type="button" class="action" id="date-souhaitee-confirmer">Confirmer</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modale : modifier la commande (produit, quantité, moyen de paiement, commentaire) -->
 <div class="voile-modale" id="modale-modifier-commande" hidden>
   <div class="modale">
@@ -881,8 +915,9 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
     <select id="modale-paiement-statut" class="statut"></select>
     <label for="modale-paiement-moyen">Moyen de paiement</label>
     <select id="modale-paiement-moyen"></select>
-    <label for="modale-paiement-lien">Lien de paiement</label>
-    <input type="text" id="modale-paiement-lien" placeholder="Sans objet">
+    <label for="modale-paiement-lien" id="modale-paiement-lien-label">Lien de paiement</label>
+    <p class="sous-titre" id="modale-paiement-lien-aide" style="margin:-8px 0 8px"></p>
+    <textarea id="modale-paiement-lien" rows="2" placeholder="Sans objet" style="width:100%;box-sizing:border-box;font-family:inherit;resize:vertical"></textarea>
     <div id="modale-paiement-devis-zone"></div>
     <div id="modale-paiement-facture-zone"></div>
     <div class="pied-modale">

@@ -135,6 +135,27 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
       </div>
     </section>
 
+    <!-- Étape : paiement partagé entre bénéficiaires (si ≥2 personnes + paiement CB) -->
+    <section class="etape" data-etape="paiement-partage" hidden>
+      <div class="compte">ÉTAPE <span class="num-actuel">–</span> SUR <span class="num-total">–</span></div>
+      <div class="question">Un <em>règlement</em> par personne ?</div>
+      <p class="sous-question">Cette commande concerne plusieurs bénéficiaires et sera réglée en ligne — souhaitez-vous que chaque bénéficiaire règle sa part séparément ?</p>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:6px">
+        <label class="carte-choix" style="justify-content:flex-start">
+          <input type="radio" name="paiement-separe" value="Oui" style="display:none">
+          <span class="libelle">Oui, merci de m'envoyer plusieurs liens de règlement</span>
+        </label>
+        <label class="carte-choix" style="justify-content:flex-start">
+          <input type="radio" name="paiement-separe" value="Non" style="display:none">
+          <span class="libelle">Non, une seule carte bancaire suffira pour toute la commande</span>
+        </label>
+      </div>
+      <div class="suite">
+        <button type="button" class="bouton-retour" data-retour>← Retour</button>
+        <button type="button" class="bouton-principal" id="btn-paiement-partage-suivant" disabled>Continuer →</button>
+      </div>
+    </section>
+
     <!-- Étape : date de livraison souhaitée (structures Interne uniquement) -->
     <section class="etape" data-etape="date-livraison" hidden>
       <div class="compte">ÉTAPE <span class="num-actuel">–</span> SUR <span class="num-total">–</span></div>
@@ -342,7 +363,7 @@ try{
 }catch(e){}
 
 /* Machine à étapes */
-const etapes = ['code','materiel','paiement','piece-jointe','date-livraison','commentaire'];
+const etapes = ['code','materiel','paiement','piece-jointe','paiement-partage','date-livraison','commentaire'];
 let indexEtape = 0;
 let moyenImpose = null;
 let estEsn = false;
@@ -350,7 +371,7 @@ let estInterne = false;
 
 const etat = {
   code: '', nomStructure: '',
-  lignes: [], moyenPaiement: '',
+  lignes: [], moyenPaiement: '', paiementSepare: '',
   demandeDevis: false, commentaire: '', dateLivraisonSouhaitee: ''
 };
 
@@ -363,6 +384,7 @@ function etapesActives(){
   return etapes.filter(function(e){
     if(e === 'paiement' && (moyenImpose || estEsn)) return false;
     if(e === 'piece-jointe' && (moyenImpose || estEsn)) return false; // RN : pas de bon d'orientation à joindre — ESN : ni paiement ni pièce jointe
+    if(e === 'paiement-partage' && (moyenImpose || estEsn || etat.moyenPaiement !== 'Paiement en ligne (CB)' || listePersonnesSaisies().length < 2)) return false;
     if(e === 'date-livraison' && !estInterne) return false; // uniquement pour les commandes passées en interne
     return true;
   });
@@ -615,6 +637,17 @@ $$('.etape[data-etape="paiement"] input[type=radio]').forEach(function(input){
 });
 $('btn-paiement-suivant').addEventListener('click', suivant);
 
+/* Étape : paiement partagé entre bénéficiaires */
+$$('.etape[data-etape="paiement-partage"] input[type=radio]').forEach(function(input){
+  input.addEventListener('change', function(){
+    $$('.etape[data-etape="paiement-partage"] .carte-choix').forEach(function(c){ c.classList.remove('selectionne'); });
+    input.closest('.carte-choix').classList.add('selectionne');
+    etat.paiementSepare = input.value;
+    $('btn-paiement-partage-suivant').disabled = false;
+  });
+});
+$('btn-paiement-partage-suivant').addEventListener('click', suivant);
+
 /* Étape 5 : personnes bénéficiaires (remplace l'ancien upload de bon d'orientation) */
 /** Étale les lignes du panier (produit + quantité) en une liste d'unités individuelles,
  *  une entrée par appareil — sert à associer chaque personne à un appareil précis, pas
@@ -724,6 +757,7 @@ $('btn-envoyer').addEventListener('click', async function(){
         return p.nomComplet + '|' + p.dateNaissance.split('-').reverse().join('/') + '|' + p.produit;
       }),
       demandeDevis: etat.demandeDevis,
+      paiementSepare: etat.paiementSepare || 'Non',
       commentaire: (etat.dateLivraisonSouhaitee ? ('Date de livraison max. souhaitée : ' + etat.dateLivraisonSouhaitee.split('-').reverse().join('/') + '\n\n') : '') + $('commentaire').value.trim(),
       urlSuivi: urlSuiviCommandes(),
       urlPortail: urlPortailStructure()

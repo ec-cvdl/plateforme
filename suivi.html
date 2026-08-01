@@ -217,7 +217,12 @@ function rendreCommandesSuivi(commandes){
       <div class="pied-cs">
         <div class="montant-cs">${formaterMontant(c.montantFacture != null ? c.montantFacture : c.montantEstime)}</div>
         ${c.statutPaiement ? `<div class="statut-paiement-cs ${c.statutPaiement === 'Payé' ? 'paye' : 'non-paye'}">${echapper(c.statutPaiement)}</div>` : ''}
-        ${c.lienPaiement && c.statutPaiement !== 'Payé' ? `<a class="lien-paiement-cs" href="${echapper(API + '?action=clic-lien-paiement&ref=' + encodeURIComponent(c.reference))}" target="_blank" rel="noopener">Régler cette commande</a>` : ''}
+        ${c.lienPaiement && c.statutPaiement !== 'Payé' ? (
+          c.paiementSepare && c.personnes
+            ? c.personnes.split('\n').map(p => p.trim()).filter(Boolean).map((p, i) =>
+                `<a class="lien-paiement-cs" href="${echapper(API + '?action=clic-lien-paiement&ref=' + encodeURIComponent(c.reference) + '&index=' + i)}" target="_blank" rel="noopener">Régler pour ${echapper(p)}</a>`).join('')
+            : `<a class="lien-paiement-cs" href="${echapper(API + '?action=clic-lien-paiement&ref=' + encodeURIComponent(c.reference))}" target="_blank" rel="noopener">Régler cette commande</a>`
+        ) : ''}
       </div>` : ''}
     </div>`;
   }).join('');
