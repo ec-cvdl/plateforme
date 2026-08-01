@@ -503,7 +503,7 @@ const ENTETES_DEVIS = [
 
 const ENTETES_STRUCTURES = ['Code', 'Nom', 'Email', 'Téléphone', 'Adresse', 'RN', 'ESN', 'Interne'];
 
-const ENTETES_PRODUITS = ['Nom', 'Prix standard', 'Prix RN', 'Stock', 'Visible', 'Message si épuisé', 'Disque dur', 'RAM', 'Système', 'Icône', 'Quantité max'];
+const ENTETES_PRODUITS = ['Nom', 'Prix standard', 'Prix RN', 'Stock', 'Visible', 'Message si épuisé', 'Disque dur', 'RAM', 'Système', 'Icône', 'Quantité max', 'SKU Tech.tec'];
 
 const ENTETES_FACTURES = [
   'Référence facture', 'Date', 'Référence commande', 'Nom structure', 'Email', 'Adresse',
@@ -998,7 +998,8 @@ function lireProduits() {
       ram:            String(lignes[i][7] || '').trim(),
       systeme:        String(lignes[i][8] || '').trim(),
       icone:          String(lignes[i][9] || '').trim(),
-      quantiteMax:    parseInt(lignes[i][10], 10) || 0 // 0 = pas de limite propre, utilise le réglage global
+      quantiteMax:    parseInt(lignes[i][10], 10) || 0, // 0 = pas de limite propre, utilise le réglage global
+      skuTectech:     String(lignes[i][11] || '').trim()
     };
   }
   return produits;
@@ -1086,7 +1087,7 @@ function majProduit(data) {
 
   const colonnes = {
     nom: 1, prixStandard: 2, prixRN: 3, stock: 4, visible: 5, messageRupture: 6,
-    disque: 7, ram: 8, systeme: 9, icone: 10, quantiteMax: 11
+    disque: 7, ram: 8, systeme: 9, icone: 10, quantiteMax: 11, skuTectech: 12
   };
   const colonne = colonnes[data.champ];
   if (!colonne) return { ok: false, erreur: 'Champ inconnu' };
@@ -1234,7 +1235,16 @@ function creerCommande(data) {
   else if (data.fichier && data.fichier.base64) fichiers = [data.fichier]; // compatibilité ancien envoi
 
   const infosResumees = resumerLignes(lignesValidees);
-  const resultat = inserer(structure, infosResumees.resume, infosResumees.total, data.moyenPaiement, fichiers, data.commentaire, null, null, null, !!data.demandeDevis, data.personnes);
+
+  // Détection de doublon — ne bloque jamais l'envoi (un vrai échec de connexion suivi d'un
+  // second essai légitime ne doit jamais être empêché), juste un signal pour l'admin à vérifier
+  // manuellement : même structure, même contenu, dans les 5 dernières minutes.
+  const commentaireDoublon = detecterCommandeDoublonRecente(structure.code, infosResumees.resume)
+    ? '⚠️ DOUBLON POTENTIEL DÉTECTÉ : une commande très similaire de cette structure a été reçue il y a moins de 5 minutes — vérifier avant de traiter les deux.\\n\\n'
+    : '';
+  const commentaireFinal = commentaireDoublon + String(data.commentaire || '');
+
+  const resultat = inserer(structure, infosResumees.resume, infosResumees.total, data.moyenPaiement, fichiers, commentaireFinal, null, null, null, !!data.demandeDevis, data.personnes);
 
   // Écrit le détail des lignes, puis décrémente le stock — chacun en un seul appel Sheets,
   // quel que soit le nombre de produits différents dans la commande.
@@ -1350,6 +1360,28 @@ function definirModeleCommande(data) {
  *  de Commandes à partir d'un résumé texte et d'une quantité totale déjà calculés par
  *  l'appelant. Ne touche plus au stock elle-même : chaque appelant décrémente lui-même,
  *  produit par produit, puisqu'une commande peut désormais en contenir plusieurs. */
+/** Doublon potentiel : même structure, même résumé produit, commande reçue il y a moins de
+ *  5 minutes. Sert uniquement à prévenir l'admin (jamais à bloquer) — le cas typique est une
+ *  connexion qui plante côté navigateur après que la commande a pourtant bien été enregistrée,
+ *  poussant la structure à réessayer en pensant que rien n'est parti. */
+function detecterCommandeDoublonRecente(codeStructure, resumeProduit) {
+  const FENETRE_MINUTES = 5;
+  const maintenant = new Date();
+  const lignes = feuilleCommandes().getDataRange().getValues();
+
+  for (let i = lignes.length - 1; i >= 1; i--) {
+    const l = lignes[i];
+    if (!l[0]) continue;
+    if (String(l[2] || '').trim() !== codeStructure) continue;
+    const dateCommande = l[1] ? new Date(l[1]) : null;
+    if (!dateCommande) continue;
+    const ecartMinutes = (maintenant - dateCommande) / 60000;
+    if (ecartMinutes > FENETRE_MINUTES) break; // les lignes sont dans l'ordre chronologique : au-delà, inutile de continuer
+    if (String(l[7] || '').trim() === resumeProduit) return true;
+  }
+  return false;
+}
+
 function inserer(structure, resumeProduits, quantiteTotale, moyenPaiement, fichiers, commentaire, dateForcee, statutCommande, statutPaiement, devisDemande, personnes) {
   const feuille  = feuilleCommandes();
   const annee    = (dateForcee || new Date()).getFullYear();
@@ -1554,7 +1586,7 @@ function genererBonOrientationPdf(data) {
   const [reference, , codeStructure, nomStructure, email, telephone, adresse, resumeProduit, quantiteTotale] = c;
   if (!reference) return { ok: false, erreur: 'Commande introuvable' };
 
-  const personnes = String(c[27] || '').split('\\n').map(function(s) { return s.trim(); }).filter(Boolean);
+  const personnes = String(c[27] || '').split('\\n').map(function(s) { return s.trim().split('|')[0].trim(); }).filter(Boolean);
 
   const jetons = Object.assign(jetonsProduitsNumerotes(reference, resumeProduit, quantiteTotale, codeStructure), {
     '{{STRUCTURE}}': nomStructure || '',
@@ -1612,8 +1644,19 @@ function genererAttestationsPaiement(data) {
   const [reference, dateCommande, codeStructure] = c;
   if (!reference) return { ok: false, erreur: 'Commande introuvable' };
 
-  const personnes = String(c[27] || '').split('\\n').map(function(s) { return s.trim(); }).filter(Boolean);
-  if (!personnes.length) return { ok: false, erreur: 'Aucune personne renseignée pour cette commande' };
+  const personnesBrutes = String(c[27] || '').split('\\n').map(function(s) { return s.trim(); }).filter(Boolean);
+  if (!personnesBrutes.length) return { ok: false, erreur: 'Aucune personne renseignée pour cette commande' };
+
+  // Format "nom complet|date de naissance|produit" — avec repli sur l'ancien format (juste
+  // un nom, sans date ni produit) pour les commandes enregistrées avant ce changement.
+  const personnes = personnesBrutes.map(function(ligne) {
+    const parties = ligne.split('|');
+    return {
+      nomComplet: (parties[0] || '').trim(),
+      dateNaissance: (parties[1] || '').trim(),
+      produit: (parties[2] || '').trim()
+    };
+  });
 
   const numerosSerie = String(c[15] || '').split('\\n').map(function(s) { return s.trim(); }).filter(Boolean);
   const caracteristiquesBrutes = String(c[25] || '').split('\\n').map(function(s) { return s.trim(); }).filter(Boolean);
@@ -1624,16 +1667,7 @@ function genererAttestationsPaiement(data) {
     specsParSerie[ligneSpec.slice(0, sep).trim()] = ligneSpec.slice(sep + 1).trim();
   });
 
-  const quantiteTotale = parseInt(c[8], 10) || personnes.length;
   const structure = lireStructures()[String(codeStructure || '').trim()];
-  let montantEstime = 0;
-  const detailLignes = lireLignesCommande(reference, c[7], quantiteTotale);
-  detailLignes.forEach(function(l) {
-    const calcul = calculerPrixUnitaire(codeStructure, l.produit);
-    if (calcul) montantEstime += calcul.prixUnitaire * l.quantite;
-  });
-  const prixMoyenParPersonne = personnes.length ? Math.round((montantEstime / personnes.length) * 100) / 100 : 0;
-
   const dateVente = dateCommande ? Utilities.formatDate(new Date(dateCommande), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '';
 
   let dossier;
@@ -1643,16 +1677,22 @@ function genererAttestationsPaiement(data) {
   const modeleFichier = DriveApp.getFileById(MODELE_ATTESTATION_PAIEMENT);
   const resultats = [];
 
-  personnes.forEach(function(nomComplet, i) {
+  personnes.forEach(function(personne, i) {
     const numeroSerie = numerosSerie[i] || '';
     const specs = specsParSerie[numeroSerie] || '';
+    // Prix réel du produit de cette personne — plus précis qu'une moyenne sur toute la
+    // commande, maintenant qu'on sait exactement quel appareil lui revient.
+    const calculPrix = personne.produit ? calculerPrixUnitaire(codeStructure, personne.produit) : null;
+    const prixPersonne = calculPrix ? calculPrix.prixUnitaire : 0;
 
     const jetons = {
-      '{{NOM_COMPLET}}': nomComplet,
+      '{{NOM_COMPLET}}': personne.nomComplet,
+      '{{DATE_NAISSANCE}}': personne.dateNaissance,
       '{{STRUCTURE}}': structure ? structure.nom : '',
       '{{REFERENCE_COMMANDE}}': reference,
-      '{{PRIX}}': formaterMontantPourModele(prixMoyenParPersonne),
-      '{{MARQUE_MODELE}}': specs,
+      '{{PRIX}}': formaterMontantPourModele(prixPersonne),
+      '{{PRODUIT}}': personne.produit,
+      '{{MARQUE_MODELE}}': specs || personne.produit,
       '{{DATE_VENTE}}': dateVente,
       '{{NUMERO_SERIE}}': numeroSerie,
       '{{RESPONSABLE_NOM}}': RESPONSABLE_NOM,
@@ -1660,7 +1700,7 @@ function genererAttestationsPaiement(data) {
       '{{RESPONSABLE_EMAIL}}': RESPONSABLE_EMAIL
     };
 
-    const nomFichier = 'Attestation de paiement - ' + nomComplet;
+    const nomFichier = 'Attestation de paiement - ' + personne.nomComplet;
     const copie = modeleFichier.makeCopy(nomFichier, dossier);
     const classeurCopie = SpreadsheetApp.openById(copie.getId());
     classeurCopie.getSheets().forEach(function(f) {
@@ -1668,7 +1708,7 @@ function genererAttestationsPaiement(data) {
         f.createTextFinder(jeton).matchEntireCell(false).replaceAllWith(jetons[jeton]);
       });
     });
-    resultats.push({ nom: nomComplet, url: copie.getUrl() });
+    resultats.push({ nom: personne.nomComplet, url: copie.getUrl() });
   });
   SpreadsheetApp.flush();
 
@@ -1869,6 +1909,18 @@ function construireBaseCommandes() {
   return { toutes: toutes, aLivrer: aLivrer, nombreNouvelles: nombreNouvelles, nombreImpayees: nombreImpayees };
 }
 
+/** Convertit le lien d'édition d'un Google Sheets en lien de téléchargement PDF direct —
+ *  pour le suivi structure : on ne veut pas ouvrir l'éditeur collaboratif, juste proposer un
+ *  fichier à télécharger. L'admin, lui, garde le lien éditable classique (utile pour corriger
+ *  une coquille), seule cette version publique est transformée. */
+function urlExportPdfDepuisUrlSheets(url) {
+  const propre = String(url || '').trim();
+  if (!propre) return '';
+  const correspondance = propre.match(/\\/spreadsheets\\/d\\/([a-zA-Z0-9_-]+)/);
+  if (!correspondance) return propre; // pas reconnu comme un lien Sheets : on renvoie tel quel plutôt que de casser le lien
+  return 'https://docs.google.com/spreadsheets/d/' + correspondance[1] + '/export?format=pdf';
+}
+
 /** Vue publique pour une structure — protégée par son code, jamais par le mot de passe admin.
  *  Ne renvoie que ses propres commandes, avec uniquement les champs pertinents pour elle
  *  (rien sur les autres structures, rien de purement comptable/interne comme le numéro de
@@ -1935,7 +1987,8 @@ function listerCommandesParCode(data) {
       moyenPaiement:   estEsnOuInterne ? null : l[9],
       statutPaiement:  estEsnOuInterne ? null : l[12],
       lienPaiement:    estEsnOuInterne ? '' : (l[13] || ''),
-      bonLivraison:    l[26] || ''
+      bonLivraison:    urlExportPdfDepuisUrlSheets(l[26]),
+      commentaire:     l[11] === 'Annulée' ? (l[14] || '') : ''
     });
   }
 
@@ -1975,6 +2028,15 @@ function majCommande(data) {
 
   // Rendu du stock si la commande passe en "Annulée", repris si elle en ressort —
   // boucle sur toutes les lignes de la commande (elle peut contenir plusieurs produits).
+  // Date de livraison obligatoire avant de passer en "Livrée" — refusé plutôt qu'auto-rempli,
+  // pour que ce soit une vraie date choisie et non une date du jour mise par défaut.
+  if (data.champ === 'statutCommande' && data.valeur === 'Livrée') {
+    const dateLivraisonActuelle = feuille.getRange(data.ligne, 24).getValue();
+    if (!dateLivraisonActuelle) {
+      return { ok: false, erreur: 'Renseigne d\\'abord la date de livraison avant de passer cette commande en Livrée.' };
+    }
+  }
+
   if (data.champ === 'statutCommande') {
     const ligneActuelle = feuille.getRange(data.ligne, 1, 1, ENTETES_COMMANDES.length).getValues()[0];
     const ancienStatut = ligneActuelle[11];
@@ -1989,14 +2051,6 @@ function majCommande(data) {
 
   feuille.getRange(data.ligne, colonne).setValue(data.valeur);
   invaliderCacheCommandes();
-
-  // Date de livraison auto-remplie une seule fois au passage en "Livrée"
-  if (data.champ === 'statutCommande' && data.valeur === 'Livrée') {
-    const dateLivraisonActuelle = feuille.getRange(data.ligne, 24).getValue();
-    if (!dateLivraisonActuelle) {
-      feuille.getRange(data.ligne, 24).setValue(new Date());
-    }
-  }
 
   // Devis automatique au passage en "Validée" — uniquement si la structure l'a demandé
   // depuis le formulaire public. Sinon, le devis reste à créer manuellement si besoin.
@@ -3369,6 +3423,16 @@ function listerFactures(password) {
       ligne:             i + 1,
       referenceFacture:  lignes[i][0],
       date:              lignes[i][1] ? Utilities.formatDate(new Date(lignes[i][1]), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '',
+      referenceCommande: lignes[i][2] || '',
+      nomStructure:      lignes[i][3] || '',
+      email:             lignes[i][4] || '',
+      adresse:           lignes[i][5] || '',
+      produit:           lignes[i][6] || '',
+      quantite:          lignes[i][7] || '',
+      moyenPaiement:     lignes[i][8] || '',
+      prixUnitaire:      lignes[i][9] || 0,
+      montantTotal:      lignes[i][10] || 0,
+      commentaire:       lignes[i][11] || ''
     });
   }
   return { ok: true, factures: factures.reverse() };

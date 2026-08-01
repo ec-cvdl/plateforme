@@ -106,6 +106,10 @@ function rendreProduits(){
           <label>Quantité max / commande</label>
           <input type="number" step="1" min="1" placeholder="Défaut" value="${p.quantiteMax || ''}" data-ligne="${p.ligne}" data-champ="quantiteMax">
         </div>
+        <div class="produit-carte-champ">
+          <label title="La référence utilisée côté Tech.tec pour ce produit, pour que la synchronisation de stock sache à qui l'attribuer">SKU Tech.tec</label>
+          <input type="text" placeholder="Aucun" value="${echapper(p.skuTectech || '')}" data-ligne="${p.ligne}" data-champ="skuTectech">
+        </div>
       </div>
 
       <div class="produit-carte-specs">
