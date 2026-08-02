@@ -12,7 +12,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=20260802-1">
+<link rel="stylesheet" href="styles.css?v=20260802-2">
 <style>
   .grille-symptomes{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-top:14px}
   .carte-symptome{
@@ -36,8 +36,9 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
 <body>
 <a href="#contenu-principal" class="lien-evitement">Aller au contenu</a>
 
-<div class="barre-retour-portail">
+<div class="barre-retour-portail" style="display:flex;justify-content:space-between;align-items:center">
   <a href="portail-structure.html" class="lien-retour-portail">← Retour portail</a>
+  <button type="button" id="btn-changer-code" class="lien-retour-portail" style="background:none;border:none;cursor:pointer;font:inherit" hidden>Changer de code</button>
 </div>
 
 <header class="marque-barre">
@@ -320,6 +321,7 @@ $('btn-verifier-code').addEventListener('click', async function(){
     const r = await jsonp({action:'check', code: code});
     if(r.ok){
       etat.code = code;
+      try{ sessionStorage.setItem('cvdl-code-structure', code); }catch(e){}
       etat.nomStructure = r.nom;
       $('nom-personne').value = r.nom;
       suivant();
@@ -331,6 +333,15 @@ $('btn-verifier-code').addEventListener('click', async function(){
   }
   $('btn-verifier-code').disabled = false;
   $('btn-verifier-code').textContent = 'Continuer →';
+});
+
+try{
+  const codeMemorise = sessionStorage.getItem('cvdl-code-structure');
+  if(codeMemorise){ $('id-code').value = codeMemorise; $('btn-changer-code').hidden = false; $('btn-verifier-code').click(); }
+}catch(e){}
+$('btn-changer-code').addEventListener('click', () => {
+  try{ sessionStorage.removeItem('cvdl-code-structure'); }catch(e){}
+  location.reload();
 });
 
 /* Étape 2 : nom */

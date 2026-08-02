@@ -12,7 +12,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=20260802-1">
+<link rel="stylesheet" href="styles.css?v=20260802-2">
 <style>
   .liste-commandes-suivi{display:flex;flex-direction:column;gap:16px;margin-top:20px}
 
@@ -250,6 +250,7 @@ async function chargerCommandesSuivi(){
       rendreCommandesSuivi(r.commandes);
       $('etape-code').hidden = true;
       $('etape-liste').hidden = false;
+      try{ sessionStorage.setItem('cvdl-code-structure', code); }catch(e){}
     }else{
       afficherMsg('retour-code', r.erreur || 'Code introuvable.', 'erreur');
     }
@@ -264,12 +265,18 @@ $('btn-voir-commandes').addEventListener('click', chargerCommandesSuivi);
 $('code-structure').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); chargerCommandesSuivi(); } });
 
 $('btn-autre-code').addEventListener('click', () => {
+  try{ sessionStorage.removeItem('cvdl-code-structure'); }catch(e){}
   $('code-structure').value = '';
   $('retour-code').innerHTML = '';
   $('etape-liste').hidden = true;
   $('etape-code').hidden = false;
   $('code-structure').focus();
 });
+
+try{
+  const codeMemorise = sessionStorage.getItem('cvdl-code-structure');
+  if(codeMemorise){ $('code-structure').value = codeMemorise; chargerCommandesSuivi(); }
+}catch(e){}
 </script>
 </body>
 </html>

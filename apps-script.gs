@@ -43,6 +43,13 @@ const CLES_CONFIG = {
   MODELE_ATTESTATION_PAIEMENT: 'CONFIG_MODELE_ATTESTATION_PAIEMENT',
   MODELE_FLOTTE_MATERIEL: 'CONFIG_MODELE_FLOTTE_MATERIEL',
   NETTOYAGE_FICHIERS_JOURS: 'CONFIG_NETTOYAGE_FICHIERS_JOURS',
+  BASCULE_ANNUELLE_ACTIVEE: 'CONFIG_BASCULE_ANNUELLE_ACTIVEE',
+  BASCULE_DATE_JOUR: 'CONFIG_BASCULE_DATE_JOUR',
+  BASCULE_DATE_MOIS: 'CONFIG_BASCULE_DATE_MOIS',
+  RAPPEL_BASCULE_MAIL_ENVOYE_ANNEE: 'CONFIG_RAPPEL_BASCULE_MAIL_ENVOYE_ANNEE',
+  CLASSEUR_ACTIF_ID: 'CONFIG_CLASSEUR_ACTIF_ID',
+  DERNIERE_BASCULE: 'CONFIG_DERNIERE_BASCULE',
+  ARCHIVES_CLASSEURS: 'CONFIG_ARCHIVES_CLASSEURS',
   QUANTITE_MAX_DEFAUT: 'CONFIG_QUANTITE_MAX_DEFAUT',
   QUANTITE_MAX_DEFAUT_ESN: 'CONFIG_QUANTITE_MAX_DEFAUT_ESN',
   BADGE_NOUVELLE_JOURS: 'CONFIG_BADGE_NOUVELLE_JOURS',
@@ -215,6 +222,12 @@ function obtenirReglages(data) {
     modeleAttestationPaiement: MODELE_ATTESTATION_PAIEMENT,
     modeleFlotteMateriel: MODELE_FLOTTE_MATERIEL,
     nettoyageFichiersJours: NETTOYAGE_FICHIERS_JOURS,
+    basculeAnnuelleActivee: obtenirConfig('BASCULE_ANNUELLE_ACTIVEE', '') === '1',
+    basculeDateJour: parseInt(obtenirConfig('BASCULE_DATE_JOUR', '1'), 10) || 1,
+    basculeDateMois: parseInt(obtenirConfig('BASCULE_DATE_MOIS', '1'), 10) || 1,
+    rappelBasculeDu: basculeEstDue(),
+    classeurActifUrl: classeurActif().getUrl(),
+    archives: listerArchives(),
     quantiteMaxDefaut: QUANTITE_MAX_DEFAUT,
     quantiteMaxDefautEsn: QUANTITE_MAX_DEFAUT_ESN,
     badgeNouvelleJours: BADGE_NOUVELLE_JOURS,
@@ -395,6 +408,21 @@ function definirReglages(data) {
     configurerDeclencheurNettoyage(jours);
   }
 
+  if (data.basculeAnnuelleActivee !== undefined) {
+    const active = !!data.basculeAnnuelleActivee;
+    definirConfig('BASCULE_ANNUELLE_ACTIVEE', active ? '1' : '');
+    configurerDeclencheurRappelBascule(active);
+  }
+
+  if (data.basculeDateJour !== undefined || data.basculeDateMois !== undefined) {
+    const jour = parseInt(data.basculeDateJour, 10);
+    const mois = parseInt(data.basculeDateMois, 10);
+    if (jour && (jour < 1 || jour > 31)) return { ok: false, erreur: 'Jour de bascule invalide' };
+    if (mois && (mois < 1 || mois > 12)) return { ok: false, erreur: 'Mois de bascule invalide' };
+    if (jour) definirConfig('BASCULE_DATE_JOUR', String(jour));
+    if (mois) definirConfig('BASCULE_DATE_MOIS', String(mois));
+  }
+
   if (data.quantiteMaxDefaut !== undefined) {
     const q = parseInt(data.quantiteMaxDefaut, 10);
     if (!q || q < 1) return { ok: false, erreur: 'La quantité max par défaut doit être un nombre supérieur à 0' };
@@ -487,6 +515,22 @@ let _classeurCache = null;
 function obtenirClasseur() {
   if (!_classeurCache) _classeurCache = SpreadsheetApp.getActiveSpreadsheet();
   return _classeurCache;
+}
+
+/** ══════════════ Bascule annuelle (classeur "période active") ══════════════
+ *  Commandes, LignesCommande, Factures, Devis, SAV et HistoriqueSav vivent dans un classeur
+ *  à part qui change chaque année (voir configurerBasculeAnnuelle / effectuerBasculeAnnuelle) —
+ *  ça garde ce classeur petit, donc rapide à lire, peu importe l'ancienneté de l'organisation.
+ *  Structures et Produits, eux, restent pour toujours dans le classeur principal (obtenirClasseur
+ *  ci-dessus) : ce sont des données de référence, pas un historique qui grossit sans fin.
+ *  Tant que la bascule n'a jamais été activée, classeurActif() renvoie le classeur principal —
+ *  comportement strictement identique à avant, aucune migration à faire pour qui ne l'active pas. */
+let _classeurActifCache = null;
+function classeurActif() {
+  if (_classeurActifCache) return _classeurActifCache;
+  const id = obtenirConfig('CLASSEUR_ACTIF_ID', '');
+  _classeurActifCache = id ? SpreadsheetApp.openById(id) : obtenirClasseur();
+  return _classeurActifCache;
 }
 
 const ONGLET_STRUCTURES = 'Structures';
@@ -648,6 +692,166 @@ function configurerDeclencheurNettoyage(jours) {
   if (jours > 0) {
     ScriptApp.newTrigger('nettoyerFichiersAnciens').timeBased().everyDays(1).atHour(3).create();
   }
+}
+
+/* ══════════════ Bascule annuelle (lien manuel) ══════════════
+   Chaque année, le classeur "période active" (Commandes/Factures/Devis/SAV) est archivé et
+   remplacé par un classeur neuf — ça garde la base interrogée au quotidien petite, donc
+   rapide, indéfiniment. La bascule elle-même reste un geste volontaire : on ne crée jamais de
+   classeur à la place de la personne. Elle crée son classeur vierge elle-même (un lien direct
+   vers sheets.new le lui propose), colle son lien dans les réglages, et l'app se charge du
+   reste (archivage de l'ancien, connexion au nouveau). Un rappel (email + modale à la
+   connexion) prévient le jour venu, à la date choisie dans les réglages — jamais d'action
+   automatique sur le classeur lui-même. */
+
+function configurerDeclencheurRappelBascule(active) {
+  ScriptApp.getProjectTriggers().forEach(function(t) {
+    if (t.getHandlerFunction() === 'verifierRappelBasculeParMail') ScriptApp.deleteTrigger(t);
+  });
+  if (active) {
+    ScriptApp.newTrigger('verifierRappelBasculeParMail').timeBased().everyDays(1).atHour(8).create();
+  }
+}
+
+/** Vrai si la bascule est due : on a dépassé la date choisie dans les réglages, et elle n'a
+ *  pas encore été faite cette année (comparé à l'année de la dernière bascule effective, pas
+ *  à la date du jour du dernier rappel — un rappel ignoré doit continuer de réapparaître). */
+function basculeEstDue() {
+  if (obtenirConfig('BASCULE_ANNUELLE_ACTIVEE', '') !== '1') return false;
+  const jour = parseInt(obtenirConfig('BASCULE_DATE_JOUR', '1'), 10) || 1;
+  const mois = parseInt(obtenirConfig('BASCULE_DATE_MOIS', '1'), 10) || 1; // 1 = janvier
+  const maintenant = new Date();
+  const dateBascule = new Date(maintenant.getFullYear(), mois - 1, jour);
+  if (maintenant < dateBascule) return false;
+
+  const derniere = obtenirConfig('DERNIERE_BASCULE', '');
+  if (!derniere) return true;
+  return new Date(derniere).getFullYear() < maintenant.getFullYear();
+}
+
+/** Appelée une fois par jour — envoie un mail seulement le premier jour où la bascule devient
+ *  due (pas un mail par jour tant que ce n'est pas fait : ce serait vite agaçant). La modale
+ *  dans l'admin, elle, réapparaît à chaque connexion tant que ce n'est pas fait — voir
+ *  obtenirReglages ci-dessous (champ rappelBascule). */
+function verifierRappelBasculeParMail() {
+  if (!basculeEstDue()) return;
+  if (obtenirConfig('RAPPEL_BASCULE_MAIL_ENVOYE_ANNEE', '') === String(new Date().getFullYear())) return;
+  definirConfig('RAPPEL_BASCULE_MAIL_ENVOYE_ANNEE', String(new Date().getFullYear()));
+
+  if (!ADMIN_EMAIL) return;
+  try {
+    MailApp.sendEmail(ADMIN_EMAIL, 'CVDL — C\'est l\'heure de la bascule annuelle',
+      'Bonjour,\n\nLa date choisie pour la bascule annuelle des données est arrivée.\n\n'
+      + 'Pour la faire :\n1. Crée un nouveau classeur Google Sheets vierge : https://sheets.new\n'
+      + '2. Copie son lien\n3. Colle-le dans l\'admin, onglet Réglages → "Bascule base de données"\n'
+      + '4. Clique "Basculer maintenant"\n\nL\'ancien classeur est archivé automatiquement, rien à supprimer ni déplacer toi-même.'
+      + '\n\nCordialement,\nCVDL');
+  } catch (e) { Logger.log('Échec envoi mail de rappel bascule : ' + e); }
+}
+
+/** Le geste volontaire lui-même : archive le classeur actif actuel, se connecte au nouveau
+ *  classeur donné (créé à la main par la personne, jamais par le script). Vérifie l'accès
+ *  avant de basculer quoi que ce soit. */
+function basculerVersNouveauClasseur(data) {
+  if (data.password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
+
+  const id = extraireIdFichier(data.lienNouveauClasseur);
+  if (!id) return { ok: false, erreur: 'Lien invalide' };
+
+  let nouveauClasseur;
+  try {
+    nouveauClasseur = SpreadsheetApp.openById(id);
+  } catch (e) {
+    return { ok: false, erreur: 'Impossible d\'accéder à ce classeur — vérifie le lien et que tu y as bien accès.' };
+  }
+
+  const ancienId = obtenirConfig('CLASSEUR_ACTIF_ID', '') || obtenirClasseur().getId();
+  if (ancienId === id) return { ok: false, erreur: 'C\'est déjà le classeur actif — colle le lien de ton nouveau classeur vierge.' };
+
+  const ancienClasseur = SpreadsheetApp.openById(ancienId);
+  const anneeArchivee = new Date().getFullYear();
+
+  const archives = listerArchives();
+  archives.unshift({ annee: anneeArchivee, id: ancienId, url: ancienClasseur.getUrl() });
+  definirConfig('ARCHIVES_CLASSEURS', JSON.stringify(archives));
+
+  try { ancienClasseur.rename('CVDL — Données ' + anneeArchivee + ' (archivé)'); } catch (e) { /* pas bloquant si le renommage échoue */ }
+
+  definirConfig('CLASSEUR_ACTIF_ID', id);
+  definirConfig('DERNIERE_BASCULE', new Date().toISOString());
+  _classeurActifCache = null; // le cache en mémoire de cette exécution doit être invalidé aussi
+
+  return { ok: true, ancienneUrl: ancienClasseur.getUrl(), anneeArchivee: anneeArchivee };
+}
+
+/** Liste des classeurs archivés, du plus récent au plus ancien. */
+function listerArchives() {
+  try {
+    const brut = obtenirConfig('ARCHIVES_CLASSEURS', '');
+    return brut ? JSON.parse(brut) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+/** N'est appelée que quand la recherche dans le classeur actif ne remonte rien — jamais
+ *  systématiquement, pour ne jamais ralentir le cas normal. Parcourt chaque classeur archivé
+ *  (du plus récent au plus ancien) et cherche directement dedans, sans passer par le cache
+ *  (une archive ne change jamais, mais on ne veut pas non plus garder des dizaines de
+ *  classeurs archivés en cache pour rien). Les résultats sont clairement marqués comme
+ *  archivés — jamais modifiables depuis l'admin, uniquement consultables. */
+function rechercherDansArchives(terme) {
+  const debut = Date.now();
+  const termeLower = String(terme || '').trim().toLowerCase();
+  const archives = listerArchives();
+  const resultats = [];
+  if (!termeLower || !archives.length) return resultats;
+
+  for (let a = 0; a < archives.length && resultats.length < 100; a++) {
+    const archive = archives[a];
+    try {
+      const classeur = SpreadsheetApp.openById(archive.id);
+      const feuille = classeur.getSheetByName(ONGLET_COMMANDES);
+      if (!feuille) continue;
+      const lignes = feuille.getDataRange().getValues();
+      for (let i = 1; i < lignes.length; i++) {
+        const l = lignes[i];
+        if (!l[0]) continue;
+        const cible = (l[0] + ' ' + l[3] + ' ' + l[4] + ' ' + l[7] + ' ' + (l[15] || '')).toLowerCase();
+        if (!cible.includes(termeLower)) continue;
+        resultats.push({
+          ligne: i + 1,
+          reference: l[0],
+          date: l[1] instanceof Date ? Utilities.formatDate(l[1], Session.getScriptTimeZone(), 'dd/MM/yyyy') : '',
+          code: l[2] || '',
+          nom: l[3] || '',
+          email: l[4] || '',
+          telephone: l[5] || '',
+          adresse: l[6] || '',
+          produit: l[7] || '',
+          quantite: l[8] || '',
+          moyenPaiement: l[9] || '',
+          statutCommande: l[11] || '',
+          statutPaiement: l[12] || '',
+          commentaire: l[14] || '',
+          numerosSerie: l[15] || '',
+          referenceDevis: l[17] || '',
+          referenceFacture: l[18] || '',
+          colissimo: l[22] || '',
+          dateLivraison: l[23] instanceof Date ? Utilities.formatDate(l[23], Session.getScriptTimeZone(), 'dd/MM/yyyy') : (l[23] || ''),
+          bonLivraison: l[26] || '',
+          personnes: l[27] || '',
+          archive: true,
+          anneeArchive: archive.annee,
+          urlArchive: archive.url
+        });
+      }
+    } catch (e) {
+      Logger.log('[rechercherDansArchives] classeur ' + archive.annee + ' illisible : ' + e);
+    }
+  }
+  Logger.log('[rechercherDansArchives] "' + terme + '" — ' + archives.length + ' archive(s) explorée(s), ' + resultats.length + ' résultat(s), ' + (Date.now() - debut) + ' ms');
+  return resultats;
 }
 
 
@@ -814,6 +1018,8 @@ function doPost(e) {
       res = flotteActualiser(data);
     } else if (data.action === 'flotte-modifier') {
       res = flotteModifierAppareil(data);
+    } else if (data.action === 'basculer-classeur') {
+      res = basculerVersNouveauClasseur(data);
     } else if (data.action === 'commande-delete') {
       res = supprimerCommande(data);
     } else if (data.action === 'devis-create') {
@@ -1318,7 +1524,7 @@ function synchroniserFlotteMateriel(codeStructure, feuilleFlotte) {
    Commandes, pour qu'elles continuent de fonctionner sans migration. */
 
 function feuilleLignesCommande() {
-  const classeur = obtenirClasseur();
+  const classeur = classeurActif();
   let feuille = classeur.getSheetByName(ONGLET_LIGNES_COMMANDE);
   if (!feuille) {
     feuille = classeur.insertSheet(ONGLET_LIGNES_COMMANDE);
@@ -1553,7 +1759,7 @@ function decrementerStocks(demandeParProduit) {
 }
 
 function feuilleCommandes() {
-  const classeur = obtenirClasseur();
+  const classeur = classeurActif();
   let feuille = classeur.getSheetByName(ONGLET_COMMANDES);
 
   if (!feuille) {
@@ -2205,9 +2411,19 @@ function listerCommandes(password, limite, decalage, recherche) {
       const cible = (c.reference + ' ' + c.nom + ' ' + c.email + ' ' + c.produit + ' ' + (c.numerosSerie || '')).toLowerCase();
       return cible.includes(termeRecherche);
     });
-    const enrichies = enrichirCommandesCompletes(resultats.slice(0, 200)).map(formaterDatesCommande);
-    const resultat = { ok: true, commandes: enrichies, total: toutes.length, recherche: true, aLivrer: aLivrer, nombreNouvelles: nombreNouvelles, nombreImpayees: nombreImpayees };
-    Logger.log('[listerCommandes] recherche "' + termeRecherche + '" — ' + resultats.length + ' résultats, total ' + (Date.now() - debutTotal) + ' ms');
+
+    if (resultats.length) {
+      const enrichies = enrichirCommandesCompletes(resultats.slice(0, 200)).map(formaterDatesCommande);
+      const resultat = { ok: true, commandes: enrichies, total: toutes.length, recherche: true, aLivrer: aLivrer, nombreNouvelles: nombreNouvelles, nombreImpayees: nombreImpayees };
+      Logger.log('[listerCommandes] recherche "' + termeRecherche + '" — ' + resultats.length + ' résultats, total ' + (Date.now() - debutTotal) + ' ms');
+      return resultat;
+    }
+
+    // Rien dans la période active : on va voir dans les archives avant de dire "introuvable" —
+    // seulement dans ce cas précis, pour ne jamais ralentir une recherche qui aboutit déjà.
+    const resultatsArchives = rechercherDansArchives(termeRecherche);
+    const resultat = { ok: true, commandes: resultatsArchives, total: toutes.length, recherche: true, archivesConsultees: true, aLivrer: aLivrer, nombreNouvelles: nombreNouvelles, nombreImpayees: nombreImpayees };
+    Logger.log('[listerCommandes] recherche "' + termeRecherche + '" — 0 résultat en actif, ' + resultatsArchives.length + ' en archive, total ' + (Date.now() - debutTotal) + ' ms');
     return resultat;
   }
 
@@ -3297,7 +3513,7 @@ function deplacerStatutSav(data) {
 }
 
 function feuilleSav() {
-  const classeur = obtenirClasseur();
+  const classeur = classeurActif();
   let feuille = classeur.getSheetByName(ONGLET_SAV);
   if (!feuille) {
     feuille = classeur.insertSheet(ONGLET_SAV);
@@ -3309,7 +3525,7 @@ function feuilleSav() {
 }
 
 function feuilleHistoriqueSav() {
-  const classeur = obtenirClasseur();
+  const classeur = classeurActif();
   let feuille = classeur.getSheetByName(ONGLET_HISTORIQUE_SAV);
   if (!feuille) {
     feuille = classeur.insertSheet(ONGLET_HISTORIQUE_SAV);
@@ -3841,7 +4057,7 @@ function journaliserEvenementSecurite(type, detail) {
 }
 
 function feuilleDevis() {
-  const classeur = obtenirClasseur();
+  const classeur = classeurActif();
   let feuille = classeur.getSheetByName(ONGLET_DEVIS);
 
   if (!feuille) {
@@ -4062,7 +4278,7 @@ function listerDevis(password, limite, decalage, recherche) {
 /* ══════════════ Factures ══════════════ */
 
 function feuilleFactures() {
-  const classeur = obtenirClasseur();
+  const classeur = classeurActif();
   let feuille = classeur.getSheetByName(ONGLET_FACTURES);
 
   if (!feuille) {

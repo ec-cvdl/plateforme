@@ -12,13 +12,14 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=20260802-1">
+<link rel="stylesheet" href="styles.css?v=20260802-2">
 </head>
 <body>
 <a href="#contenu-principal" class="lien-evitement">Aller au contenu</a>
 
-<div class="barre-retour-portail">
+<div class="barre-retour-portail" style="display:flex;justify-content:space-between;align-items:center">
   <a href="portail-structure.html" class="lien-retour-portail">← Retour portail</a>
+  <button type="button" id="btn-changer-code" class="lien-retour-portail" style="background:none;border:none;cursor:pointer;font:inherit" hidden>Changer de code</button>
 </div>
 
 <header class="marque-barre">
@@ -456,6 +457,7 @@ async function verifierCode(){
     const r = await jsonp({action:'check', code: code});
     if(r.ok){
       etat.code = code;
+      try{ sessionStorage.setItem('cvdl-code-structure', code); }catch(e){}
       etat.nomStructure = r.nom;
       moyenImpose = r.moyenImpose || null;
       estEsn = !!r.esn || !!r.interne;
@@ -488,6 +490,15 @@ async function verifierCode(){
   $('btn-verifier').textContent = 'Continuer →';
 }
 $('btn-verifier').addEventListener('click', verifierCode);
+
+try{
+  const codeMemorise = sessionStorage.getItem('cvdl-code-structure');
+  if(codeMemorise){ $('code').value = codeMemorise; verifierCode(); $('btn-changer-code').hidden = false; }
+}catch(e){}
+$('btn-changer-code').addEventListener('click', () => {
+  try{ sessionStorage.removeItem('cvdl-code-structure'); }catch(e){}
+  location.reload();
+});
 $('code').addEventListener('keydown', function(e){ if(e.key === 'Enter'){ e.preventDefault(); verifierCode(); } });
 
 /* Étape 2 : matériel — une liste de lignes {produit, quantite, prixUnitaire}, ajoutées une à une */

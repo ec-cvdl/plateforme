@@ -12,7 +12,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="admin.css?v=20260802-11">
+<link rel="stylesheet" href="admin.css?v=20260802-14">
 </head>
 <body>
 
@@ -695,6 +695,55 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
         <div id="retour-nettoyage-fichiers"></div>
       </div>
 
+      <div class="carte-reglage" style="border:1.5px solid var(--line);background:var(--paper)">
+        <h3>🔄 Bascule base de données</h3>
+        <p class="reglage-texte">
+          Chaque année, les données de commandes/factures/devis/SAV basculent dans un classeur neuf, et l'ancien
+          devient une archive — ça garde l'admin rapide indéfiniment, peu importe l'ancienneté de l'organisation.
+          Structures et Produits ne bougent jamais. La recherche va consulter les archives toute seule si rien
+          n'est trouvé dans la période active.
+        </p>
+
+        <label class="case-checkbox-reglage">
+          <input type="checkbox" id="bascule-annuelle-input">
+          Me rappeler de basculer chaque année (mail + rappel dans l'admin)
+        </label>
+
+        <div style="margin-top:14px">
+          <label for="bascule-jour-input" style="font-size:12.5px;font-weight:600;color:var(--steel)">Date de bascule chaque année</label>
+          <div class="ligne-reglage" style="margin-top:6px">
+            <input type="number" min="1" max="31" id="bascule-jour-input" placeholder="Jour" style="max-width:90px">
+            <select id="bascule-mois-input" style="max-width:160px">
+              <option value="1">Janvier</option><option value="2">Février</option><option value="3">Mars</option>
+              <option value="4">Avril</option><option value="5">Mai</option><option value="6">Juin</option>
+              <option value="7">Juillet</option><option value="8">Août</option><option value="9">Septembre</option>
+              <option value="10">Octobre</option><option value="11">Novembre</option><option value="12">Décembre</option>
+            </select>
+            <button type="button" class="action claire" id="btn-bascule-date-enregistrer">Enregistrer</button>
+          </div>
+          <div id="retour-bascule-date"></div>
+        </div>
+
+        <div id="retour-bascule-annuelle"></div>
+
+        <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line)">
+          <p class="reglage-texte" style="margin-top:0">
+            <strong>Classeur actif :</strong> <a href="#" id="lien-classeur-actif" target="_blank" rel="noopener">l'ouvrir ↗</a>
+          </p>
+          <p class="reglage-texte">
+            Pour basculer : <a href="https://sheets.new" target="_blank" rel="noopener">crée un nouveau classeur vierge</a>,
+            copie son lien, colle-le ci-dessous.
+          </p>
+          <div class="ligne-reglage">
+            <input type="text" id="bascule-lien-input" placeholder="Lien du nouveau classeur vierge">
+            <button type="button" class="action" id="btn-basculer-maintenant">Basculer maintenant</button>
+          </div>
+          <div id="retour-basculer"></div>
+        </div>
+
+        <div id="liste-archives" style="margin-top:14px"></div>
+      </div>
+
       <div class="carte-reglage">
         <h3>Fichier de numérotation officielle des factures</h3>
         <p class="reglage-texte">
@@ -945,6 +994,26 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
 <!-- Modale : confirmation avant tout envoi d'email (partagée commande + SAV) -->
 <!-- Modale bloquante : dossier Drive principal obligatoire — pas de croix, pas de clic en dehors
      pour fermer (voile sans gestionnaire de fermeture), tant qu'il n'est pas renseigné. -->
+<!-- Modale : rappel de bascule annuelle — pas bloquante (contrairement au dossier Drive),
+     réapparaît à chaque connexion tant que la bascule n'est pas faite. -->
+<div class="voile-modale" id="modale-rappel-bascule" hidden>
+  <div class="modale">
+    <h2>🔄 C'est l'heure de la bascule annuelle</h2>
+    <p class="sous-titre">
+      La date choisie pour basculer vers un nouveau classeur de données est arrivée. En 3 étapes :
+    </p>
+    <ol style="margin:0 0 16px 20px;font-size:13.5px;line-height:1.7;color:var(--texte-corps)">
+      <li><a href="https://sheets.new" target="_blank" rel="noopener">Crée un nouveau classeur Google Sheets vierge</a></li>
+      <li>Copie son lien</li>
+      <li>Colle-le dans Réglages → "Bascule base de données" → Basculer maintenant</li>
+    </ol>
+    <div class="pied-modale">
+      <button type="button" class="action claire" id="btn-rappel-bascule-plus-tard">Me le rappeler plus tard</button>
+      <button type="button" class="action" id="btn-rappel-bascule-aller">Aller aux réglages</button>
+    </div>
+  </div>
+</div>
+
 <div class="voile-modale" id="modale-dossier-principal-obligatoire" hidden>
   <div class="modale">
     <h2>📁 Dossier Drive principal requis</h2>
@@ -1478,15 +1547,15 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
   </div>
 </div>
 
-<script src="js/Core.js?v=20260802-11"></script>
-<script src="js/Commandes.js?v=20260802-11"></script>
-<script src="js/Bilan.js?v=20260802-11"></script>
-<script src="js/Structures.js?v=20260802-11"></script>
-<script src="js/Produits.js?v=20260802-11"></script>
-<script src="js/DevisEtReglages.js?v=20260802-11"></script>
-<script src="js/Factures.js?v=20260802-11"></script>
-<script src="js/ModalesPartagees.js?v=20260802-11"></script>
-<script src="js/CodeBackendIntegre.js?v=20260802-11"></script>
-<script src="js/Installateur.js?v=20260802-11"></script>
+<script src="js/Core.js?v=20260802-14"></script>
+<script src="js/Commandes.js?v=20260802-14"></script>
+<script src="js/Bilan.js?v=20260802-14"></script>
+<script src="js/Structures.js?v=20260802-14"></script>
+<script src="js/Produits.js?v=20260802-14"></script>
+<script src="js/DevisEtReglages.js?v=20260802-14"></script>
+<script src="js/Factures.js?v=20260802-14"></script>
+<script src="js/ModalesPartagees.js?v=20260802-14"></script>
+<script src="js/CodeBackendIntegre.js?v=20260802-14"></script>
+<script src="js/Installateur.js?v=20260802-14"></script>
 </body>
 </html>
