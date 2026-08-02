@@ -565,6 +565,7 @@ function invaliderCacheDevis() { invaliderCache('devis'); }
 function invaliderCacheComptabilite() { invaliderCache('comptabilite'); }
 
 function mettreEnCacheDecoupe(cle, objet) {
+  const debut = Date.now();
   try {
     const texte = JSON.stringify(objet);
     const nbChunks = Math.max(1, Math.ceil(texte.length / TAILLE_CHUNK_CACHE));
@@ -574,16 +575,19 @@ function mettreEnCacheDecoupe(cle, objet) {
     }
     valeurs[cle + '_n'] = String(nbChunks);
     CacheService.getScriptCache().putAll(valeurs, CACHE_TTL_LISTES);
+    console.log('[cache écriture] ' + cle + ' — ' + texte.length + ' caractères, ' + nbChunks + ' morceaux, ' + (Date.now() - debut) + ' ms');
   } catch (e) {
+    console.log('[cache écriture] ' + cle + ' — ÉCHEC après ' + (Date.now() - debut) + ' ms : ' + e);
     // Idem : jamais bloquant, juste pas de cache pour cette fois.
   }
 }
 
 function lireCacheDecoupe(cle) {
+  const debut = Date.now();
   try {
     const cache = CacheService.getScriptCache();
     const nbChunksTexte = cache.get(cle + '_n');
-    if (!nbChunksTexte) return null;
+    if (!nbChunksTexte) { console.log('[cache lecture] ' + cle + ' — absent (' + (Date.now() - debut) + ' ms)'); return null; }
     const nbChunks = parseInt(nbChunksTexte, 10);
     const cles = [];
     for (let i = 0; i < nbChunks; i++) cles.push(cle + '_' + i);
@@ -591,11 +595,14 @@ function lireCacheDecoupe(cle) {
     let texte = '';
     for (let i = 0; i < nbChunks; i++) {
       const morceau = valeurs[cle + '_' + i];
-      if (morceau === undefined) return null; // un morceau a expiré entre-temps : on ne recolle pas une donnée tronquée, on recalcule tout
+      if (morceau === undefined) { console.log('[cache lecture] ' + cle + ' — morceau manquant, recalcul (' + (Date.now() - debut) + ' ms)'); return null; }
       texte += morceau;
     }
-    return JSON.parse(texte);
+    const resultat = JSON.parse(texte);
+    console.log('[cache lecture] ' + cle + ' — ' + texte.length + ' caractères, ' + nbChunks + ' morceaux, ' + (Date.now() - debut) + ' ms (dont JSON.parse)');
+    return resultat;
   } catch (e) {
+    console.log('[cache lecture] ' + cle + ' — ÉCHEC après ' + (Date.now() - debut) + ' ms : ' + e);
     return null;
   }
 }
@@ -659,6 +666,7 @@ function configurerDeclencheurNettoyage(jours) {
 /* ══════════════ Points d'entrée ══════════════ */
 
 function doGet(e) {
+  const debutDoGet = Date.now();
   const p = e.parameter;
 
   // Route à part : ce n'est pas une réponse JSON. La structure clique un lien "Régler cette
@@ -758,6 +766,7 @@ function doGet(e) {
   }
 
   // JSONP : évite tout souci de CORS depuis une page statique
+  console.log('[doGet] action=' + p.action + ' — ' + (Date.now() - debutDoGet) + ' ms au total');
   if (p.callback) {
     return ContentService
       .createTextOutput(p.callback + '(' + JSON.stringify(res) + ')')
@@ -2155,12 +2164,15 @@ function formaterDatesCommande(c) {
 
 function listerCommandes(password, limite, decalage, recherche) {
   if (password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
+  const debutTotal = Date.now();
 
   const cleCache = 'commandes_v' + versionCache('commandes');
   let baseCommandes = lireCacheDecoupe(cleCache);
 
   if (!baseCommandes) {
+    const debutConstruction = Date.now();
     baseCommandes = construireBaseCommandes();
+    console.log('[listerCommandes] construireBaseCommandes (cache manquant) — ' + (Date.now() - debutConstruction) + ' ms, ' + baseCommandes.toutes.length + ' commandes');
     mettreEnCacheDecoupe(cleCache, baseCommandes);
   }
 
@@ -2180,7 +2192,9 @@ function listerCommandes(password, limite, decalage, recherche) {
       const cible = (c.reference + ' ' + c.nom + ' ' + c.email + ' ' + c.produit + ' ' + (c.numerosSerie || '')).toLowerCase();
       return cible.includes(termeRecherche);
     });
-    return { ok: true, commandes: resultats.slice(0, 200).map(formaterDatesCommande), total: toutes.length, recherche: true, aLivrer: aLivrer, nombreNouvelles: nombreNouvelles, nombreImpayees: nombreImpayees };
+    const resultat = { ok: true, commandes: resultats.slice(0, 200).map(formaterDatesCommande), total: toutes.length, recherche: true, aLivrer: aLivrer, nombreNouvelles: nombreNouvelles, nombreImpayees: nombreImpayees };
+    console.log('[listerCommandes] recherche "' + termeRecherche + '" — ' + resultats.length + ' résultats, total ' + (Date.now() - debutTotal) + ' ms');
+    return resultat;
   }
 
   const limiteNombre = parseInt(limite, 10) || 0;
@@ -2196,19 +2210,23 @@ function listerCommandes(password, limite, decalage, recherche) {
     return c.statutCommande === 'Reçue' || c.dateLivraisonSouhaitee === 'ASAP';
   }).slice(0, 100).map(formaterDatesCommande);
 
-  return { ok: true, commandes: limitees, total: toutes.length, prioritaires: prioritaires, aLivrer: aLivrer, nombreNouvelles: nombreNouvelles, nombreImpayees: nombreImpayees };
+  const resultat = { ok: true, commandes: limitees, total: toutes.length, prioritaires: prioritaires, aLivrer: aLivrer, nombreNouvelles: nombreNouvelles, nombreImpayees: nombreImpayees };
+  console.log('[listerCommandes] page decalage=' + decalageNombre + ' limite=' + limiteNombre + ' — total ' + toutes.length + ' commandes en base, ' + (Date.now() - debutTotal) + ' ms');
+  return resultat;
 }
 
 /** Le vrai travail coûteux de listerCommandes — isolé pour pouvoir être mis en cache.
  *  Relit les 3 feuilles (Commandes, LignesCommande, Factures) et construit la liste
  *  complète enrichie, une seule fois, plutôt qu'à chaque page demandée. */
 function construireBaseCommandes() {
+  const debut = Date.now();
   const montantsParFacture = {};
   const lignesFactures = feuilleFactures().getDataRange().getValues();
   for (let i = 1; i < lignesFactures.length; i++) {
     if (!lignesFactures[i][0]) continue;
     montantsParFacture[lignesFactures[i][0]] = lignesFactures[i][10];
   }
+  console.log('[construireBaseCommandes] lecture Factures — ' + (lignesFactures.length - 1) + ' lignes, ' + (Date.now() - debut) + ' ms (cumulé)');
 
   // Une seule lecture groupée de LignesCommande, plutôt qu'une lecture par commande
   // (qui redeviendrait lent avec beaucoup de commandes — déjà corrigé une fois, pas question
@@ -2225,9 +2243,11 @@ function construireBaseCommandes() {
       quantite: parseInt(donneesLignes[i][2], 10) || 0
     });
   }
+  console.log('[construireBaseCommandes] lecture LignesCommande — ' + (donneesLignes.length - 1) + ' lignes, ' + (Date.now() - debut) + ' ms (cumulé)');
 
   const feuille = feuilleCommandes();
   const lignes  = feuille.getDataRange().getValues();
+  console.log('[construireBaseCommandes] lecture Commandes — ' + (lignes.length - 1) + ' lignes, ' + (Date.now() - debut) + ' ms (cumulé)');
   const commandes = [];
 
   // Chargés une seule fois pour calculer le montant estimé de chaque commande, plutôt que
@@ -2235,6 +2255,7 @@ function construireBaseCommandes() {
   // très lent avec beaucoup de commandes et plusieurs lignes chacune.
   const produitsCache = lireProduits();
   const structuresCache = lireStructures();
+  console.log('[construireBaseCommandes] lecture Produits+Structures — ' + (Date.now() - debut) + ' ms (cumulé)');
 
   for (let i = 1; i < lignes.length; i++) {
     const l = lignes[i];
@@ -2293,6 +2314,7 @@ function construireBaseCommandes() {
   }
 
   const toutes = commandes.reverse();
+  console.log('[construireBaseCommandes] boucle principale terminée — ' + (Date.now() - debut) + ' ms (cumulé)');
 
   // Agrégats pour le bandeau d'en-tête — toujours calculés sur tout l'historique, jamais
   // sur la seule page renvoyée, sinon ils changeraient selon la page affichée (ce qui n'a
@@ -2317,6 +2339,7 @@ function construireBaseCommandes() {
     }
   });
 
+  console.log('[construireBaseCommandes] TERMINÉ — ' + (Date.now() - debut) + ' ms au total, ' + toutes.length + ' commandes');
   return { toutes: toutes, aLivrer: aLivrer, nombreNouvelles: nombreNouvelles, nombreImpayees: nombreImpayees };
 }
 
@@ -3449,7 +3472,9 @@ function listerSav(password, limite, decalage, recherche) {
   let baseSav = lireCacheDecoupe(cleCache);
 
   if (!baseSav) {
+    const debutConstruction = Date.now();
     baseSav = construireBaseSav();
+    console.log('[listerSav] construireBaseSav (cache manquant) — ' + (Date.now() - debutConstruction) + ' ms, ' + baseSav.toutes.length + ' tickets');
     mettreEnCacheDecoupe(cleCache, baseSav);
   }
 
@@ -3892,6 +3917,7 @@ function listerDevis(password, limite, decalage, recherche) {
   let toutes = lireCacheDecoupe(cleCache);
 
   if (!toutes) {
+    const debutConstruction = Date.now();
     const lignes = feuilleDevis().getDataRange().getValues();
     toutes = [];
     for (let i = 1; i < lignes.length; i++) {
@@ -3915,6 +3941,7 @@ function listerDevis(password, limite, decalage, recherche) {
     }
     toutes.reverse();
     mettreEnCacheDecoupe(cleCache, toutes);
+    console.log('[listerDevis] construction (cache manquant) — ' + (Date.now() - debutConstruction) + ' ms, ' + toutes.length + ' devis');
   }
 
   const formaterDateDevis = d => Object.assign({}, d, { date: d.dateRaw ? Utilities.formatDate(new Date(d.dateRaw), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '' });
@@ -4195,6 +4222,7 @@ function listerFactures(password, limite, decalage, recherche) {
   let toutes = lireCacheDecoupe(cleCache);
 
   if (!toutes) {
+    const debutConstruction = Date.now();
     const lignes = feuilleFactures().getDataRange().getValues();
     toutes = [];
     for (let i = 1; i < lignes.length; i++) {
@@ -4217,8 +4245,8 @@ function listerFactures(password, limite, decalage, recherche) {
     }
     toutes.reverse();
     mettreEnCacheDecoupe(cleCache, toutes);
+    console.log('[listerFactures] construction (cache manquant) — ' + (Date.now() - debutConstruction) + ' ms, ' + toutes.length + ' factures');
   }
-
   const montantTotalGlobal = toutes.reduce(function(s, f) { return s + (parseFloat(f.montantTotal) || 0); }, 0);
   const formaterDateFacture = f => Object.assign({}, f, { date: f.dateRaw ? Utilities.formatDate(new Date(f.dateRaw), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '' });
 
@@ -4499,6 +4527,7 @@ function listerComptabilite(password, limite, decalage, recherche) {
   let toutes = lireCacheDecoupe(cleCache);
 
   if (!toutes) {
+    const debutConstruction = Date.now();
     const montantsParFacture = {};
     const lignesFactures = feuilleFactures().getDataRange().getValues();
     for (let i = 1; i < lignesFactures.length; i++) {
@@ -4507,6 +4536,7 @@ function listerComptabilite(password, limite, decalage, recherche) {
     }
 
     const lignes = feuilleCommandes().getDataRange().getValues();
+    console.log('[listerComptabilite] lecture Commandes — ' + (lignes.length - 1) + ' lignes, ' + (Date.now() - debutConstruction) + ' ms (cumulé)');
     toutes = [];
 
     for (let i = 1; i < lignes.length; i++) {
@@ -4531,6 +4561,7 @@ function listerComptabilite(password, limite, decalage, recherche) {
     }
     toutes.reverse();
     mettreEnCacheDecoupe(cleCache, toutes);
+    console.log('[listerComptabilite] construction (cache manquant) — ' + (Date.now() - debutConstruction) + ' ms, ' + toutes.length + ' lignes facturées');
   }
 
   const formaterDateCompta = c => Object.assign({}, c, { date: c.dateRaw ? Utilities.formatDate(new Date(c.dateRaw), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '' });
