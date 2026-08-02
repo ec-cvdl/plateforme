@@ -733,7 +733,7 @@ function doGet(e) {
     } else if (p.action === 'devis') {
       res = listerDevis(p.password, p.limite, p.decalage, p.recherche);
     } else if (p.action === 'comptabilite') {
-      res = listerComptabilite(p.password);
+      res = listerComptabilite(p.password, p.limite, p.decalage, p.recherche);
     } else if (p.action === 'sav-list') {
       res = listerSav(p.password, p.limite, p.decalage, p.recherche);
     } else if (p.action === 'sav-statuts-list') {
@@ -2133,6 +2133,20 @@ function importerCsvTectech(data) {
  *  l'historique à chaque connexion — passer 0 ou omettre pour tout renvoyer (bouton "Charger
  *  tout l'historique" côté admin). total indique toujours le vrai nombre, limité ou non, pour
  *  que le front sache s'il manque des commandes plus anciennes. */
+/** Formate les 3 dates d'une commande (reste en valeurs brutes bon marché — ISO string —
+ *  jusque-là, voir construireBaseCommandes) — appelé uniquement sur les quelques dizaines de
+ *  commandes réellement renvoyées à un appel donné, jamais sur tout l'historique : c'est ce
+ *  qui rend listerCommandes rapide même avec des milliers de lignes en base. */
+function formaterDatesCommande(c) {
+  const tz = Session.getScriptTimeZone();
+  return Object.assign({}, c, {
+    date:      c.dateRaw ? Utilities.formatDate(new Date(c.dateRaw), tz, 'dd/MM/yyyy') : '',
+    heure:     c.dateRaw ? Utilities.formatDate(new Date(c.dateRaw), tz, 'HH:mm') : '',
+    dateLivraison: c.dateLivraisonRaw ? Utilities.formatDate(new Date(c.dateLivraisonRaw), tz, 'dd/MM/yyyy') : '',
+    dernierClicLienPaiement: c.dernierClicRaw ? Utilities.formatDate(new Date(c.dernierClicRaw), tz, 'dd/MM/yyyy à HH:mm') : ''
+  });
+}
+
 function listerCommandes(password, limite, decalage, recherche) {
   if (password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
 
@@ -2154,17 +2168,18 @@ function listerCommandes(password, limite, decalage, recherche) {
   if (termeRecherche) {
     // La recherche porte toujours sur l'historique complet, jamais seulement sur la page
     // affichée — sinon une commande plus ancienne que la pagination en cours serait
-    // introuvable alors qu'elle existe bel et bien.
+    // introuvable alors qu'elle existe bel et bien. Le filtre lui-même n'a besoin d'aucune
+    // date formatée (il ne regarde que référence/nom/email/produit/n° série).
     const resultats = toutes.filter(function(c) {
       const cible = (c.reference + ' ' + c.nom + ' ' + c.email + ' ' + c.produit + ' ' + (c.numerosSerie || '')).toLowerCase();
       return cible.includes(termeRecherche);
     });
-    return { ok: true, commandes: resultats.slice(0, 200), total: toutes.length, recherche: true, aLivrer: aLivrer, nombreNouvelles: nombreNouvelles, nombreImpayees: nombreImpayees };
+    return { ok: true, commandes: resultats.slice(0, 200).map(formaterDatesCommande), total: toutes.length, recherche: true, aLivrer: aLivrer, nombreNouvelles: nombreNouvelles, nombreImpayees: nombreImpayees };
   }
 
   const limiteNombre = parseInt(limite, 10) || 0;
   const decalageNombre = parseInt(decalage, 10) || 0;
-  const limitees = limiteNombre > 0 ? toutes.slice(decalageNombre, decalageNombre + limiteNombre) : toutes;
+  const limitees = (limiteNombre > 0 ? toutes.slice(decalageNombre, decalageNombre + limiteNombre) : toutes).map(formaterDatesCommande);
 
   // Les commandes non traitées (Reçue) et les commandes urgentes ne doivent jamais passer
   // à la trappe simplement parce qu'elles sont anciennes et repoussées au-delà de la
@@ -2173,7 +2188,7 @@ function listerCommandes(password, limite, decalage, recherche) {
   // beaucoup de commandes sont en attente.
   const prioritaires = toutes.filter(function(c) {
     return c.statutCommande === 'Reçue' || c.dateLivraisonSouhaitee === 'ASAP';
-  }).slice(0, 100);
+  }).slice(0, 100).map(formaterDatesCommande);
 
   return { ok: true, commandes: limitees, total: toutes.length, prioritaires: prioritaires, aLivrer: aLivrer, nombreNouvelles: nombreNouvelles, nombreImpayees: nombreImpayees };
 }
@@ -2233,8 +2248,7 @@ function construireBaseCommandes() {
     commandes.push({
       ligne:          i + 1,
       reference:      l[0],
-      date:           l[1] ? Utilities.formatDate(new Date(l[1]), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '',
-      heure:          l[1] ? Utilities.formatDate(new Date(l[1]), Session.getScriptTimeZone(), 'HH:mm') : '',
+      dateRaw:        l[1] instanceof Date ? l[1].toISOString() : '',
       code:           l[2],
       nom:            l[3],
       email:          l[4],
@@ -2259,12 +2273,12 @@ function construireBaseCommandes() {
       numeroDepot:     l[20] || '',
       devisDemande:    l[21] || '',
       colissimo:       l[22] || '',
-      dateLivraison:   l[23] ? Utilities.formatDate(new Date(l[23]), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '',
+      dateLivraisonRaw: l[23] instanceof Date ? l[23].toISOString() : '',
       csvTectech:      l[24] || '',
       caracteristiquesMateriel: l[25] || '',
       bonLivraison: l[26] || '',
       personnes: l[27] || '',
-      dernierClicLienPaiement: l[28] ? Utilities.formatDate(new Date(l[28]), Session.getScriptTimeZone(), 'dd/MM/yyyy à HH:mm') : '',
+      dernierClicRaw: l[28] instanceof Date ? l[28].toISOString() : '',
       validationLogistiqueEnAttente: !!l[29],
       dateLivraisonSouhaitee: (l[30] instanceof Date) ? Utilities.formatDate(l[30], Session.getScriptTimeZone(), 'dd/MM/yyyy') : String(l[30] || '').trim(),
       paiementSepare: l[31] === 'Oui',
@@ -3443,12 +3457,12 @@ function listerSav(password, limite, decalage, recherche) {
       const cible = (t.reference + ' ' + t.nom + ' ' + t.numeroSerie + ' ' + t.referenceCommande + ' ' + t.referenceFacture).toLowerCase();
       return cible.includes(termeRecherche);
     });
-    return { ok: true, tickets: resultats.slice(0, 200), total: toutes.length, recherche: true, nombreEnAttente: nombreEnAttente };
+    return { ok: true, tickets: resultats.slice(0, 200).map(formaterDatesSav), total: toutes.length, recherche: true, nombreEnAttente: nombreEnAttente };
   }
 
   const limiteNombre = parseInt(limite, 10) || 0;
   const decalageNombre = parseInt(decalage, 10) || 0;
-  const limitees = limiteNombre > 0 ? toutes.slice(decalageNombre, decalageNombre + limiteNombre) : toutes;
+  const limitees = (limiteNombre > 0 ? toutes.slice(decalageNombre, decalageNombre + limiteNombre) : toutes).map(formaterDatesSav);
   return { ok: true, tickets: limitees, total: toutes.length, nombreEnAttente: nombreEnAttente };
 }
 
@@ -3462,7 +3476,7 @@ function construireBaseSav() {
     if (!ref) continue;
     if (!historiqueParReference[ref]) historiqueParReference[ref] = [];
     historiqueParReference[ref].push({
-      date: lignesHisto[i][1] ? Utilities.formatDate(new Date(lignesHisto[i][1]), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '',
+      dateRaw: lignesHisto[i][1] instanceof Date ? lignesHisto[i][1].toISOString() : '',
       statut: lignesHisto[i][2]
     });
   }
@@ -3475,8 +3489,7 @@ function construireBaseSav() {
     tickets.push({
       ligne:               i + 1,
       reference:           l[0],
-      date:                l[1] ? Utilities.formatDate(new Date(l[1]), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '',
-      heure:               l[1] ? Utilities.formatDate(new Date(l[1]), Session.getScriptTimeZone(), 'HH:mm') : '',
+      dateRaw:             l[1] instanceof Date ? l[1].toISOString() : '',
       code:                l[2] || '',
       nom:                 l[3],
       numeroSerie:         l[4] || '',
@@ -3490,7 +3503,7 @@ function construireBaseSav() {
       statut:              l[12] || '',
       problemeEffectif:    l[13] || '',
       notes:               l[14] || '',
-      dateResolution:      l[15] ? Utilities.formatDate(new Date(l[15]), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '',
+      dateResolutionRaw:   l[15] instanceof Date ? l[15].toISOString() : '',
       reconditionneur:     l[16] || '',
       colissimo:           l[17] || '',
       nouveauNumeroSerie:  l[18] || '',
@@ -3500,7 +3513,7 @@ function construireBaseSav() {
       dateAchat:           l[22] || '',
       structureOrigine:    l[23] || '',
       telephone:           l[24] || '',
-      historique:          historiqueParReference[l[0]] || []
+      historiqueRaw:       historiqueParReference[l[0]] || []
     });
   }
   const toutes = tickets.reverse();
@@ -3512,6 +3525,21 @@ function construireBaseSav() {
   const nombreEnAttente = premierStatut ? toutes.filter(function(t) { return t.statut === premierStatut; }).length : 0;
 
   return { toutes: toutes, nombreEnAttente: nombreEnAttente };
+}
+
+/** Formate les dates d'un ticket SAV (et de son historique) — appelé uniquement sur les
+ *  tickets réellement renvoyés à un appel donné (voir formaterDatesCommande, même principe
+ *  et même raison : rester rapide même avec un gros historique de tickets). */
+function formaterDatesSav(t) {
+  const tz = Session.getScriptTimeZone();
+  return Object.assign({}, t, {
+    date:           t.dateRaw ? Utilities.formatDate(new Date(t.dateRaw), tz, 'dd/MM/yyyy') : '',
+    heure:          t.dateRaw ? Utilities.formatDate(new Date(t.dateRaw), tz, 'HH:mm') : '',
+    dateResolution: t.dateResolutionRaw ? Utilities.formatDate(new Date(t.dateResolutionRaw), tz, 'dd/MM/yyyy') : '',
+    historique: (t.historiqueRaw || []).map(function(h) {
+      return { date: h.dateRaw ? Utilities.formatDate(new Date(h.dateRaw), tz, 'dd/MM/yyyy') : '', statut: h.statut };
+    })
+  });
 }
 
 function majSav(data) {
@@ -3865,7 +3893,7 @@ function listerDevis(password, limite, decalage, recherche) {
       toutes.push({
         ligne:             i + 1,
         referenceDevis:    lignes[i][0],
-        date:              lignes[i][1] ? Utilities.formatDate(new Date(lignes[i][1]), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '',
+        dateRaw:           lignes[i][1] instanceof Date ? lignes[i][1].toISOString() : '',
         referenceCommande: lignes[i][2],
         nomStructure:      lignes[i][3],
         email:             lignes[i][4],
@@ -3883,18 +3911,20 @@ function listerDevis(password, limite, decalage, recherche) {
     mettreEnCacheDecoupe(cleCache, toutes);
   }
 
+  const formaterDateDevis = d => Object.assign({}, d, { date: d.dateRaw ? Utilities.formatDate(new Date(d.dateRaw), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '' });
+
   const termeRecherche = String(recherche || '').trim().toLowerCase();
   if (termeRecherche) {
     const resultats = toutes.filter(function(d) {
       const cible = (d.referenceDevis + ' ' + d.referenceCommande + ' ' + d.nomStructure + ' ' + d.email + ' ' + d.produit).toLowerCase();
       return cible.includes(termeRecherche);
     });
-    return { ok: true, devis: resultats.slice(0, 200), total: toutes.length, recherche: true };
+    return { ok: true, devis: resultats.slice(0, 200).map(formaterDateDevis), total: toutes.length, recherche: true };
   }
 
   const limiteNombre = parseInt(limite, 10) || 0;
   const decalageNombre = parseInt(decalage, 10) || 0;
-  const limitees = limiteNombre > 0 ? toutes.slice(decalageNombre, decalageNombre + limiteNombre) : toutes;
+  const limitees = (limiteNombre > 0 ? toutes.slice(decalageNombre, decalageNombre + limiteNombre) : toutes).map(formaterDateDevis);
   return { ok: true, devis: limitees, total: toutes.length };
 }
 
@@ -4166,7 +4196,7 @@ function listerFactures(password, limite, decalage, recherche) {
       toutes.push({
         ligne:             i + 1,
         referenceFacture:  lignes[i][0],
-        date:              lignes[i][1] ? Utilities.formatDate(new Date(lignes[i][1]), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '',
+        dateRaw:           lignes[i][1] instanceof Date ? lignes[i][1].toISOString() : '',
         referenceCommande: lignes[i][2] || '',
         nomStructure:      lignes[i][3] || '',
         email:             lignes[i][4] || '',
@@ -4184,6 +4214,7 @@ function listerFactures(password, limite, decalage, recherche) {
   }
 
   const montantTotalGlobal = toutes.reduce(function(s, f) { return s + (parseFloat(f.montantTotal) || 0); }, 0);
+  const formaterDateFacture = f => Object.assign({}, f, { date: f.dateRaw ? Utilities.formatDate(new Date(f.dateRaw), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '' });
 
   const termeRecherche = String(recherche || '').trim().toLowerCase();
   if (termeRecherche) {
@@ -4193,12 +4224,12 @@ function listerFactures(password, limite, decalage, recherche) {
       const cible = (f.referenceFacture + ' ' + f.referenceCommande + ' ' + f.nomStructure + ' ' + f.email + ' ' + f.produit).toLowerCase();
       return cible.includes(termeRecherche);
     });
-    return { ok: true, factures: resultats.slice(0, 200), total: toutes.length, montantTotalGlobal: montantTotalGlobal, recherche: true };
+    return { ok: true, factures: resultats.slice(0, 200).map(formaterDateFacture), total: toutes.length, montantTotalGlobal: montantTotalGlobal, recherche: true };
   }
 
   const limiteNombre = parseInt(limite, 10) || 0;
   const decalageNombre = parseInt(decalage, 10) || 0;
-  const limitees = limiteNombre > 0 ? toutes.slice(decalageNombre, decalageNombre + limiteNombre) : toutes;
+  const limitees = (limiteNombre > 0 ? toutes.slice(decalageNombre, decalageNombre + limiteNombre) : toutes).map(formaterDateFacture);
   return { ok: true, factures: limitees, total: toutes.length, montantTotalGlobal: montantTotalGlobal };
 }
 
@@ -4455,47 +4486,64 @@ function accesComptaAutorise(password) {
 
 /** Vue agrégée : uniquement les commandes déjà facturées, avec le montant
  *  repris de la facture, et deux champs propres à la compta (statut, dépôt). */
-function listerComptabilite(password) {
+function listerComptabilite(password, limite, decalage, recherche) {
   if (!accesComptaAutorise(password)) return { ok: false, erreur: 'Mot de passe incorrect' };
 
   const cleCache = 'comptabilite_v' + versionCache('commandes') + '_' + versionCache('factures') + '_' + versionCache('comptabilite');
-  const enCache = lireCacheDecoupe(cleCache);
-  if (enCache) return { ok: true, lignes: enCache };
+  let toutes = lireCacheDecoupe(cleCache);
 
-  const montantsParFacture = {};
-  const lignesFactures = feuilleFactures().getDataRange().getValues();
-  for (let i = 1; i < lignesFactures.length; i++) {
-    if (!lignesFactures[i][0]) continue;
-    montantsParFacture[lignesFactures[i][0]] = lignesFactures[i][10];
+  if (!toutes) {
+    const montantsParFacture = {};
+    const lignesFactures = feuilleFactures().getDataRange().getValues();
+    for (let i = 1; i < lignesFactures.length; i++) {
+      if (!lignesFactures[i][0]) continue;
+      montantsParFacture[lignesFactures[i][0]] = lignesFactures[i][10];
+    }
+
+    const lignes = feuilleCommandes().getDataRange().getValues();
+    toutes = [];
+
+    for (let i = 1; i < lignes.length; i++) {
+      const l = lignes[i];
+      const referenceFacture = l[18];
+      if (!l[0] || !referenceFacture) continue; // seulement les commandes facturées
+
+      toutes.push({
+        ligne:             i + 1,
+        referenceCommande: l[0],
+        dateRaw:           l[1] instanceof Date ? l[1].toISOString() : '',
+        nomStructure:      l[3],
+        produit:           l[7],
+        quantite:          l[8],
+        moyenPaiement:     l[9],
+        statutPaiement:    l[12],
+        referenceFacture:  referenceFacture,
+        montant:           montantsParFacture[referenceFacture] != null ? montantsParFacture[referenceFacture] : '',
+        statutComptable:   l[19] || 'Non rapproché',
+        numeroDepot:       l[20] || ''
+      });
+    }
+    toutes.reverse();
+    mettreEnCacheDecoupe(cleCache, toutes);
   }
 
-  const lignes = feuilleCommandes().getDataRange().getValues();
-  const resultats = [];
+  const formaterDateCompta = c => Object.assign({}, c, { date: c.dateRaw ? Utilities.formatDate(new Date(c.dateRaw), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '' });
 
-  for (let i = 1; i < lignes.length; i++) {
-    const l = lignes[i];
-    const referenceFacture = l[18];
-    if (!l[0] || !referenceFacture) continue; // seulement les commandes facturées
-
-    resultats.push({
-      ligne:             i + 1,
-      referenceCommande: l[0],
-      date:              l[1] ? Utilities.formatDate(new Date(l[1]), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '',
-      nomStructure:      l[3],
-      produit:           l[7],
-      quantite:          l[8],
-      moyenPaiement:     l[9],
-      statutPaiement:    l[12],
-      referenceFacture:  referenceFacture,
-      montant:           montantsParFacture[referenceFacture] != null ? montantsParFacture[referenceFacture] : '',
-      statutComptable:   l[19] || 'Non rapproché',
-      numeroDepot:       l[20] || ''
+  const termeRecherche = String(recherche || '').trim().toLowerCase();
+  if (termeRecherche) {
+    // La recherche porte toujours sur l'historique complet, jamais seulement sur la page
+    // affichée — même principe que pour les commandes.
+    const resultats = toutes.filter(function(c) {
+      const cible = (c.referenceCommande + ' ' + c.referenceFacture + ' ' + c.nomStructure + ' ' + c.produit + ' ' + c.numeroDepot).toLowerCase();
+      return cible.includes(termeRecherche);
     });
+    return { ok: true, lignes: resultats.slice(0, 200).map(formaterDateCompta), total: toutes.length, recherche: true };
   }
 
-  const resultat = resultats.reverse();
-  mettreEnCacheDecoupe(cleCache, resultat);
-  return { ok: true, lignes: resultat };
+  const limiteNombre = parseInt(limite, 10) || 0;
+  const decalageNombre = parseInt(decalage, 10) || 0;
+  const limitees = (limiteNombre > 0 ? toutes.slice(decalageNombre, decalageNombre + limiteNombre) : toutes).map(formaterDateCompta);
+  return { ok: true, lignes: limitees, total: toutes.length };
 }
 
 function majCompta(data) {
