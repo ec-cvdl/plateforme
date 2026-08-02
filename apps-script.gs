@@ -43,6 +43,7 @@ const CLES_CONFIG = {
   MODELE_ATTESTATION_PAIEMENT: 'CONFIG_MODELE_ATTESTATION_PAIEMENT',
   MODELE_FLOTTE_MATERIEL: 'CONFIG_MODELE_FLOTTE_MATERIEL',
   NETTOYAGE_FICHIERS_JOURS: 'CONFIG_NETTOYAGE_FICHIERS_JOURS',
+  ENQUETES_SATISFACTION_ACTIVEES: 'CONFIG_ENQUETES_SATISFACTION_ACTIVEES',
   BASCULE_ANNUELLE_ACTIVEE: 'CONFIG_BASCULE_ANNUELLE_ACTIVEE',
   BASCULE_DATE_JOUR: 'CONFIG_BASCULE_DATE_JOUR',
   BASCULE_DATE_MOIS: 'CONFIG_BASCULE_DATE_MOIS',
@@ -223,6 +224,7 @@ function obtenirReglages(data) {
     modeleFlotteMateriel: MODELE_FLOTTE_MATERIEL,
     nettoyageFichiersJours: NETTOYAGE_FICHIERS_JOURS,
     basculeAnnuelleActivee: obtenirConfig('BASCULE_ANNUELLE_ACTIVEE', '') === '1',
+    enquetesSatisfactionActivees: obtenirConfig('ENQUETES_SATISFACTION_ACTIVEES', '') === '1',
     basculeDateJour: parseInt(obtenirConfig('BASCULE_DATE_JOUR', '1'), 10) || 1,
     basculeDateMois: parseInt(obtenirConfig('BASCULE_DATE_MOIS', '1'), 10) || 1,
     rappelBasculeDu: basculeEstDue(),
@@ -414,6 +416,12 @@ function definirReglages(data) {
     configurerDeclencheurRappelBascule(active);
   }
 
+  if (data.enquetesSatisfactionActivees !== undefined) {
+    const active = !!data.enquetesSatisfactionActivees;
+    definirConfig('ENQUETES_SATISFACTION_ACTIVEES', active ? '1' : '');
+    configurerDeclencheurEnquetesSatisfaction(active);
+  }
+
   if (data.basculeDateJour !== undefined || data.basculeDateMois !== undefined) {
     const jour = parseInt(data.basculeDateJour, 10);
     const mois = parseInt(data.basculeDateMois, 10);
@@ -550,7 +558,8 @@ const ENTETES_COMMANDES = [
   'Nombre de fichiers', 'Référence devis', 'Référence facture', 'Statut comptable', 'Numéro de dépôt',
   'Devis demandé', 'Suivi Colissimo', 'Date de livraison', 'Fichier CSV tec.tech',
   'Caractéristiques matériel', 'Bon de livraison', 'Personnes bénéficiaires', 'Dernier clic lien de paiement',
-  'Jeton validation logistique', 'Date de livraison souhaitée', 'Paiement séparé', 'Livraison sans envoi postal'
+  'Jeton validation logistique', 'Date de livraison souhaitée', 'Paiement séparé', 'Livraison sans envoi postal',
+  'Enquête satisfaction envoyée'
 ];
 
 const STATUTS_COMPTABLES = ['Non rapproché', 'Rapproché', 'Clôturé'];
@@ -561,7 +570,7 @@ const ENTETES_DEVIS = [
   'Statut', 'Référence facture'
 ];
 
-const ENTETES_STRUCTURES = ['Code', 'Nom', 'Email', 'Téléphone', 'Adresse', 'RN', 'ESN', 'Interne', 'Lien flotte matériel', 'Autres', 'Email facturation'];
+const ENTETES_STRUCTURES = ['Code', 'Nom', 'Email', 'Téléphone', 'Adresse', 'RN', 'ESN', 'Interne', 'Lien flotte matériel', 'Autres', 'Email facturation', 'Latitude', 'Longitude'];
 
 const ENTETES_PRODUITS = ['Nom', 'Prix standard', 'Prix RN', 'Stock', 'Visible', 'Message si épuisé', 'Disque dur', 'RAM', 'Système', 'Icône', 'Quantité max', 'SKU Tech.tec'];
 
@@ -919,6 +928,8 @@ function doGet(e) {
       res = listerCommandesParCode(p);
     } else if (p.action === 'flotte-obtenir') {
       res = flotteObtenir(p);
+    } else if (p.action === 'structures-coordonnees') {
+      res = obtenirCoordonneesStructures(p);
     } else if (p.action === 'flotte-lister') {
       res = flotteListerAppareils(p);
     } else if (p.action === 'sav-par-numero-serie') {
@@ -935,6 +946,8 @@ function doGet(e) {
       res = seConnecter(p.password);
     } else if (p.action === 'list') {
       res = listerCommandes(p.password, p.limite, p.decalage, p.recherche);
+    } else if (p.action === 'commandes-nombre') {
+      res = compterCommandes(p.password);
     } else if (p.action === 'structures') {
       res = listerStructures(p.password);
     } else if (p.action === 'produits') {
@@ -1020,6 +1033,8 @@ function doPost(e) {
       res = flotteModifierAppareil(data);
     } else if (data.action === 'basculer-classeur') {
       res = basculerVersNouveauClasseur(data);
+    } else if (data.action === 'enquete-repondre') {
+      res = enregistrerReponseEnquete(data);
     } else if (data.action === 'commande-delete') {
       res = supprimerCommande(data);
     } else if (data.action === 'devis-create') {
@@ -1284,8 +1299,13 @@ function flotteListerAppareils(data) {
 
   const lignes = feuilleFlotte.getDataRange().getValues();
   const appareils = [];
+  const seuilAlerteMs = 90 * 24 * 60 * 60 * 1000; // 3 mois
   for (let i = 1; i < lignes.length; i++) {
     if (!lignes[i][0]) continue;
+    const dateLivraisonRaw = lignes[i][6];
+    const statutAppareil = lignes[i][5] || 'En stock';
+    const alerteGarantie = statutAppareil === 'En stock' && dateLivraisonRaw instanceof Date
+      && (Date.now() - dateLivraisonRaw.getTime()) >= seuilAlerteMs;
     appareils.push({
       ligne: i + 1,
       numeroSerie: lignes[i][0],
@@ -1293,11 +1313,12 @@ function flotteListerAppareils(data) {
       modele: lignes[i][2] || '',
       prixAchat: lignes[i][3],
       personne: lignes[i][4] || '',
-      statut: lignes[i][5] || 'En stock',
-      dateLivraison: lignes[i][6] instanceof Date ? Utilities.formatDate(lignes[i][6], Session.getScriptTimeZone(), 'dd/MM/yyyy') : (lignes[i][6] || ''),
+      statut: statutAppareil,
+      dateLivraison: dateLivraisonRaw instanceof Date ? Utilities.formatDate(dateLivraisonRaw, Session.getScriptTimeZone(), 'dd/MM/yyyy') : (dateLivraisonRaw || ''),
       dateVente: lignes[i][7] instanceof Date ? Utilities.formatDate(lignes[i][7], Session.getScriptTimeZone(), 'dd/MM/yyyy') : (lignes[i][7] || ''),
       paye: lignes[i][8] || '',
-      lienPaiement: lignes[i][9] || ''
+      lienPaiement: lignes[i][9] || '',
+      alerteGarantie: alerteGarantie
     });
   }
   return { ok: true, appareils: appareils };
@@ -1447,53 +1468,35 @@ function synchroniserFlotteMateriel(codeStructure, feuilleFlotte) {
     if (s) seriesDejaPresentes[s] = true;
   }
 
-  const lignesFactures = feuilleFactures().getDataRange().getValues();
-  const montantsParFacture = {};
-  for (let i = 1; i < lignesFactures.length; i++) montantsParFacture[lignesFactures[i][0]] = lignesFactures[i][10];
+  // Réutilise le même cache léger que l'admin (voir obtenirBaseCommandes) plutôt que de
+  // relire Commandes/Factures/LignesCommande en entier à chaque clic sur "Actualiser" — c'est
+  // ce qui rendait cette étape très lente avec beaucoup de commandes en base, pour un
+  // résultat qui ne concerne pourtant qu'une seule structure.
+  const baseCommandes = obtenirBaseCommandes();
+  const lignesLegeresStructure = baseCommandes.toutes.filter(function(c) {
+    return c.code === codeStructure && c.statutCommande === 'Livrée' && c.numerosSerie;
+  });
+  const completesParLigne = obtenirCommandesCompletesParLigne(baseCommandes, lignesLegeresStructure);
 
-  const produits = lireProduits();
-  const structure = lireStructures()[codeStructure];
-  const estRN = !!(structure && structure.rn);
-
-  // Lu une seule fois avant la boucle plutôt qu'à chaque commande sans facture — sinon,
-  // une structure avec beaucoup de commandes livrées non facturées relirait la feuille
-  // LignesCommande en entier à chaque itération.
-  const toutesLignesDetail = feuilleLignesCommande().getDataRange().getValues();
-  const lignesDetailParReference = {};
-  for (let i = 1; i < toutesLignesDetail.length; i++) {
-    const ref = String(toutesLignesDetail[i][0]).trim();
-    if (!lignesDetailParReference[ref]) lignesDetailParReference[ref] = [];
-    lignesDetailParReference[ref].push({ produit: toutesLignesDetail[i][1], quantite: parseInt(toutesLignesDetail[i][2], 10) || 0 });
-  }
-
-  const lignesCommandes = feuilleCommandes().getDataRange().getValues();
   const nouvellesLignes = [];
 
-  for (let i = 1; i < lignesCommandes.length; i++) {
-    const l = lignesCommandes[i];
-    if (!l[0] || String(l[2]).trim() !== codeStructure) continue;
-    if (l[11] !== 'Livrée') continue;
+  lignesLegeresStructure.forEach(function(cLeger) {
+    const c = completesParLigne[cLeger.ligne];
+    if (!c) return;
 
-    const numerosSerie = String(l[15] || '').split('\n').map(function(s) { return s.trim(); }).filter(Boolean);
-    if (!numerosSerie.length) continue;
+    const numerosSerie = String(c.numerosSerie || '').split('\n').map(function(s) { return s.trim(); }).filter(Boolean);
+    if (!numerosSerie.length) return;
 
-    const dateLivraison = l[23] ? Utilities.formatDate(new Date(l[23]), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '';
-    const paye = l[12] === 'Payé' ? 'Oui' : 'Non';
-    const lienPaiement = String(l[13] || '').split('\n')[0] || ''; // premier lien si plusieurs (paiement séparé) : au moins une base à corriger à la main
+    const dateLivraison = c.dateLivraisonRaw ? Utilities.formatDate(new Date(c.dateLivraisonRaw), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '';
+    const paye = c.statutPaiement === 'Payé' ? 'Oui' : 'Non';
+    const lienPaiement = String(c.lienPaiement || '').split('\n')[0] || ''; // premier lien si plusieurs (paiement séparé) : au moins une base à corriger à la main
 
     // Prix moyen par appareil pour cette commande — même approximation que pour les
     // attestations de paiement, faute de prix unitaire attaché à chaque numéro de série
     // individuellement (une commande peut mélanger plusieurs produits à prix différents).
-    const referenceFacture = l[18];
-    const quantiteTotale = parseInt(l[8], 10) || numerosSerie.length;
-    let montantCommande = referenceFacture && montantsParFacture[referenceFacture] != null ? montantsParFacture[referenceFacture] : null;
-    if (montantCommande == null) {
-      const lignesDetail = lignesDetailParReference[String(l[0]).trim()] || [{ produit: l[7], quantite: quantiteTotale }];
-      montantCommande = lignesDetail.reduce(function(somme, ld) {
-        const p = produits[ld.produit];
-        return somme + (p ? (estRN ? p.prixRN : p.prixStandard) * ld.quantite : 0);
-      }, 0);
-    }
+    // montantEstime est déjà calculé par construireCommandeComplete, pas besoin de le refaire ici.
+    const quantiteTotale = parseInt(c.quantite, 10) || numerosSerie.length;
+    const montantCommande = c.montantFacture != null ? c.montantFacture : c.montantEstime;
     const prixParAppareil = quantiteTotale ? Math.round((montantCommande / quantiteTotale) * 100) / 100 : '';
 
     numerosSerie.forEach(function(numeroSerie) {
@@ -1501,13 +1504,59 @@ function synchroniserFlotteMateriel(codeStructure, feuilleFlotte) {
       seriesDejaPresentes[numeroSerie] = true;
       nouvellesLignes.push([numeroSerie, '', '', prixParAppareil, '', 'En stock', dateLivraison, '', paye, lienPaiement]);
     });
-  }
+  });
 
   if (nouvellesLignes.length) {
     feuilleFlotte.getRange(feuilleFlotte.getLastRow() + 1, 1, nouvellesLignes.length, ENTETES_FLOTTE.length).setValues(nouvellesLignes);
   }
   return { ajoutes: nouvellesLignes.length };
 }
+
+/* ══════════════ Carte de répartition géographique des structures ══════════════
+   Géocodage via le service Maps intégré à Apps Script — gratuit, sans clé API à configurer.
+   Chaque structure n'est géocodée qu'une seule fois (coordonnées écrites en colonnes L/M de
+   la feuille Structures) : les appels suivants ne regéocodent que celles encore sans
+   coordonnées (nouvelle structure, ou adresse tout juste renseignée). */
+function obtenirCoordonneesStructures(data) {
+  if (data.password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
+
+  const feuille = feuilleStructures();
+  const lignes = feuille.getDataRange().getValues();
+  const geocodeur = Maps.newGeocoder().setRegion('fr');
+  const resultats = [];
+  let nouvellesGeocodees = 0;
+
+  for (let i = 1; i < lignes.length; i++) {
+    if (!lignes[i][0]) continue;
+    const adresse = String(lignes[i][4] || '').trim();
+    if (!adresse) continue;
+
+    let lat = lignes[i][11];
+    let lng = lignes[i][12];
+
+    if (!lat || !lng) {
+      try {
+        const reponse = geocodeur.geocode(adresse);
+        if (reponse.status === 'OK' && reponse.results.length) {
+          lat = reponse.results[0].geometry.location.lat;
+          lng = reponse.results[0].geometry.location.lng;
+          feuille.getRange(i + 1, 12, 1, 2).setValues([[lat, lng]]);
+          nouvellesGeocodees++;
+        }
+      } catch (e) {
+        Logger.log('Géocodage échoué pour "' + adresse + '" : ' + e);
+        continue;
+      }
+    }
+
+    if (lat && lng) {
+      resultats.push({ code: lignes[i][0], nom: lignes[i][1], adresse: adresse, lat: lat, lng: lng });
+    }
+  }
+
+  return { ok: true, structures: resultats, nouvellesGeocodees: nouvellesGeocodees };
+}
+
 
 /**
  * CVDL — Backend commandes matériel (source : Produits.gs, 4 sur 8 — lignes de commande + catalogue produits/stock)
@@ -2381,20 +2430,51 @@ function formaterDatesCommande(c) {
   });
 }
 
+/** Renvoie la base légère des commandes (cache si présent, reconstruite sinon) — la même que
+ *  celle utilisée par l'admin. Réutilisée partout où on a besoin de filtrer les commandes
+ *  sans relire toute la feuille à chaque fois (ex. synchronisation de la flotte matériel). */
+function obtenirBaseCommandes() {
+  const cleCache = 'commandes_v' + versionCache('commandes');
+  let baseCommandes = lireCacheDecoupe(cleCache);
+  if (!baseCommandes) {
+    const debutConstruction = Date.now();
+    baseCommandes = construireBaseCommandes();
+    Logger.log('[obtenirBaseCommandes] construireBaseCommandes (cache manquant) — ' + (Date.now() - debutConstruction) + ' ms, ' + baseCommandes.toutes.length + ' commandes');
+    mettreEnCacheDecoupe(cleCache, baseCommandes);
+  }
+  return baseCommandes;
+}
+
+/** Reconstruit les champs complets pour un ensemble de commandes légères, en piochant en
+ *  priorité dans la fenêtre récente déjà en cache (voir construireBaseCommandes) — ne
+ *  déclenche une lecture complète de la feuille que pour ce qui en sort vraiment. */
+function obtenirCommandesCompletesParLigne(baseCommandes, lignesLegeres) {
+  const recentesParLigne = {};
+  (baseCommandes.recentesCompletes || []).forEach(function(c) { recentesParLigne[c.ligne] = c; });
+  const horsFenetre = lignesLegeres.filter(function(c) { return !recentesParLigne[c.ligne]; });
+  const parLigne = {};
+  Object.keys(recentesParLigne).forEach(function(l) { parLigne[l] = recentesParLigne[l]; });
+  if (horsFenetre.length) {
+    enrichirCommandesCompletes(horsFenetre).forEach(function(c) { parLigne[c.ligne] = c; });
+  }
+  return parLigne;
+}
+
+/** Juste la taille de la feuille (getLastRow, métadonnée — pas de lecture du contenu), pour
+ *  afficher "chargement de X commandes…" côté client pendant que la vraie requête (bien plus
+ *  lente au premier chargement) est en cours. Toujours quasi instantané, même à des milliers
+ *  de lignes, puisque rien n'est vraiment lu. */
+function compterCommandes(password) {
+  if (password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
+  const dernierLigne = feuilleCommandes().getLastRow();
+  return { ok: true, total: Math.max(0, dernierLigne - 1) };
+}
+
 function listerCommandes(password, limite, decalage, recherche) {
   if (password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
   const debutTotal = Date.now();
 
-  const cleCache = 'commandes_v' + versionCache('commandes');
-  let baseCommandes = lireCacheDecoupe(cleCache);
-
-  if (!baseCommandes) {
-    const debutConstruction = Date.now();
-    baseCommandes = construireBaseCommandes();
-    Logger.log('[listerCommandes] construireBaseCommandes (cache manquant) — ' + (Date.now() - debutConstruction) + ' ms, ' + baseCommandes.toutes.length + ' commandes');
-    mettreEnCacheDecoupe(cleCache, baseCommandes);
-  }
-
+  const baseCommandes = obtenirBaseCommandes();
   const toutes = baseCommandes.toutes;
   const aLivrer = baseCommandes.aLivrer;
   const nombreNouvelles = baseCommandes.nombreNouvelles;
@@ -2413,7 +2493,9 @@ function listerCommandes(password, limite, decalage, recherche) {
     });
 
     if (resultats.length) {
-      const enrichies = enrichirCommandesCompletes(resultats.slice(0, 200)).map(formaterDatesCommande);
+      const cibles = resultats.slice(0, 200);
+      const completesParLigne = obtenirCommandesCompletesParLigne(baseCommandes, cibles);
+      const enrichies = cibles.map(function(c) { return formaterDatesCommande(completesParLigne[c.ligne]); });
       const resultat = { ok: true, commandes: enrichies, total: toutes.length, recherche: true, aLivrer: aLivrer, nombreNouvelles: nombreNouvelles, nombreImpayees: nombreImpayees };
       Logger.log('[listerCommandes] recherche "' + termeRecherche + '" — ' + resultats.length + ' résultats, total ' + (Date.now() - debutTotal) + ' ms');
       return resultat;
@@ -2450,11 +2532,17 @@ function listerCommandes(password, limite, decalage, recherche) {
     lignesVues.add(c.ligne);
     aEnrichir.push(c);
   });
-  const enrichiesParLigne = {};
-  enrichirCommandesCompletes(aEnrichir).map(formaterDatesCommande).forEach(function(c) { enrichiesParLigne[c.ligne] = c; });
 
-  const limitees = pageLegere.map(function(c) { return enrichiesParLigne[c.ligne]; });
-  const prioritaires = prioritairesLegers.map(function(c) { return enrichiesParLigne[c.ligne]; });
+  // La quasi-totalité des cas est déjà couverte par la fenêtre récente construite avec le
+  // cache (voir construireBaseCommandes) — aucune lecture supplémentaire de la feuille dans
+  // ce cas. Seul ce qui en sort vraiment (recherche qui remonte une commande ancienne, ou
+  // énormément de commandes en attente hors fenêtre) déclenche encore une lecture complète,
+  // et seulement pour ces quelques-unes-là.
+  const enrichiesParLigne = obtenirCommandesCompletesParLigne(baseCommandes, aEnrichir);
+  const formaterEtRecuperer = function(c) { return formaterDatesCommande(enrichiesParLigne[c.ligne]); };
+
+  const limitees = pageLegere.map(formaterEtRecuperer);
+  const prioritaires = prioritairesLegers.map(formaterEtRecuperer);
 
   const resultat = { ok: true, commandes: limitees, total: toutes.length, prioritaires: prioritaires, aLivrer: aLivrer, nombreNouvelles: nombreNouvelles, nombreImpayees: nombreImpayees };
   Logger.log('[listerCommandes] page decalage=' + decalageNombre + ' limite=' + limiteNombre + ' — total ' + toutes.length + ' commandes en base, ' + (Date.now() - debutTotal) + ' ms');
@@ -2466,15 +2554,19 @@ function listerCommandes(password, limite, decalage, recherche) {
  *  complète enrichie, une seule fois, plutôt qu'à chaque page demandée. */
 function construireBaseCommandes() {
   const debut = Date.now();
+  const TAILLE_FENETRE_RECENTE = 500; // largement au-delà de ce qu'une pagination normale consulte
 
   // Version allégée mise en cache : uniquement ce qu'il faut pour la recherche, le tri et les
-  // totaux d'en-tête. Les champs complets (adresse, commentaire, bénéficiaires, etc.) ne sont
-  // reconstruits qu'ensuite, juste pour les quelques commandes réellement renvoyées à un appel
-  // donné (voir enrichirCommandesCompletes) — sinon le cache doit stocker et redécoder
-  // l'intégralité de l'historique à chaque fois, ce qui devient très coûteux avec des
-  // milliers de commandes.
+  // totaux d'en-tête sur tout l'historique. En plus de ça, les commandes les plus récentes
+  // (les seules qu'on affiche dans l'immense majorité des cas) sont mises en cache déjà
+  // complètes — pour ne plus jamais avoir à relire toute la feuille juste pour afficher 20
+  // lignes. Seul un cas rare (recherche qui remonte une commande ancienne, ou énormément de
+  // commandes "Reçue" en attente hors de cette fenêtre) déclenche encore une lecture complète.
   const lignesDetailParReference = obtenirLignesDetailParReference();
   Logger.log('[construireBaseCommandes] lecture LignesCommande — ' + (Date.now() - debut) + ' ms (cumulé)');
+
+  const montantsParFacture = obtenirMontantsParFacture();
+  const produitsCache = lireProduits();
 
   const lignes = feuilleCommandes().getDataRange().getValues();
   Logger.log('[construireBaseCommandes] lecture Commandes — ' + (lignes.length - 1) + ' lignes, ' + (Date.now() - debut) + ' ms (cumulé)');
@@ -2483,6 +2575,8 @@ function construireBaseCommandes() {
   Logger.log('[construireBaseCommandes] lecture Structures — ' + (Date.now() - debut) + ' ms (cumulé)');
 
   const toutes = [];
+  const recentesCompletes = [];
+  const debutFenetreRecente = Math.max(1, lignes.length - TAILLE_FENETRE_RECENTE);
   const aLivrer = {};
   let nombreNouvelles = 0;
   let nombreImpayees = 0;
@@ -2523,11 +2617,23 @@ function construireBaseCommandes() {
       numerosSerie:   l[15],
       dateLivraisonSouhaitee: (l[30] instanceof Date) ? Utilities.formatDate(l[30], Session.getScriptTimeZone(), 'dd/MM/yyyy') : String(l[30] || '').trim()
     });
+
+    // Version complète construite ici pour les commandes récentes — pas besoin de relire la
+    // feuille une seconde fois pour elles au moment de répondre à une requête.
+    if (i >= debutFenetreRecente) {
+      recentesCompletes.push(construireCommandeComplete(i + 1, l, {
+        montantsParFacture: montantsParFacture,
+        lignesDetailParReference: lignesDetailParReference,
+        produitsCache: produitsCache,
+        structuresCache: structuresCache
+      }));
+    }
   }
 
   const toutesInversees = toutes.reverse();
-  Logger.log('[construireBaseCommandes] TERMINÉ (version légère) — ' + (Date.now() - debut) + ' ms au total, ' + toutesInversees.length + ' commandes');
-  return { toutes: toutesInversees, aLivrer: aLivrer, nombreNouvelles: nombreNouvelles, nombreImpayees: nombreImpayees };
+  const recentesInversees = recentesCompletes.reverse();
+  Logger.log('[construireBaseCommandes] TERMINÉ (version légère + ' + recentesInversees.length + ' complètes en fenêtre récente) — ' + (Date.now() - debut) + ' ms au total, ' + toutesInversees.length + ' commandes');
+  return { toutes: toutesInversees, recentesCompletes: recentesInversees, aLivrer: aLivrer, nombreNouvelles: nombreNouvelles, nombreImpayees: nombreImpayees };
 }
 
 /** Mis en cache séparément (même mécanisme que les autres listings) — ces deux tables de
@@ -2575,80 +2681,90 @@ function obtenirLignesDetailParReference() {
  *  uniquement sur ce qui est réellement renvoyé à un appel donné (la page affichée, les
  *  commandes prioritaires, les résultats de recherche : quelques dizaines à ~200 lignes au
  *  maximum), donc rapide même avec des milliers de commandes en base. */
+/** Construit l'objet "commande complète" (tous les champs qu'affichent la carte et la fiche
+ *  détail) à partir d'une ligne brute — partagé entre construireBaseCommandes (fenêtre
+ *  récente, construite pendant l'unique lecture complète) et enrichirCommandesCompletes
+ *  (repli pour tout ce qui tombe hors de cette fenêtre). */
+function construireCommandeComplete(ligneNum, l, contexte) {
+  const referenceFacture = l[18] || '';
+  const detailLignes = contexte.lignesDetailParReference[l[0]] || [{ ligne: null, produit: l[7], quantite: parseInt(l[8], 10) || 0 }];
+
+  const structurePourCalcul = contexte.structuresCache[String(l[2]).trim()];
+  const estRN = structurePourCalcul ? structurePourCalcul.rn : false;
+  let montantEstime = 0;
+  detailLignes.forEach(function(ligneDetail) {
+    const p = contexte.produitsCache[ligneDetail.produit];
+    if (p) montantEstime += (estRN ? p.prixRN : p.prixStandard) * ligneDetail.quantite;
+  });
+
+  return {
+    ligne:          ligneNum,
+    reference:      l[0],
+    dateRaw:        l[1] instanceof Date ? l[1].toISOString() : '',
+    code:           l[2],
+    nom:            l[3],
+    email:          l[4],
+    telephone:      l[5],
+    adresse:        l[6],
+    produit:        l[7],
+    quantite:       l[8],
+    lignes:         detailLignes,
+    montantEstime:  montantEstime,
+    moyenPaiement:  l[9],
+    dossier:        l[10],
+    statutCommande: l[11],
+    statutPaiement: l[12],
+    lienPaiement:   l[13],
+    commentaire:    l[14],
+    numerosSerie:   l[15],
+    nombreFichiers: l[16] || 0,
+    referenceDevis:   l[17] || '',
+    referenceFacture: referenceFacture,
+    montantFacture: referenceFacture && contexte.montantsParFacture[referenceFacture] != null ? contexte.montantsParFacture[referenceFacture] : null,
+    statutComptable: l[19] || '',
+    numeroDepot:     l[20] || '',
+    devisDemande:    l[21] || '',
+    colissimo:       l[22] || '',
+    dateLivraisonRaw: l[23] instanceof Date ? l[23].toISOString() : '',
+    csvTectech:      l[24] || '',
+    caracteristiquesMateriel: l[25] || '',
+    bonLivraison: l[26] || '',
+    personnes: l[27] || '',
+    dernierClicRaw: l[28] instanceof Date ? l[28].toISOString() : '',
+    validationLogistiqueEnAttente: !!l[29],
+    dateLivraisonSouhaitee: (l[30] instanceof Date) ? Utilities.formatDate(l[30], Session.getScriptTimeZone(), 'dd/MM/yyyy') : String(l[30] || '').trim(),
+    paiementSepare: l[31] === 'Oui',
+    livraisonSansEnvoi: l[32] === 'Oui'
+  };
+}
+
 function enrichirCommandesCompletes(commandesLegeres) {
   if (!commandesLegeres.length) return [];
   const debut = Date.now();
 
-  const montantsParFacture = obtenirMontantsParFacture();
-  const lignesDetailParReference = obtenirLignesDetailParReference();
-
-  const produitsCache = lireProduits();
-  const structuresCache = lireStructures();
+  const contexte = {
+    montantsParFacture: obtenirMontantsParFacture(),
+    lignesDetailParReference: obtenirLignesDetailParReference(),
+    produitsCache: lireProduits(),
+    structuresCache: lireStructures()
+  };
   const feuille = feuilleCommandes();
 
   // Toujours une lecture groupée de la feuille entière, jamais ligne par ligne : chaque appel
   // getRange() individuel a un coût fixe très élevé sous Apps Script (mesuré : 150-300x plus
   // lent au total que de tout lire d'un coup, même pour une vingtaine de lignes), donc la
   // lecture groupée reste la plus rapide même quand on n'a besoin que de quelques commandes.
+  // N'arrive que pour ce qui tombe hors de la fenêtre récente déjà en cache — voir
+  // construireBaseCommandes — donc rarement sur le chemin normal.
   const lignesParNumero = {};
   const toutesLesLignes = feuille.getDataRange().getValues();
   commandesLegeres.forEach(function(c) { lignesParNumero[c.ligne] = toutesLesLignes[c.ligne - 1]; });
 
   const resultat = commandesLegeres.map(function(c) {
-    const l = lignesParNumero[c.ligne];
-    const referenceFacture = l[18] || '';
-    const detailLignes = lignesDetailParReference[l[0]] || [{ ligne: null, produit: l[7], quantite: parseInt(l[8], 10) || 0 }];
-
-    const structurePourCalcul = structuresCache[String(l[2]).trim()];
-    const estRN = structurePourCalcul ? structurePourCalcul.rn : false;
-    let montantEstime = 0;
-    detailLignes.forEach(function(ligneDetail) {
-      const p = produitsCache[ligneDetail.produit];
-      if (p) montantEstime += (estRN ? p.prixRN : p.prixStandard) * ligneDetail.quantite;
-    });
-
-    return {
-      ligne:          c.ligne,
-      reference:      l[0],
-      dateRaw:        l[1] instanceof Date ? l[1].toISOString() : '',
-      code:           l[2],
-      nom:            l[3],
-      email:          l[4],
-      telephone:      l[5],
-      adresse:        l[6],
-      produit:        l[7],
-      quantite:       l[8],
-      lignes:         detailLignes,
-      montantEstime:  montantEstime,
-      moyenPaiement:  l[9],
-      dossier:        l[10],
-      statutCommande: l[11],
-      statutPaiement: l[12],
-      lienPaiement:   l[13],
-      commentaire:    l[14],
-      numerosSerie:   l[15],
-      nombreFichiers: l[16] || 0,
-      referenceDevis:   l[17] || '',
-      referenceFacture: referenceFacture,
-      montantFacture: referenceFacture && montantsParFacture[referenceFacture] != null ? montantsParFacture[referenceFacture] : null,
-      statutComptable: l[19] || '',
-      numeroDepot:     l[20] || '',
-      devisDemande:    l[21] || '',
-      colissimo:       l[22] || '',
-      dateLivraisonRaw: l[23] instanceof Date ? l[23].toISOString() : '',
-      csvTectech:      l[24] || '',
-      caracteristiquesMateriel: l[25] || '',
-      bonLivraison: l[26] || '',
-      personnes: l[27] || '',
-      dernierClicRaw: l[28] instanceof Date ? l[28].toISOString() : '',
-      validationLogistiqueEnAttente: !!l[29],
-      dateLivraisonSouhaitee: (l[30] instanceof Date) ? Utilities.formatDate(l[30], Session.getScriptTimeZone(), 'dd/MM/yyyy') : String(l[30] || '').trim(),
-      paiementSepare: l[31] === 'Oui',
-      livraisonSansEnvoi: l[32] === 'Oui'
-    };
+    return construireCommandeComplete(c.ligne, lignesParNumero[c.ligne], contexte);
   });
 
-  Logger.log('[enrichirCommandesCompletes] ' + commandesLegeres.length + ' commandes enrichies — ' + (Date.now() - debut) + ' ms');
+  Logger.log('[enrichirCommandesCompletes] ' + commandesLegeres.length + ' commandes enrichies (repli hors fenêtre récente) — ' + (Date.now() - debut) + ' ms');
   return resultat;
 }
 
@@ -3291,6 +3407,81 @@ function supprimerLigneCommande(data) {
 
   return { ok: true };
 }
+
+/* ══════════════ Enquête de satisfaction (J+7 après livraison) ══════════════
+   Questions de départ à affiner ensemble — l'essentiel pour l'instant est que la mécanique
+   (déclenchement, mail, formulaire, stockage) fonctionne de bout en bout. */
+
+function configurerDeclencheurEnquetesSatisfaction(active) {
+  ScriptApp.getProjectTriggers().forEach(function(t) {
+    if (t.getHandlerFunction() === 'envoyerEnquetesSatisfaction') ScriptApp.deleteTrigger(t);
+  });
+  if (active) {
+    ScriptApp.newTrigger('envoyerEnquetesSatisfaction').timeBased().everyDays(1).atHour(9).create();
+  }
+}
+
+/** Cherche les commandes livrées il y a exactement 7 jours (ou plus, si le déclencheur a
+ *  loupé un jour), jamais encore sondées, et leur envoie le lien du formulaire. */
+function envoyerEnquetesSatisfaction() {
+  const feuille = feuilleCommandes();
+  const lignes = feuille.getDataRange().getValues();
+  const auPlusTard = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  let envoyees = 0;
+
+  for (let i = 1; i < lignes.length; i++) {
+    const l = lignes[i];
+    if (!l[0] || l[11] !== 'Livrée') continue;
+    if (l[33] === 'Oui') continue; // déjà sondée
+    const dateLivraison = l[23];
+    if (!(dateLivraison instanceof Date) || dateLivraison > auPlusTard) continue;
+
+    const email = String(l[4] || '').trim();
+    if (!email) { feuille.getRange(i + 1, 34).setValue('Oui'); continue; } // pas d'email connu : on marque quand même pour ne pas réessayer indéfiniment
+
+    const lienEnquete = urlBase() + 'enquete-satisfaction.html?ref=' + encodeURIComponent(l[0]);
+    try {
+      MailApp.sendEmail(email, 'Votre avis sur votre commande ' + l[0],
+        'Bonjour,\n\nVotre commande ' + l[0] + ' vous a été livrée il y a une semaine. '
+        + 'Votre avis nous aide à améliorer le service :\n\n' + lienEnquete
+        + '\n\nÇa prend moins de deux minutes. Merci !\n\nCordialement,\nCVDL');
+      feuille.getRange(i + 1, 34).setValue('Oui');
+      envoyees++;
+    } catch (e) {
+      Logger.log('Échec envoi enquête satisfaction pour ' + l[0] + ' : ' + e);
+    }
+  }
+  return { ok: true, envoyees: envoyees };
+}
+
+function urlBase() {
+  return obtenirConfig('URL_PAGES_PUBLIQUES', 'https://ec-cvdl.github.io/plateforme/');
+}
+
+/** Enregistre une réponse au formulaire de satisfaction — une feuille à part, jamais liée
+ *  aux caches déjà en place (aucun impact sur les performances de l'admin). */
+function enregistrerReponseEnquete(data) {
+  const reference = String(data.reference || '').trim();
+  if (!reference) return { ok: false, erreur: 'Référence manquante' };
+
+  const feuille = classeurActif().getSheetByName('Enquetes') || (function() {
+    const f = classeurActif().insertSheet('Enquetes');
+    f.appendRow(['Référence commande', 'Date réponse', 'Note globale', 'Note délai', 'Note état du matériel', 'Commentaire']);
+    f.getRange(1, 1, 1, 6).setFontWeight('bold');
+    return f;
+  })();
+
+  feuille.appendRow([
+    reference,
+    new Date(),
+    parseInt(data.noteGlobale, 10) || '',
+    parseInt(data.noteDelai, 10) || '',
+    parseInt(data.noteMateriel, 10) || '',
+    String(data.commentaire || '').trim()
+  ]);
+  return { ok: true };
+}
+
 
 /**
  * CVDL — Backend commandes matériel (source : Devis.gs, 6 sur 8 — génération des devis)

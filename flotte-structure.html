@@ -4,7 +4,7 @@
 <script>
 // 👉 C'EST ICI, LA LIGNE JUSTE EN DESSOUS ↓↓↓ — remplace UNIQUEMENT le texte entre guillemets
 const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy9-ZwhkG-hhmh7eI1f8NuMGtdofnXixQhgJAQr4gN0Q/exec';
-// 👆 C'ÉTAIT ICI — fais la même chose dans admin.html, commande.html, sav.html, sav-beneficiaire.html, suivi.html, suivi-sav-structure.html et suivi-sav-beneficiaire.html
+// 👆 C'ÉTAIT ICI — fais la même chose dans admin.html, commande.html, sav.html, sav-beneficiaire.html, suivi.html, suivi-sav-structure.html, suivi-sav-beneficiaire.html, enquete-satisfaction.html et portail-structure.html
 </script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -75,6 +75,10 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
   .pied-appareil{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--trait);font-size:12px;color:#5C6D7C}
   .pied-appareil a{color:#5C6D7C}
   @media(max-width:480px){.grille-champs-appareil{grid-template-columns:1fr}}
+
+  .carte-appareil-alerte{border-color:#E8A33D}
+  .alerte-garantie-appareil{font-size:11.5px;font-weight:600;color:#8A5A00;background:#FDF1DC;padding:5px 9px;border-radius:6px;margin-bottom:10px;display:inline-block}
+  .ligne-alerte-garantie{background:#FFFBF3}
 
   #contenu-principal{transition:max-width .32s cubic-bezier(.4,0,.2,1)}
   body.mode-tableau-flotte #contenu-principal{max-width:96vw}
@@ -212,11 +216,12 @@ try{ vueFlotteActuelle = localStorage.getItem('cvdl-flotte-vue') || 'cartes'; }c
 
 function construireCartesAppareils(appareils){
   const lignesHtml = appareils.map(a => `
-    <div class="carte-appareil">
+    <div class="carte-appareil${a.alerteGarantie ? ' carte-appareil-alerte' : ''}">
       <div class="carte-appareil-entete">
         <span class="mono">${echapper(a.numeroSerie)}</span>
         <span class="prix-appareil">${a.prixAchat !== '' && a.prixAchat != null ? Math.round(a.prixAchat) + ' €' : '—'}</span>
       </div>
+      ${a.alerteGarantie ? '<div class="alerte-garantie-appareil">⏳ En stock depuis plus de 3 mois — la garantie court</div>' : ''}
       <div class="grille-champs-appareil">
         <label>Marque
           <input type="text" data-ligne="${a.ligne}" data-champ="marque" value="${echapper(a.marque)}" placeholder="Non renseignée">
@@ -255,8 +260,8 @@ function construireCartesAppareils(appareils){
 
 function construireTableauAppareils(appareils){
   const lignesHtml = appareils.map(a => `
-    <tr>
-      <td class="mono">${echapper(a.numeroSerie)}</td>
+    <tr class="${a.alerteGarantie ? 'ligne-alerte-garantie' : ''}">
+      <td class="mono">${echapper(a.numeroSerie)}${a.alerteGarantie ? ' <span title="En stock depuis plus de 3 mois — la garantie court">⏳</span>' : ''}</td>
       <td><input type="text" data-ligne="${a.ligne}" data-champ="marque" value="${echapper(a.marque)}" placeholder="—"></td>
       <td><input type="text" data-ligne="${a.ligne}" data-champ="modele" value="${echapper(a.modele)}" placeholder="—"></td>
       <td class="col-prix">${a.prixAchat !== '' && a.prixAchat != null ? Math.round(a.prixAchat) + ' €' : '—'}</td>
@@ -294,6 +299,7 @@ function construireTableauAppareils(appareils){
 }
 
 function rendreAppareils(appareils){
+  const nbAlertes = appareils.filter(a => a.alerteGarantie).length;
   const barreOutils = `
     <div class="barre-outils-flotte">
       <button type="button" class="bouton-retour" id="btn-actualiser-flotte">🔄 Actualiser depuis mes commandes livrées</button>
@@ -303,6 +309,7 @@ function rendreAppareils(appareils){
       </div>
       <a href="${echapper(lienFlotteActuel)}" target="_blank" rel="noopener">Ouvrir dans Google Sheets ↗</a>
     </div>
+    ${nbAlertes ? `<div class="msg msg-info" style="margin-top:10px">⏳ ${nbAlertes} appareil${nbAlertes > 1 ? 's' : ''} en stock depuis plus de 3 mois — la garantie court sur ${nbAlertes > 1 ? 'eux' : 'lui'}.</div>` : ''}
     <div id="retour-actualiser-flotte" class="compteur-ajouts"></div>`;
 
   if(!appareils.length){

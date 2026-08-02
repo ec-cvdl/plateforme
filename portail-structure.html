@@ -1,6 +1,11 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
+<script>
+// 👉 C'EST ICI, LA LIGNE JUSTE EN DESSOUS ↓↓↓ — remplace UNIQUEMENT le texte entre guillemets
+const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy9-ZwhkG-hhmh7eI1f8NuMGtdofnXixQhgJAQr4gN0Q/exec';
+// 👆 C'ÉTAIT ICI — fais la même chose dans admin.html, commande.html, sav.html, sav-beneficiaire.html, suivi.html, suivi-sav-structure.html, suivi-sav-beneficiaire.html, flotte-structure.html et enquete-satisfaction.html
+</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CVDL — Espace structure</title>
@@ -61,6 +66,23 @@
     .entete img{height:76px}
     a.carte, div.carte{padding:28px 18px}
   }
+
+  .bloc-code{max-width:380px;margin:0 auto;background:#fff;border:1px solid #E2E6EA;border-radius:18px;padding:32px 28px;box-shadow:0 2px 10px rgba(0,39,67,.05)}
+  .bloc-code label{display:block;font-size:13px;font-weight:600;color:var(--ink);margin-bottom:8px}
+  .bloc-code input{
+    width:100%;padding:12px 14px;border:1.5px solid #E2E6EA;border-radius:10px;font-size:15px;
+    font-family:inherit;box-sizing:border-box;
+  }
+  .bloc-code input:focus-visible{outline:none;border-color:var(--sarcelle)}
+  .bloc-code button{
+    width:100%;margin-top:14px;padding:13px;border:none;border-radius:10px;background:var(--ink);color:#fff;
+    font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:600;cursor:pointer;
+  }
+  .bloc-code button:disabled{opacity:.6;cursor:default}
+  .retour-code-portail{margin-top:12px;font-size:13.5px}
+  .retour-code-portail.erreur{color:#B3261E}
+  .entete-identifiee{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:22px}
+  .lien-changer-code{background:none;border:none;color:#8592A0;font-size:13px;cursor:pointer;font-family:inherit;text-decoration:underline}
 </style>
 </head>
 <body>
@@ -68,13 +90,28 @@
 
 <div class="conteneur" id="contenu-principal">
   <div class="fil-ariane"><a href="portail.html">← Retour</a></div>
-  <div class="entete">
+  <div class="entete" id="entete-avant-code">
     <img src="logo.png" alt="" onerror="this.style.display='none'">
     <h1>Espace structure</h1>
     <p>Toutes les actions liées à votre structure, protégées par votre code d'accès.</p>
   </div>
 
-  <div class="grille-cartes">
+  <div class="bloc-code" id="etape-code">
+    <label for="code-portail">Votre code structure</label>
+    <input type="text" id="code-portail" autocomplete="off" spellcheck="false" placeholder="Ex. STRUCT-1234">
+    <button type="button" id="btn-verifier-code-portail">Accéder à l'espace structure</button>
+    <div class="retour-code-portail" id="retour-code-portail"></div>
+  </div>
+
+  <div id="etape-portail" hidden>
+    <div class="entete-identifiee">
+      <div class="entete" style="text-align:left;margin-bottom:0">
+        <h1 id="titre-structure-identifiee" style="font-size:20px">Espace structure</h1>
+      </div>
+      <button type="button" class="lien-changer-code" id="btn-changer-code-portail">Changer de code</button>
+    </div>
+
+    <div class="grille-cartes">
     <a class="carte commande" href="commande.html">
       <div class="icone">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="11" rx="1"/><path d="M8 14.5v1.3M16 14.5v1.3"/><path d="M1 18.8h22l-1.3 1.6a1 1 0 0 1-.8.4H3.1a1 1 0 0 1-.8-.4L1 18.8z"/></svg>
@@ -118,8 +155,70 @@
       <div class="label">Foire aux questions</div>
       <div class="sous">Les réponses aux questions les plus fréquentes — bientôt disponible</div>
     </div>
+    </div>
   </div>
 </div>
+
+<script>
+const $ = id => document.getElementById(id);
+function echapper(s){
+  const d = document.createElement('div');
+  d.textContent = s == null ? '' : String(s);
+  return d.innerHTML;
+}
+let compteurCallback = 0;
+function jsonp(params){
+  return new Promise((ok, ko) => {
+    const nomCallback = 'cb' + Date.now() + (compteurCallback++);
+    const script = document.createElement('script');
+    const nettoyer = () => { delete window[nomCallback]; script.remove(); };
+    const t = setTimeout(() => { nettoyer(); ko(new Error('Délai dépassé')); }, 20000);
+    window[nomCallback] = data => { clearTimeout(t); nettoyer(); ok(data); };
+    const qs = new URLSearchParams({...params, callback: nomCallback}).toString();
+    script.src = API + '?' + qs;
+    script.onerror = () => { clearTimeout(t); nettoyer(); ko(new Error('Connexion impossible')); };
+    document.body.appendChild(script);
+  });
+}
+
+async function verifierCodePortail(code){
+  if(!code){ $('retour-code-portail').innerHTML = '<span class="erreur">Merci de saisir un code.</span>'; return; }
+  $('btn-verifier-code-portail').disabled = true;
+  $('btn-verifier-code-portail').textContent = 'Vérification…';
+  $('retour-code-portail').innerHTML = '';
+  try{
+    const r = await jsonp({action:'check', code: code});
+    if(r.ok){
+      try{ sessionStorage.setItem('cvdl-code-structure', code); }catch(e){}
+      $('titre-structure-identifiee').textContent = r.nom ? `Bonjour, ${r.nom}` : 'Espace structure';
+      $('entete-avant-code').hidden = true;
+      $('etape-code').hidden = true;
+      $('etape-portail').hidden = false;
+    }else{
+      $('retour-code-portail').innerHTML = `<span class="erreur">${echapper(r.erreur || 'Code invalide.')}</span>`;
+    }
+  }catch(e){
+    $('retour-code-portail').innerHTML = '<span class="erreur">Connexion impossible — réessaie.</span>';
+  }
+  $('btn-verifier-code-portail').disabled = false;
+  $('btn-verifier-code-portail').textContent = 'Accéder à l\'espace structure';
+}
+
+$('btn-verifier-code-portail').addEventListener('click', () => verifierCodePortail($('code-portail').value.trim()));
+$('code-portail').addEventListener('keydown', e => { if(e.key === 'Enter') verifierCodePortail($('code-portail').value.trim()); });
+
+$('btn-changer-code-portail').addEventListener('click', () => {
+  try{ sessionStorage.removeItem('cvdl-code-structure'); }catch(e){}
+  location.reload();
+});
+
+// Déjà identifiée sur cet appareil (venant d'une autre page du portail, ou d'un précédent
+// passage ici) : on saute directement à la grille, sans redemander le code.
+try{
+  const codeMemorise = sessionStorage.getItem('cvdl-code-structure');
+  if(codeMemorise){ $('code-portail').value = codeMemorise; verifierCodePortail(codeMemorise); }
+}catch(e){}
+</script>
 
 </body>
 </html>

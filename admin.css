@@ -1145,6 +1145,19 @@ select.statut option{background:#fff;color:var(--ink);font-weight:500}
 }
 @keyframes tourner-spinner-etat{ to{ transform:rotate(360deg); } }
 
+#etat{flex-wrap:wrap}
+.barre-progression-etat{
+  width:100%;height:3px;border-radius:2px;overflow:hidden;background:rgba(255,255,255,.22);margin-top:2px;
+}
+.barre-progression-etat span{
+  display:block;height:100%;width:40%;border-radius:2px;background:#fff;
+  animation:glisser-progression-etat 1.1s ease-in-out infinite;
+}
+@keyframes glisser-progression-etat{
+  0%{transform:translateX(-100%)}
+  100%{transform:translateX(250%)}
+}
+
 @media(max-width:960px){
   .pilotage{grid-column:1/-1}
   .structure{grid-template-columns:1fr 1fr}
