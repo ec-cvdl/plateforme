@@ -413,8 +413,10 @@ function posterVersUrl(url, data){
 }
 
 let minuteur;
-function etat(texte, type){
-  $('etat').innerHTML = (type === 'chargement' ? '<span class="spinner-etat"></span>' : '') + echapper(texte);
+function etat(texte, type, detail){
+  const barre = type === 'chargement' ? '<div class="barre-progression-etat"><span></span></div>' : '';
+  $('etat').innerHTML = (type === 'chargement' ? '<span class="spinner-etat"></span>' : '')
+    + `<span>${echapper(texte)}${detail ? ' <span style="opacity:.75">(' + echapper(detail) + ')</span>' : ''}</span>` + barre;
   $('etat').className = 'visible ' + (type || 'neutre');
   clearTimeout(minuteur);
   if(type !== 'chargement'){
@@ -519,9 +521,18 @@ async function connecter(){
       etat('Chargement…', 'chargement');
 
       const etapesChargement = [
-        { label: 'Commandes', fn: () => jsonp({action:'list', password:mdp, limite:LIMITE_COMMANDES_DEFAUT}).then(res => {
-            if(res.ok){ commandes = res.commandes; totalCommandes = res.total; limiteCommandesActuelle = LIMITE_COMMANDES_DEFAUT; appliquerAgregatsCommandes(res); }
-          }) },
+        { label: 'Commandes', fn: () => {
+            // Comptage à part, quasi instantané (juste la taille de la feuille, pas son
+            // contenu) — sert uniquement à afficher un nombre pendant que la vraie requête
+            // (bien plus lente au premier chargement, tant que le cache n'existe pas encore)
+            // est en cours. Jamais attendu : n'empêche jamais la suite si elle traîne.
+            jsonp({action:'commandes-nombre', password:mdp}).then(res => {
+              if(res.ok && res.total) etat('Chargement des commandes… (' + res.total + ' au total)', 'chargement');
+            }).catch(() => {});
+            return jsonp({action:'list', password:mdp, limite:LIMITE_COMMANDES_DEFAUT}).then(res => {
+              if(res.ok){ commandes = res.commandes; totalCommandes = res.total; limiteCommandesActuelle = LIMITE_COMMANDES_DEFAUT; appliquerAgregatsCommandes(res); }
+            });
+          } },
         { label: 'Réglages', fn: () => jsonp({action:'reglages', password:mdp}).then(res => {
             if(!res.ok) return;
             seuilAlerteImpayee = res.seuilAlerteImpayee;
@@ -637,6 +648,7 @@ document.querySelector('.onglets').addEventListener('click', e => {
   if(b.dataset.vue === 'devis' && !devisChargeUneFois) chargerDevis();
   if(b.dataset.vue === 'factures' && !facturesChargeesUneFois) chargerFactures();
   if(b.dataset.vue === 'comptabilite' && !comptaChargeUneFois) chargerComptabilite();
+  if(b.dataset.vue === 'carte' && !carteChargeeUneFois){ carteChargeeUneFois = true; chargerCarteStructures(); }
   $('vue-reglages').hidden = b.dataset.vue !== 'reglages';
   if(b.dataset.vue === 'reglages'){
     chargerReglages();

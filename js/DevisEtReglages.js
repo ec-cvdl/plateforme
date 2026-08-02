@@ -106,6 +106,7 @@ async function chargerReglages(){
       $('modele-attestation-input').value = r.modeleAttestationPaiement || '';
       $('modele-flotte-input').value = r.modeleFlotteMateriel || '';
       $('nettoyage-fichiers-input').value = r.nettoyageFichiersJours || '';
+      $('enquetes-satisfaction-input').checked = !!r.enquetesSatisfactionActivees;
       $('bascule-annuelle-input').checked = !!r.basculeAnnuelleActivee;
       $('bascule-jour-input').value = r.basculeDateJour || 1;
       $('bascule-mois-input').value = r.basculeDateMois || 1;
@@ -635,6 +636,26 @@ $('bascule-annuelle-input').addEventListener('change', async e => {
   }catch(err){
     e.target.checked = !valeur;
     $('retour-bascule-annuelle').innerHTML = '<div class="msg msg-erreur">Enregistrement impossible.</div>';
+  }
+  e.target.disabled = false;
+});
+
+$('enquetes-satisfaction-input').addEventListener('change', async e => {
+  const valeur = e.target.checked;
+  e.target.disabled = true;
+  $('retour-enquetes-satisfaction').innerHTML = '';
+  try{
+    const r = await poster({action:'reglages-set', password:motDePasse, enquetesSatisfactionActivees: valeur});
+    if(r.ok){
+      $('retour-enquetes-satisfaction').innerHTML = '<div class="msg msg-succes">Enregistré.</div>';
+      etat('Réglages enregistrés', 'succes');
+    }else{
+      e.target.checked = !valeur;
+      $('retour-enquetes-satisfaction').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur)}</div>`;
+    }
+  }catch(err){
+    e.target.checked = !valeur;
+    $('retour-enquetes-satisfaction').innerHTML = '<div class="msg msg-erreur">Enregistrement impossible.</div>';
   }
   e.target.disabled = false;
 });

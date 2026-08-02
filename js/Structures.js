@@ -141,3 +141,50 @@ $('liste-structures').addEventListener('click', e => {
   if(champ){ champ.focus(); champ.select(); }
 });
 
+/* ═══ Carte de répartition géographique ═══ */
+let carteLeaflet = null;
+let carteChargeeUneFois = false;
+
+async function chargerCarteStructures(){
+  $('carte-info').textContent = 'Chargement…';
+  try{
+    const r = await jsonp({action:'structures-coordonnees', password:motDePasse});
+    if(!r.ok){ $('carte-info').textContent = r.erreur || 'Chargement impossible.'; return; }
+
+    if(!carteLeaflet){
+      carteLeaflet = L.map('carte-structures').setView([46.6, 2.4], 6); // France, vue par défaut
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap',
+        maxZoom: 18
+      }).addTo(carteLeaflet);
+    }
+    // On repart d'une carte vierge à chaque actualisation, plutôt que d'empiler les marqueurs
+    carteLeaflet.eachLayer(function(couche){
+      if(couche instanceof L.Marker) carteLeaflet.removeLayer(couche);
+    });
+
+    if(!r.structures.length){
+      $('carte-info').textContent = 'Aucune structure géolocalisable pour le moment (adresse manquante ou introuvable).';
+      return;
+    }
+
+    const points = [];
+    r.structures.forEach(s => {
+      const marqueur = L.marker([s.lat, s.lng]).addTo(carteLeaflet);
+      marqueur.bindPopup(`<strong>${echapper(s.nom)}</strong><br>${echapper(s.code)}<br><span style="color:#5C6D7C">${echapper(s.adresse)}</span>`);
+      points.push([s.lat, s.lng]);
+    });
+    if(points.length > 1) carteLeaflet.fitBounds(points, {padding:[30,30]});
+    else if(points.length === 1) carteLeaflet.setView(points[0], 13);
+
+    setTimeout(() => carteLeaflet.invalidateSize(), 100); // le conteneur était caché (display:none) au moment de l'init
+
+    $('carte-info').textContent = `${r.structures.length} structure${r.structures.length > 1 ? 's' : ''} géolocalisée${r.structures.length > 1 ? 's' : ''}`
+      + (r.nouvellesGeocodees ? ` (dont ${r.nouvellesGeocodees} nouvelle${r.nouvellesGeocodees > 1 ? 's' : ''} géocodée${r.nouvellesGeocodees > 1 ? 's' : ''} à l'instant)` : '');
+  }catch(e){
+    $('carte-info').textContent = 'Chargement impossible — réessaie.';
+  }
+}
+
+$('btn-actualiser-carte').addEventListener('click', chargerCarteStructures);
+
