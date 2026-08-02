@@ -102,12 +102,6 @@ function calculerDelaiSav(t){
   return Math.floor((dateFin - dateDepart) / 86400000);
 }
 
-function badgeDelaiSav(jours){
-  if(jours == null || jours < 7) return '';
-  const niveau = jours >= 21 ? 3 : (jours >= 14 ? 2 : 1);
-  return `<div class="alerte-delai-sav niveau-${niveau}">⏱ ${jours} jours depuis "${echapper(statutsSav.find(s => s.departDelai)?.statut || '')}"</div>`;
-}
-
 /** Même logique que estNouvelleCommande, avec la durée réglable séparément pour le SAV. */
 function estNouvelleSav(dateStr, heureStr){
   if(!dateStr) return false;
