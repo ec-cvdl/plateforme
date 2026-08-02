@@ -2214,7 +2214,6 @@ function listerCommandes(password, limite, decalage, recherche) {
   const limiteNombre = parseInt(limite, 10) || 0;
   const decalageNombre = parseInt(decalage, 10) || 0;
   const pageLegere = limiteNombre > 0 ? toutes.slice(decalageNombre, decalageNombre + limiteNombre) : toutes;
-  const limitees = enrichirCommandesCompletes(pageLegere).map(formaterDatesCommande);
 
   // Les commandes non traitées (Reçue) et les commandes urgentes ne doivent jamais passer
   // à la trappe simplement parce qu'elles sont anciennes et repoussées au-delà de la
@@ -2224,7 +2223,22 @@ function listerCommandes(password, limite, decalage, recherche) {
   const prioritairesLegers = toutes.filter(function(c) {
     return c.statutCommande === 'Reçue' || c.dateLivraisonSouhaitee === 'ASAP';
   }).slice(0, 100);
-  const prioritaires = enrichirCommandesCompletes(prioritairesLegers).map(formaterDatesCommande);
+
+  // Un seul enrichissement pour les deux ensembles à la fois (dédupliqués par ligne) — la
+  // lecture groupée de la feuille qu'il déclenche a un coût fixe, pas la peine de le payer
+  // deux fois pour la même requête.
+  const lignesVues = new Set();
+  const aEnrichir = [];
+  pageLegere.concat(prioritairesLegers).forEach(function(c) {
+    if (lignesVues.has(c.ligne)) return;
+    lignesVues.add(c.ligne);
+    aEnrichir.push(c);
+  });
+  const enrichiesParLigne = {};
+  enrichirCommandesCompletes(aEnrichir).map(formaterDatesCommande).forEach(function(c) { enrichiesParLigne[c.ligne] = c; });
+
+  const limitees = pageLegere.map(function(c) { return enrichiesParLigne[c.ligne]; });
+  const prioritaires = prioritairesLegers.map(function(c) { return enrichiesParLigne[c.ligne]; });
 
   const resultat = { ok: true, commandes: limitees, total: toutes.length, prioritaires: prioritaires, aLivrer: aLivrer, nombreNouvelles: nombreNouvelles, nombreImpayees: nombreImpayees };
   Logger.log('[listerCommandes] page decalage=' + decalageNombre + ' limite=' + limiteNombre + ' — total ' + toutes.length + ' commandes en base, ' + (Date.now() - debutTotal) + ' ms');
@@ -2340,18 +2354,16 @@ function enrichirCommandesCompletes(commandesLegeres) {
   const structuresCache = lireStructures();
   const feuille = feuilleCommandes();
 
-  // Beaucoup de lignes demandées d'un coup (le Bilan veut tout l'historique, pas de
-  // pagination) : une lecture groupée de la feuille entière est bien plus rapide que des
-  // centaines/milliers de petites lectures ciblées une par une.
-  let lignesParNumero = null;
-  if (commandesLegeres.length > 300) {
-    lignesParNumero = {};
-    const toutesLesLignes = feuille.getDataRange().getValues();
-    commandesLegeres.forEach(function(c) { lignesParNumero[c.ligne] = toutesLesLignes[c.ligne - 1]; });
-  }
+  // Toujours une lecture groupée de la feuille entière, jamais ligne par ligne : chaque appel
+  // getRange() individuel a un coût fixe très élevé sous Apps Script (mesuré : 150-300x plus
+  // lent au total que de tout lire d'un coup, même pour une vingtaine de lignes), donc la
+  // lecture groupée reste la plus rapide même quand on n'a besoin que de quelques commandes.
+  const lignesParNumero = {};
+  const toutesLesLignes = feuille.getDataRange().getValues();
+  commandesLegeres.forEach(function(c) { lignesParNumero[c.ligne] = toutesLesLignes[c.ligne - 1]; });
 
   const resultat = commandesLegeres.map(function(c) {
-    const l = lignesParNumero ? lignesParNumero[c.ligne] : feuille.getRange(c.ligne, 1, 1, ENTETES_COMMANDES.length).getValues()[0];
+    const l = lignesParNumero[c.ligne];
     const referenceFacture = l[18] || '';
     const detailLignes = lignesDetailParReference[l[0]] || [{ ligne: null, produit: l[7], quantite: parseInt(l[8], 10) || 0 }];
 
