@@ -575,9 +575,9 @@ function mettreEnCacheDecoupe(cle, objet) {
     }
     valeurs[cle + '_n'] = String(nbChunks);
     CacheService.getScriptCache().putAll(valeurs, CACHE_TTL_LISTES);
-    console.log('[cache écriture] ' + cle + ' — ' + texte.length + ' caractères, ' + nbChunks + ' morceaux, ' + (Date.now() - debut) + ' ms');
+    Logger.log('[cache écriture] ' + cle + ' — ' + texte.length + ' caractères, ' + nbChunks + ' morceaux, ' + (Date.now() - debut) + ' ms');
   } catch (e) {
-    console.log('[cache écriture] ' + cle + ' — ÉCHEC après ' + (Date.now() - debut) + ' ms : ' + e);
+    Logger.log('[cache écriture] ' + cle + ' — ÉCHEC après ' + (Date.now() - debut) + ' ms : ' + e);
     // Idem : jamais bloquant, juste pas de cache pour cette fois.
   }
 }
@@ -587,7 +587,7 @@ function lireCacheDecoupe(cle) {
   try {
     const cache = CacheService.getScriptCache();
     const nbChunksTexte = cache.get(cle + '_n');
-    if (!nbChunksTexte) { console.log('[cache lecture] ' + cle + ' — absent (' + (Date.now() - debut) + ' ms)'); return null; }
+    if (!nbChunksTexte) { Logger.log('[cache lecture] ' + cle + ' — absent (' + (Date.now() - debut) + ' ms)'); return null; }
     const nbChunks = parseInt(nbChunksTexte, 10);
     const cles = [];
     for (let i = 0; i < nbChunks; i++) cles.push(cle + '_' + i);
@@ -595,14 +595,14 @@ function lireCacheDecoupe(cle) {
     let texte = '';
     for (let i = 0; i < nbChunks; i++) {
       const morceau = valeurs[cle + '_' + i];
-      if (morceau === undefined) { console.log('[cache lecture] ' + cle + ' — morceau manquant, recalcul (' + (Date.now() - debut) + ' ms)'); return null; }
+      if (morceau === undefined) { Logger.log('[cache lecture] ' + cle + ' — morceau manquant, recalcul (' + (Date.now() - debut) + ' ms)'); return null; }
       texte += morceau;
     }
     const resultat = JSON.parse(texte);
-    console.log('[cache lecture] ' + cle + ' — ' + texte.length + ' caractères, ' + nbChunks + ' morceaux, ' + (Date.now() - debut) + ' ms (dont JSON.parse)');
+    Logger.log('[cache lecture] ' + cle + ' — ' + texte.length + ' caractères, ' + nbChunks + ' morceaux, ' + (Date.now() - debut) + ' ms (dont JSON.parse)');
     return resultat;
   } catch (e) {
-    console.log('[cache lecture] ' + cle + ' — ÉCHEC après ' + (Date.now() - debut) + ' ms : ' + e);
+    Logger.log('[cache lecture] ' + cle + ' — ÉCHEC après ' + (Date.now() - debut) + ' ms : ' + e);
     return null;
   }
 }
@@ -766,7 +766,7 @@ function doGet(e) {
   }
 
   // JSONP : évite tout souci de CORS depuis une page statique
-  console.log('[doGet] action=' + p.action + ' — ' + (Date.now() - debutDoGet) + ' ms au total');
+  Logger.log('[doGet] action=' + p.action + ' — ' + (Date.now() - debutDoGet) + ' ms au total');
   if (p.callback) {
     return ContentService
       .createTextOutput(p.callback + '(' + JSON.stringify(res) + ')')
@@ -897,6 +897,26 @@ function doPost(e) {
   return ContentService
     .createTextOutput(JSON.stringify(res))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+/** À lancer directement avec le bouton ▶ Exécuter de l'éditeur (sélectionne cette fonction
+ *  dans le menu déroulant en haut, puis Exécuter) — simule une vraie requête "commandes,
+ *  première page" et affiche le résultat + tous les logs de mesure de temps juste en dessous,
+ *  dans le journal d'exécution. Beaucoup plus simple que de fouiller le panneau Exécutions. */
+function testerPerformanceListCommandes() {
+  const debut = Date.now();
+  const reponse = doGet({ parameter: { action: 'list', password: ADMIN_PASSWORD, limite: '20', decalage: '0' } });
+  Logger.log('=== Requête simulée terminée en ' + (Date.now() - debut) + ' ms au total ===');
+  Logger.log('Taille de la réponse : ' + reponse.getContent().length + ' caractères');
+}
+
+/** Même principe, pour tester spécifiquement la comptabilité (souvent la plus lourde, vu
+ *  qu'elle relit toute la feuille Commandes en plus de Factures). */
+function testerPerformanceComptabilite() {
+  const debut = Date.now();
+  const reponse = doGet({ parameter: { action: 'comptabilite', password: ADMIN_PASSWORD, limite: '20', decalage: '0' } });
+  Logger.log('=== Requête simulée terminée en ' + (Date.now() - debut) + ' ms au total ===');
+  Logger.log('Taille de la réponse : ' + reponse.getContent().length + ' caractères');
 }
 
 /**
@@ -2172,7 +2192,7 @@ function listerCommandes(password, limite, decalage, recherche) {
   if (!baseCommandes) {
     const debutConstruction = Date.now();
     baseCommandes = construireBaseCommandes();
-    console.log('[listerCommandes] construireBaseCommandes (cache manquant) — ' + (Date.now() - debutConstruction) + ' ms, ' + baseCommandes.toutes.length + ' commandes');
+    Logger.log('[listerCommandes] construireBaseCommandes (cache manquant) — ' + (Date.now() - debutConstruction) + ' ms, ' + baseCommandes.toutes.length + ' commandes');
     mettreEnCacheDecoupe(cleCache, baseCommandes);
   }
 
@@ -2193,7 +2213,7 @@ function listerCommandes(password, limite, decalage, recherche) {
       return cible.includes(termeRecherche);
     });
     const resultat = { ok: true, commandes: resultats.slice(0, 200).map(formaterDatesCommande), total: toutes.length, recherche: true, aLivrer: aLivrer, nombreNouvelles: nombreNouvelles, nombreImpayees: nombreImpayees };
-    console.log('[listerCommandes] recherche "' + termeRecherche + '" — ' + resultats.length + ' résultats, total ' + (Date.now() - debutTotal) + ' ms');
+    Logger.log('[listerCommandes] recherche "' + termeRecherche + '" — ' + resultats.length + ' résultats, total ' + (Date.now() - debutTotal) + ' ms');
     return resultat;
   }
 
@@ -2211,7 +2231,7 @@ function listerCommandes(password, limite, decalage, recherche) {
   }).slice(0, 100).map(formaterDatesCommande);
 
   const resultat = { ok: true, commandes: limitees, total: toutes.length, prioritaires: prioritaires, aLivrer: aLivrer, nombreNouvelles: nombreNouvelles, nombreImpayees: nombreImpayees };
-  console.log('[listerCommandes] page decalage=' + decalageNombre + ' limite=' + limiteNombre + ' — total ' + toutes.length + ' commandes en base, ' + (Date.now() - debutTotal) + ' ms');
+  Logger.log('[listerCommandes] page decalage=' + decalageNombre + ' limite=' + limiteNombre + ' — total ' + toutes.length + ' commandes en base, ' + (Date.now() - debutTotal) + ' ms');
   return resultat;
 }
 
@@ -2226,7 +2246,7 @@ function construireBaseCommandes() {
     if (!lignesFactures[i][0]) continue;
     montantsParFacture[lignesFactures[i][0]] = lignesFactures[i][10];
   }
-  console.log('[construireBaseCommandes] lecture Factures — ' + (lignesFactures.length - 1) + ' lignes, ' + (Date.now() - debut) + ' ms (cumulé)');
+  Logger.log('[construireBaseCommandes] lecture Factures — ' + (lignesFactures.length - 1) + ' lignes, ' + (Date.now() - debut) + ' ms (cumulé)');
 
   // Une seule lecture groupée de LignesCommande, plutôt qu'une lecture par commande
   // (qui redeviendrait lent avec beaucoup de commandes — déjà corrigé une fois, pas question
@@ -2243,11 +2263,11 @@ function construireBaseCommandes() {
       quantite: parseInt(donneesLignes[i][2], 10) || 0
     });
   }
-  console.log('[construireBaseCommandes] lecture LignesCommande — ' + (donneesLignes.length - 1) + ' lignes, ' + (Date.now() - debut) + ' ms (cumulé)');
+  Logger.log('[construireBaseCommandes] lecture LignesCommande — ' + (donneesLignes.length - 1) + ' lignes, ' + (Date.now() - debut) + ' ms (cumulé)');
 
   const feuille = feuilleCommandes();
   const lignes  = feuille.getDataRange().getValues();
-  console.log('[construireBaseCommandes] lecture Commandes — ' + (lignes.length - 1) + ' lignes, ' + (Date.now() - debut) + ' ms (cumulé)');
+  Logger.log('[construireBaseCommandes] lecture Commandes — ' + (lignes.length - 1) + ' lignes, ' + (Date.now() - debut) + ' ms (cumulé)');
   const commandes = [];
 
   // Chargés une seule fois pour calculer le montant estimé de chaque commande, plutôt que
@@ -2255,7 +2275,7 @@ function construireBaseCommandes() {
   // très lent avec beaucoup de commandes et plusieurs lignes chacune.
   const produitsCache = lireProduits();
   const structuresCache = lireStructures();
-  console.log('[construireBaseCommandes] lecture Produits+Structures — ' + (Date.now() - debut) + ' ms (cumulé)');
+  Logger.log('[construireBaseCommandes] lecture Produits+Structures — ' + (Date.now() - debut) + ' ms (cumulé)');
 
   for (let i = 1; i < lignes.length; i++) {
     const l = lignes[i];
@@ -2314,7 +2334,7 @@ function construireBaseCommandes() {
   }
 
   const toutes = commandes.reverse();
-  console.log('[construireBaseCommandes] boucle principale terminée — ' + (Date.now() - debut) + ' ms (cumulé)');
+  Logger.log('[construireBaseCommandes] boucle principale terminée — ' + (Date.now() - debut) + ' ms (cumulé)');
 
   // Agrégats pour le bandeau d'en-tête — toujours calculés sur tout l'historique, jamais
   // sur la seule page renvoyée, sinon ils changeraient selon la page affichée (ce qui n'a
@@ -2339,7 +2359,7 @@ function construireBaseCommandes() {
     }
   });
 
-  console.log('[construireBaseCommandes] TERMINÉ — ' + (Date.now() - debut) + ' ms au total, ' + toutes.length + ' commandes');
+  Logger.log('[construireBaseCommandes] TERMINÉ — ' + (Date.now() - debut) + ' ms au total, ' + toutes.length + ' commandes');
   return { toutes: toutes, aLivrer: aLivrer, nombreNouvelles: nombreNouvelles, nombreImpayees: nombreImpayees };
 }
 
@@ -3474,7 +3494,7 @@ function listerSav(password, limite, decalage, recherche) {
   if (!baseSav) {
     const debutConstruction = Date.now();
     baseSav = construireBaseSav();
-    console.log('[listerSav] construireBaseSav (cache manquant) — ' + (Date.now() - debutConstruction) + ' ms, ' + baseSav.toutes.length + ' tickets');
+    Logger.log('[listerSav] construireBaseSav (cache manquant) — ' + (Date.now() - debutConstruction) + ' ms, ' + baseSav.toutes.length + ' tickets');
     mettreEnCacheDecoupe(cleCache, baseSav);
   }
 
@@ -3941,7 +3961,7 @@ function listerDevis(password, limite, decalage, recherche) {
     }
     toutes.reverse();
     mettreEnCacheDecoupe(cleCache, toutes);
-    console.log('[listerDevis] construction (cache manquant) — ' + (Date.now() - debutConstruction) + ' ms, ' + toutes.length + ' devis');
+    Logger.log('[listerDevis] construction (cache manquant) — ' + (Date.now() - debutConstruction) + ' ms, ' + toutes.length + ' devis');
   }
 
   const formaterDateDevis = d => Object.assign({}, d, { date: d.dateRaw ? Utilities.formatDate(new Date(d.dateRaw), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '' });
@@ -4245,7 +4265,7 @@ function listerFactures(password, limite, decalage, recherche) {
     }
     toutes.reverse();
     mettreEnCacheDecoupe(cleCache, toutes);
-    console.log('[listerFactures] construction (cache manquant) — ' + (Date.now() - debutConstruction) + ' ms, ' + toutes.length + ' factures');
+    Logger.log('[listerFactures] construction (cache manquant) — ' + (Date.now() - debutConstruction) + ' ms, ' + toutes.length + ' factures');
   }
   const montantTotalGlobal = toutes.reduce(function(s, f) { return s + (parseFloat(f.montantTotal) || 0); }, 0);
   const formaterDateFacture = f => Object.assign({}, f, { date: f.dateRaw ? Utilities.formatDate(new Date(f.dateRaw), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '' });
@@ -4536,7 +4556,7 @@ function listerComptabilite(password, limite, decalage, recherche) {
     }
 
     const lignes = feuilleCommandes().getDataRange().getValues();
-    console.log('[listerComptabilite] lecture Commandes — ' + (lignes.length - 1) + ' lignes, ' + (Date.now() - debutConstruction) + ' ms (cumulé)');
+    Logger.log('[listerComptabilite] lecture Commandes — ' + (lignes.length - 1) + ' lignes, ' + (Date.now() - debutConstruction) + ' ms (cumulé)');
     toutes = [];
 
     for (let i = 1; i < lignes.length; i++) {
@@ -4561,7 +4581,7 @@ function listerComptabilite(password, limite, decalage, recherche) {
     }
     toutes.reverse();
     mettreEnCacheDecoupe(cleCache, toutes);
-    console.log('[listerComptabilite] construction (cache manquant) — ' + (Date.now() - debutConstruction) + ' ms, ' + toutes.length + ' lignes facturées');
+    Logger.log('[listerComptabilite] construction (cache manquant) — ' + (Date.now() - debutConstruction) + ' ms, ' + toutes.length + ' lignes facturées');
   }
 
   const formaterDateCompta = c => Object.assign({}, c, { date: c.dateRaw ? Utilities.formatDate(new Date(c.dateRaw), Session.getScriptTimeZone(), 'dd/MM/yyyy') : '' });
