@@ -2263,15 +2263,8 @@ function construireBaseCommandes() {
   // donné (voir enrichirCommandesCompletes) — sinon le cache doit stocker et redécoder
   // l'intégralité de l'historique à chaque fois, ce qui devient très coûteux avec des
   // milliers de commandes.
-  const lignesDetailParReference = {};
-  const donneesLignes = feuilleLignesCommande().getDataRange().getValues();
-  for (let i = 1; i < donneesLignes.length; i++) {
-    const ref = String(donneesLignes[i][0] || '').trim();
-    if (!ref) continue;
-    if (!lignesDetailParReference[ref]) lignesDetailParReference[ref] = [];
-    lignesDetailParReference[ref].push({ produit: donneesLignes[i][1], quantite: parseInt(donneesLignes[i][2], 10) || 0 });
-  }
-  Logger.log('[construireBaseCommandes] lecture LignesCommande — ' + (donneesLignes.length - 1) + ' lignes, ' + (Date.now() - debut) + ' ms (cumulé)');
+  const lignesDetailParReference = obtenirLignesDetailParReference();
+  Logger.log('[construireBaseCommandes] lecture LignesCommande — ' + (Date.now() - debut) + ' ms (cumulé)');
 
   const lignes = feuilleCommandes().getDataRange().getValues();
   Logger.log('[construireBaseCommandes] lecture Commandes — ' + (lignes.length - 1) + ' lignes, ' + (Date.now() - debut) + ' ms (cumulé)');
@@ -2327,14 +2320,14 @@ function construireBaseCommandes() {
   return { toutes: toutesInversees, aLivrer: aLivrer, nombreNouvelles: nombreNouvelles, nombreImpayees: nombreImpayees };
 }
 
-/** Reconstruit les champs complets (tous ceux qu'affichent la carte et la fiche détail) pour
- *  un petit nombre de commandes précises — jamais pour l'historique complet. Appelée
- *  uniquement sur ce qui est réellement renvoyé à un appel donné (la page affichée, les
- *  commandes prioritaires, les résultats de recherche : quelques dizaines à ~200 lignes au
- *  maximum), donc rapide même avec des milliers de commandes en base. */
-function enrichirCommandesCompletes(commandesLegeres) {
-  if (!commandesLegeres.length) return [];
-  const debut = Date.now();
+/** Mis en cache séparément (même mécanisme que les autres listings) — ces deux tables de
+ *  correspondance sont utilisées à la fois par construireBaseCommandes et
+ *  enrichirCommandesCompletes ; sans cache, elles étaient relues intégralement à chaque appel
+ *  alors qu'elles ne changent que quand une facture ou une ligne de commande est modifiée. */
+function obtenirMontantsParFacture() {
+  const cle = 'montants_facture_v' + versionCache('factures');
+  const enCache = lireCacheDecoupe(cle);
+  if (enCache) return enCache;
 
   const montantsParFacture = {};
   const lignesFactures = feuilleFactures().getDataRange().getValues();
@@ -2342,6 +2335,14 @@ function enrichirCommandesCompletes(commandesLegeres) {
     if (!lignesFactures[i][0]) continue;
     montantsParFacture[lignesFactures[i][0]] = lignesFactures[i][10];
   }
+  mettreEnCacheDecoupe(cle, montantsParFacture);
+  return montantsParFacture;
+}
+
+function obtenirLignesDetailParReference() {
+  const cle = 'lignes_detail_v' + versionCache('commandes');
+  const enCache = lireCacheDecoupe(cle);
+  if (enCache) return enCache;
 
   const lignesDetailParReference = {};
   const donneesLignes = feuilleLignesCommande().getDataRange().getValues();
@@ -2355,6 +2356,21 @@ function enrichirCommandesCompletes(commandesLegeres) {
       quantite: parseInt(donneesLignes[i][2], 10) || 0
     });
   }
+  mettreEnCacheDecoupe(cle, lignesDetailParReference);
+  return lignesDetailParReference;
+}
+
+/** Reconstruit les champs complets (tous ceux qu'affichent la carte et la fiche détail) pour
+ *  un petit nombre de commandes précises — jamais pour l'historique complet. Appelée
+ *  uniquement sur ce qui est réellement renvoyé à un appel donné (la page affichée, les
+ *  commandes prioritaires, les résultats de recherche : quelques dizaines à ~200 lignes au
+ *  maximum), donc rapide même avec des milliers de commandes en base. */
+function enrichirCommandesCompletes(commandesLegeres) {
+  if (!commandesLegeres.length) return [];
+  const debut = Date.now();
+
+  const montantsParFacture = obtenirMontantsParFacture();
+  const lignesDetailParReference = obtenirLignesDetailParReference();
 
   const produitsCache = lireProduits();
   const structuresCache = lireStructures();
@@ -4611,12 +4627,7 @@ function listerComptabilite(password, limite, decalage, recherche) {
 
   if (!toutes) {
     const debutConstruction = Date.now();
-    const montantsParFacture = {};
-    const lignesFactures = feuilleFactures().getDataRange().getValues();
-    for (let i = 1; i < lignesFactures.length; i++) {
-      if (!lignesFactures[i][0]) continue;
-      montantsParFacture[lignesFactures[i][0]] = lignesFactures[i][10];
-    }
+    const montantsParFacture = obtenirMontantsParFacture();
 
     const lignes = feuilleCommandes().getDataRange().getValues();
     Logger.log('[listerComptabilite] lecture Commandes — ' + (lignes.length - 1) + ' lignes, ' + (Date.now() - debutConstruction) + ' ms (cumulé)');
