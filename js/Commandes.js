@@ -71,6 +71,7 @@ $('filtres').addEventListener('click', e => {
   rendre();
 });
 let rechercheCommandesActive = false;
+let rechercheDansArchives = false;
 let minuteurRechercheCommandes = null;
 $('recherche').addEventListener('input', () => {
   clearTimeout(minuteurRechercheCommandes);
@@ -78,6 +79,7 @@ $('recherche').addEventListener('input', () => {
   minuteurRechercheCommandes = setTimeout(async () => {
     if(!terme){
       rechercheCommandesActive = false;
+      rechercheDansArchives = false;
       await changerPageCommandes(decalageCommandesActuel);
       return;
     }
@@ -86,6 +88,7 @@ $('recherche').addEventListener('input', () => {
       const r = await jsonp({action:'list', password:motDePasse, recherche:terme});
       if(r.ok){
         commandes = r.commandes; totalCommandes = r.total; rechercheCommandesActive = true; appliquerAgregatsCommandes(r);
+        rechercheDansArchives = !!r.archivesConsultees;
         rendre(); etat('À jour', 'succes');
       }
     }catch(e){ etat('Recherche impossible', 'erreur'); }
@@ -171,6 +174,30 @@ function rendre(){
     : `<div class="puce-livraison"><span class="l">Rien à livrer actuellement</span></div>`;
 
   const visibles = filtrer();
+
+  if(rechercheDansArchives){
+    $('zone-prioritaires').hidden = true;
+    if(!visibles.length){
+      $('liste').innerHTML = `<div class="vide">
+        <strong>Introuvable</strong>
+        Rien trouvé ni dans la période active, ni dans les archives.
+      </div>`;
+      return;
+    }
+    $('liste').innerHTML = `
+      <div class="msg msg-info" style="margin-bottom:16px">Rien dans la période active — voici ce qu'on a trouvé dans les archives (lecture seule).</div>
+      ${visibles.map(c => `
+      <article class="carte-archive-cmd">
+        <div class="carte-archive-cmd-haut">
+          <span class="mono">${echapper(c.reference)}</span>
+          <span class="badge-archive">📁 ${echapper(c.anneeArchive)}</span>
+        </div>
+        <p class="carte-archive-cmd-nom">${echapper(c.nom)}</p>
+        <p class="carte-archive-cmd-detail">${echapper(c.produit)} · ${echapper(c.statutCommande)} · ${echapper(c.date)}</p>
+        <a class="lien-ouvrir-archive" href="${echapper(c.urlArchive)}" target="_blank" rel="noopener">Ouvrir le classeur archivé ↗</a>
+      </article>`).join('')}`;
+    return;
+  }
 
   if(!visibles.length){
     $('liste').innerHTML = `<div class="vide">

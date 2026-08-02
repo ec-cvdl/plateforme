@@ -601,17 +601,20 @@ async function rafraichirSilencieusement(){
   if(champActif && ['INPUT', 'TEXTAREA', 'SELECT'].includes(champActif.tagName)) return; // idem pour un champ édité directement sur une carte
   const ongletActif = document.querySelector('.onglets button.actif')?.dataset.vue;
 
-  try{
-    const r = await jsonp({action:'list', password:motDePasse, limite:limiteCommandesActuelle, decalage:decalageCommandesActuel});
-    if(r.ok){ commandes = r.commandes; totalCommandes = r.total; appliquerAgregatsCommandes(r); rendre(); }
-  }catch(e){ /* silencieux — nouvelle tentative au prochain cycle */ }
-  try{
-    if(statutsSav.length) await chargerSav(true);
-  }catch(e){}
-
-  // La notif ne s'affiche que si on regarde déjà l'un des deux onglets concernés — ailleurs,
-  // ce serait une distraction sans intérêt pour une donnée qu'on ne consulte pas à l'instant.
-  if(ongletActif === 'commandes' || ongletActif === 'sav') etat('Données actualisées', 'succes');
+  // Ne rafraîchit que ce qui est réellement à l'écran — inutile de relire commandes et SAV
+  // toutes les 4 minutes si la personne regarde l'onglet Produits ou Structures à ce moment-là.
+  if(ongletActif === 'commandes'){
+    try{
+      const r = await jsonp({action:'list', password:motDePasse, limite:limiteCommandesActuelle, decalage:decalageCommandesActuel});
+      if(r.ok){ commandes = r.commandes; totalCommandes = r.total; appliquerAgregatsCommandes(r); rendre(); }
+      etat('Données actualisées', 'succes');
+    }catch(e){ /* silencieux — nouvelle tentative au prochain cycle */ }
+  }else if(ongletActif === 'sav'){
+    try{
+      if(statutsSav.length) await chargerSav(true);
+      etat('Données actualisées', 'succes');
+    }catch(e){}
+  }
 }
 
 /* ─── Onglets ─── */

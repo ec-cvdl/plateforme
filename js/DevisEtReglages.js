@@ -106,6 +106,15 @@ async function chargerReglages(){
       $('modele-attestation-input').value = r.modeleAttestationPaiement || '';
       $('modele-flotte-input').value = r.modeleFlotteMateriel || '';
       $('nettoyage-fichiers-input').value = r.nettoyageFichiersJours || '';
+      $('bascule-annuelle-input').checked = !!r.basculeAnnuelleActivee;
+      $('bascule-jour-input').value = r.basculeDateJour || 1;
+      $('bascule-mois-input').value = r.basculeDateMois || 1;
+      $('lien-classeur-actif').href = r.classeurActifUrl || '#';
+      rendreListeArchives(r.archives || []);
+      if(r.rappelBasculeDu && !rappelBasculeDejaVuCetteSession){
+        rappelBasculeDejaVuCetteSession = true;
+        $('modale-rappel-bascule').hidden = false;
+      }
       $('responsable-nom-input').value = r.responsableNom || '';
       $('responsable-telephone-input').value = r.responsableTelephone || '';
       $('responsable-email-input').value = r.responsableEmail || '';
@@ -600,6 +609,88 @@ $('btn-nom-organisation-enregistrer').addEventListener('click', async () => {
     $('retour-nom-organisation').innerHTML = '<div class="msg msg-erreur">Enregistrement impossible.</div>';
   }
   $('btn-nom-organisation-enregistrer').disabled = false;
+});
+
+let rappelBasculeDejaVuCetteSession = false;
+
+function rendreListeArchives(archives){
+  if(!archives.length){ $('liste-archives').innerHTML = ''; return; }
+  $('liste-archives').innerHTML = '<p class="reglage-texte" style="margin-bottom:6px"><strong>Archives :</strong></p>'
+    + archives.map(a => `<div style="font-size:13px;margin-bottom:4px"><a href="${echapper(a.url)}" target="_blank" rel="noopener">📁 ${echapper(a.annee)}</a></div>`).join('');
+}
+
+$('bascule-annuelle-input').addEventListener('change', async e => {
+  const valeur = e.target.checked;
+  e.target.disabled = true;
+  $('retour-bascule-annuelle').innerHTML = '';
+  try{
+    const r = await poster({action:'reglages-set', password:motDePasse, basculeAnnuelleActivee: valeur});
+    if(r.ok){
+      $('retour-bascule-annuelle').innerHTML = '<div class="msg msg-succes">Enregistré.</div>';
+      etat('Réglages enregistrés', 'succes');
+    }else{
+      e.target.checked = !valeur;
+      $('retour-bascule-annuelle').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur)}</div>`;
+    }
+  }catch(err){
+    e.target.checked = !valeur;
+    $('retour-bascule-annuelle').innerHTML = '<div class="msg msg-erreur">Enregistrement impossible.</div>';
+  }
+  e.target.disabled = false;
+});
+
+$('btn-bascule-date-enregistrer').addEventListener('click', async () => {
+  const jour = parseInt($('bascule-jour-input').value, 10);
+  const mois = parseInt($('bascule-mois-input').value, 10);
+  if(!jour || jour < 1 || jour > 31){
+    $('retour-bascule-date').innerHTML = '<div class="msg msg-erreur">Jour invalide.</div>';
+    return;
+  }
+  $('btn-bascule-date-enregistrer').disabled = true;
+  $('retour-bascule-date').innerHTML = '';
+  try{
+    const r = await poster({action:'reglages-set', password:motDePasse, basculeDateJour: jour, basculeDateMois: mois});
+    $('retour-bascule-date').innerHTML = r.ok
+      ? '<div class="msg msg-succes">Enregistré.</div>'
+      : `<div class="msg msg-erreur">${echapper(r.erreur)}</div>`;
+    if(r.ok) etat('Réglages enregistrés', 'succes');
+  }catch(e){
+    $('retour-bascule-date').innerHTML = '<div class="msg msg-erreur">Enregistrement impossible.</div>';
+  }
+  $('btn-bascule-date-enregistrer').disabled = false;
+});
+
+$('btn-basculer-maintenant').addEventListener('click', async () => {
+  const lien = $('bascule-lien-input').value.trim();
+  if(!lien){
+    $('retour-basculer').innerHTML = '<div class="msg msg-erreur">Colle d\'abord le lien de ton nouveau classeur.</div>';
+    return;
+  }
+  if(!confirm('Confirmer la bascule ? Le classeur actuel sera archivé et ce nouveau classeur deviendra actif pour les commandes, factures, devis et SAV.')) return;
+  $('btn-basculer-maintenant').disabled = true;
+  $('retour-basculer').innerHTML = '<div class="msg msg-info">Bascule en cours…</div>';
+  try{
+    const r = await poster({action:'basculer-classeur', password:motDePasse, lienNouveauClasseur: lien});
+    if(r.ok){
+      $('retour-basculer').innerHTML = '<div class="msg msg-succes">Bascule effectuée — l\'ancien classeur est archivé, le nouveau est actif.</div>';
+      etat('Bascule effectuée', 'succes');
+      $('bascule-lien-input').value = '';
+      $('modale-rappel-bascule').hidden = true;
+      await chargerReglages();
+    }else{
+      $('retour-basculer').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur)}</div>`;
+    }
+  }catch(e){
+    $('retour-basculer').innerHTML = '<div class="msg msg-erreur">Bascule impossible — réessaie.</div>';
+  }
+  $('btn-basculer-maintenant').disabled = false;
+});
+
+$('btn-rappel-bascule-plus-tard').addEventListener('click', () => $('modale-rappel-bascule').hidden = true);
+$('btn-rappel-bascule-aller').addEventListener('click', () => {
+  $('modale-rappel-bascule').hidden = true;
+  document.querySelector('[data-vue="reglages"]').click();
+  setTimeout(() => $('bascule-lien-input')?.scrollIntoView({behavior:'smooth', block:'center'}), 100);
 });
 
 $('suppression-simple-input').addEventListener('change', async e => {
