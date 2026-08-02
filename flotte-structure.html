@@ -4,7 +4,7 @@
 <script>
 // 👉 C'EST ICI, LA LIGNE JUSTE EN DESSOUS ↓↓↓ — remplace UNIQUEMENT le texte entre guillemets
 const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy9-ZwhkG-hhmh7eI1f8NuMGtdofnXixQhgJAQr4gN0Q/exec';
-// 👆 C'ÉTAIT ICI — fais la même chose dans admin.html, commande.html, sav.html et sav-beneficiaire.html
+// 👆 C'ÉTAIT ICI — fais la même chose dans admin.html, commande.html, sav.html, sav-beneficiaire.html, suivi.html, suivi-sav-structure.html et suivi-sav-beneficiaire.html
 </script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -12,9 +12,8 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=20260801-1">
+<link rel="stylesheet" href="styles.css?v=20260802-1">
 <style>
-  .etape-flotte{max-width:640px;margin:0 auto;padding:0 20px}
   .tuto-flotte{counter-reset:etape-tuto;margin:22px 0}
   .tuto-flotte li{
     list-style:none;position:relative;padding:0 0 22px 40px;margin:0;border-left:2px solid var(--trait);
@@ -36,6 +35,32 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
 
   .barre-outils-flotte{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:6px}
   .barre-outils-flotte a{font-size:13px;color:#5C6D7C}
+  .bascule-vue-flotte{display:inline-flex;border:1px solid var(--trait);border-radius:8px;overflow:hidden}
+  .bascule-vue-flotte button{
+    font-family:inherit;font-size:12.5px;font-weight:600;padding:7px 12px;border:none;
+    background:#fff;color:#5C6D7C;cursor:pointer;border-right:1px solid var(--trait);
+  }
+  .bascule-vue-flotte button:last-child{border-right:none}
+  .bascule-vue-flotte button.actif{background:var(--ink);color:#fff}
+
+  .scroll-tableau-flotte{overflow-x:auto;margin-top:16px;border:1px solid var(--trait);border-radius:12px}
+  .tableau-appareils{width:100%;border-collapse:collapse;font-size:13px;background:var(--carte)}
+  .tableau-appareils th{
+    text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;
+    color:#5C6D7C;padding:10px 12px;background:var(--papier);white-space:nowrap;border-bottom:1px solid var(--trait);
+  }
+  .tableau-appareils td{padding:6px 10px;border-bottom:1px solid var(--trait);vertical-align:middle;white-space:nowrap}
+  .tableau-appareils tbody tr:last-child td{border-bottom:none}
+  .tableau-appareils tbody tr:hover{background:var(--papier)}
+  .tableau-appareils input,.tableau-appareils select{
+    font-family:inherit;font-size:13px;padding:6px 8px;border:1px solid transparent;border-radius:6px;
+    background:transparent;width:100%;min-width:110px;
+  }
+  .tableau-appareils input:hover,.tableau-appareils select:hover{border-color:var(--trait)}
+  .tableau-appareils input:focus,.tableau-appareils select:focus{border-color:var(--ink);background:#fff;outline:none}
+  .tableau-appareils td.mono{font-family:'IBM Plex Mono',monospace;font-weight:600}
+  .tableau-appareils td.col-prix,.tableau-appareils td.col-date{color:#5C6D7C}
+  @media(max-width:480px){.bascule-vue-flotte button{padding:7px 9px;font-size:11.5px}}
   .compteur-ajouts{font-size:12.5px;color:#5C6D7C;margin-top:8px;min-height:1em}
   .liste-appareils{display:flex;flex-direction:column;gap:12px;margin-top:16px}
   .carte-appareil{background:var(--carte);border:1px solid var(--trait);border-radius:12px;padding:14px 16px}
@@ -62,12 +87,16 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
 <header class="marque-barre">
   <div class="marque">
     <img src="logo.png" alt="" onerror="this.style.display='none'">
-    <span class="nom-org">CVDL — Dotation matériel</span>
+    <span class="nom-org">CVDL — Ma flotte de matériel</span>
+  </div>
+  <div class="bascule-mode" role="group" aria-label="Apparence de la page">
+    <button type="button" data-mode="clair" class="actif">Clair</button>
+    <button type="button" data-mode="accessible">Accessible</button>
   </div>
 </header>
 
 <div class="scene-wrap" id="contenu-principal">
-  <div class="scene etape-flotte" id="scene">
+  <div class="scene" id="scene">
 
     <section class="etape" data-etape="code">
       <div class="question">Quel est votre <em>code structure</em> ?</div>
@@ -92,6 +121,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
 
 <script>
 const $  = id => document.getElementById(id);
+const $$ = sel => Array.from(document.querySelectorAll(sel));
 
 function jsonp(params){
   return new Promise((ok, ko) => {
@@ -161,20 +191,10 @@ async function chargerAppareils(lienFlotte){
   }
 }
 
-function rendreAppareils(appareils){
-  const barreOutils = `
-    <div class="barre-outils-flotte">
-      <button type="button" class="bouton-retour" id="btn-actualiser-flotte">🔄 Actualiser depuis mes commandes livrées</button>
-      <a href="${echapper(lienFlotteActuel)}" target="_blank" rel="noopener">Ouvrir dans Google Sheets ↗</a>
-    </div>
-    <div id="retour-actualiser-flotte" class="compteur-ajouts"></div>`;
+let vueFlotteActuelle = 'cartes';
+try{ vueFlotteActuelle = localStorage.getItem('cvdl-flotte-vue') || 'cartes'; }catch(e){}
 
-  if(!appareils.length){
-    $('zone-flotte').innerHTML = barreOutils + '<p class="sous-question" style="margin-top:14px">Aucun appareil pour le moment — ils apparaîtront ici automatiquement dès qu\'une commande sera livrée.</p>';
-    cablerBarreOutils();
-    return;
-  }
-
+function construireCartesAppareils(appareils){
   const lignesHtml = appareils.map(a => `
     <div class="carte-appareil">
       <div class="carte-appareil-entete">
@@ -214,11 +234,72 @@ function rendreAppareils(appareils){
         ${a.lienPaiement ? `<a href="${echapper(a.lienPaiement)}" target="_blank" rel="noopener">Lien de paiement ↗</a>` : ''}
       </div>
     </div>`).join('');
+  return `<div class="liste-appareils">${lignesHtml}</div>`;
+}
 
-  $('zone-flotte').innerHTML = barreOutils + `<div class="liste-appareils">${lignesHtml}</div>`;
+function construireTableauAppareils(appareils){
+  const lignesHtml = appareils.map(a => `
+    <tr>
+      <td class="mono">${echapper(a.numeroSerie)}</td>
+      <td><input type="text" data-ligne="${a.ligne}" data-champ="marque" value="${echapper(a.marque)}" placeholder="—"></td>
+      <td><input type="text" data-ligne="${a.ligne}" data-champ="modele" value="${echapper(a.modele)}" placeholder="—"></td>
+      <td class="col-prix">${a.prixAchat !== '' && a.prixAchat != null ? Math.round(a.prixAchat) + ' €' : '—'}</td>
+      <td><input type="text" data-ligne="${a.ligne}" data-champ="personne" value="${echapper(a.personne)}" placeholder="—"></td>
+      <td>
+        <select data-ligne="${a.ligne}" data-champ="statut">
+          <option value="En stock"${a.statut === 'En stock' ? ' selected' : ''}>En stock</option>
+          <option value="Vendu"${a.statut === 'Vendu' ? ' selected' : ''}>Vendu</option>
+          <option value="En SAV"${a.statut === 'En SAV' ? ' selected' : ''}>En SAV</option>
+        </select>
+      </td>
+      <td class="col-date">${a.dateLivraison ? echapper(a.dateLivraison) : '—'}</td>
+      <td><input type="date" data-ligne="${a.ligne}" data-champ="dateVente" value="${dateVersISO(a.dateVente)}"></td>
+      <td>
+        <select data-ligne="${a.ligne}" data-champ="paye">
+          <option value=""${!a.paye ? ' selected' : ''}>—</option>
+          <option value="Oui"${a.paye === 'Oui' ? ' selected' : ''}>Oui</option>
+          <option value="Non"${a.paye === 'Non' ? ' selected' : ''}>Non</option>
+        </select>
+      </td>
+      <td>${a.lienPaiement ? `<a href="${echapper(a.lienPaiement)}" target="_blank" rel="noopener">Voir ↗</a>` : '—'}</td>
+    </tr>`).join('');
+  return `
+    <div class="scroll-tableau-flotte">
+      <table class="tableau-appareils">
+        <thead>
+          <tr>
+            <th>N° série</th><th>Marque</th><th>Modèle</th><th>Prix d'achat</th><th>Personne</th>
+            <th>Statut</th><th>Livré le</th><th>Date de vente</th><th>Payé</th><th>Paiement</th>
+          </tr>
+        </thead>
+        <tbody>${lignesHtml}</tbody>
+      </table>
+    </div>`;
+}
+
+function rendreAppareils(appareils){
+  const barreOutils = `
+    <div class="barre-outils-flotte">
+      <button type="button" class="bouton-retour" id="btn-actualiser-flotte">🔄 Actualiser depuis mes commandes livrées</button>
+      <div class="bascule-vue-flotte" role="group" aria-label="Affichage de la flotte">
+        <button type="button" data-vue-flotte="cartes" class="${vueFlotteActuelle === 'cartes' ? 'actif' : ''}">🗂 Cartes</button>
+        <button type="button" data-vue-flotte="tableau" class="${vueFlotteActuelle === 'tableau' ? 'actif' : ''}">📊 Tableau</button>
+      </div>
+      <a href="${echapper(lienFlotteActuel)}" target="_blank" rel="noopener">Ouvrir dans Google Sheets ↗</a>
+    </div>
+    <div id="retour-actualiser-flotte" class="compteur-ajouts"></div>`;
+
+  if(!appareils.length){
+    $('zone-flotte').innerHTML = barreOutils + '<p class="sous-question" style="margin-top:14px">Aucun appareil pour le moment — ils apparaîtront ici automatiquement dès qu\'une commande sera livrée.</p>';
+    cablerBarreOutils();
+    return;
+  }
+
+  const contenu = vueFlotteActuelle === 'tableau' ? construireTableauAppareils(appareils) : construireCartesAppareils(appareils);
+  $('zone-flotte').innerHTML = barreOutils + contenu;
   cablerBarreOutils();
 
-  document.querySelectorAll('.liste-appareils [data-champ]').forEach(champ => {
+  document.querySelectorAll('#zone-flotte [data-champ]').forEach(champ => {
     champ.addEventListener('change', async () => {
       const ligne = champ.dataset.ligne;
       const nomChamp = champ.dataset.champ;
@@ -231,6 +312,15 @@ function rendreAppareils(appareils){
         alert('Enregistrement impossible — réessaie.');
       }
       champ.disabled = false;
+    });
+  });
+
+  document.querySelectorAll('[data-vue-flotte]').forEach(b => {
+    b.addEventListener('click', () => {
+      if(b.dataset.vueFlotte === vueFlotteActuelle) return;
+      vueFlotteActuelle = b.dataset.vueFlotte;
+      try{ localStorage.setItem('cvdl-flotte-vue', vueFlotteActuelle); }catch(e){}
+      rendreAppareils(appareils);
     });
   });
 }
@@ -321,6 +411,19 @@ async function chargerFlotte(){
     $('zone-flotte').innerHTML = '<p class="msg msg-erreur">Chargement impossible — réessaie.</p>';
   }
 }
+
+/* Bascule de mode (clair / accessible), identique aux autres pages */
+function appliquerMode(mode){
+  document.body.classList.remove('mode-sombre','mode-accessible');
+  if(mode === 'accessible') document.body.classList.add('mode-accessible');
+  $$('.bascule-mode button').forEach(function(b){ b.classList.toggle('actif', b.dataset.mode === mode); });
+  try{ localStorage.setItem('cvdl-mode', mode); }catch(e){}
+}
+$$('.bascule-mode button').forEach(function(b){ b.addEventListener('click', function(){ appliquerMode(b.dataset.mode); }); });
+try{
+  const memorise = localStorage.getItem('cvdl-mode');
+  if(memorise) appliquerMode(memorise === 'sombre' ? 'clair' : memorise);
+}catch(e){}
 </script>
 </body>
 </html>

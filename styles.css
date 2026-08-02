@@ -78,7 +78,7 @@ body{
   letter-spacing:.12em;text-transform:uppercase;color:var(--gris);
 }
 
-.barre-retour-portail{max-width:640px;margin:16px auto 0;padding:0 20px}
+.barre-retour-portail{max-width:900px;margin:16px auto 0;padding:0 20px}
 .lien-retour-portail{
   display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;
   color:var(--gris);text-decoration:none;
