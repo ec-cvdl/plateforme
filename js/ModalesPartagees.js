@@ -723,20 +723,53 @@ $('suppr-confirmer').addEventListener('click', async () => {
 
 let compta = [];
 let comptaChargeUneFois = false;
+let totalCompta = 0;
+let limiteComptaActuelle = LIMITE_LISTES_DEFAUT;
+let decalageComptaActuel = 0;
+let rechercheComptaActive = false;
 
 async function chargerComptabilite(silencieux){
   if(!silencieux) etat('Chargement de la comptabilité…', 'chargement');
   try{
-    const r = await jsonp({action:'comptabilite', password:motDePasse});
-    if(r.ok){ compta = r.lignes; comptaChargeUneFois = true; rendreComptabilite(); if(!silencieux) $('etat').classList.remove('visible'); }
+    const r = await jsonp({action:'comptabilite', password:motDePasse, limite:limiteComptaActuelle, decalage:decalageComptaActuel});
+    if(r.ok){ compta = r.lignes; totalCompta = r.total; comptaChargeUneFois = true; rendreComptabilite(); if(!silencieux) $('etat').classList.remove('visible'); }
     else if(!silencieux) etat(r.erreur || 'Chargement de la comptabilité impossible', 'erreur');
   }catch(e){ if(!silencieux) etat('Chargement de la comptabilité impossible', 'erreur'); }
 }
+async function changerPageCompta(nouveauDecalage){
+  decalageComptaActuel = Math.max(0, nouveauDecalage);
+  etat('Chargement…', 'chargement');
+  try{
+    const r = await jsonp({action:'comptabilite', password:motDePasse, limite:limiteComptaActuelle, decalage:decalageComptaActuel});
+    if(r.ok){ compta = r.lignes; totalCompta = r.total; rendreComptabilite(); }
+    $('etat').classList.remove('visible');
+  }catch(e){ etat('Chargement impossible', 'erreur'); }
+}
+$('btn-page-precedente-compta').addEventListener('click', () => changerPageCompta(decalageComptaActuel - limiteComptaActuelle));
+$('btn-page-suivante-compta').addEventListener('click', () => changerPageCompta(decalageComptaActuel + limiteComptaActuelle));
+
 $('btn-recharger-compta').addEventListener('click', () => {
   etat('Actualisation…', 'neutre');
+  decalageComptaActuel = 0;
   chargerComptabilite().then(() => etat('À jour', 'succes'));
 });
-$('recherche-compta').addEventListener('input', rendreComptabilite);
+let minuteurRechercheCompta = null;
+$('recherche-compta').addEventListener('input', () => {
+  clearTimeout(minuteurRechercheCompta);
+  const terme = $('recherche-compta').value.trim();
+  minuteurRechercheCompta = setTimeout(async () => {
+    if(!terme){
+      rechercheComptaActive = false;
+      await changerPageCompta(0);
+      return;
+    }
+    etat('Recherche…', 'chargement');
+    try{
+      const r = await jsonp({action:'comptabilite', password:motDePasse, recherche:terme});
+      if(r.ok){ compta = r.lignes; totalCompta = r.total; rechercheComptaActive = true; rendreComptabilite(); etat('À jour', 'succes'); }
+    }catch(e){ etat('Recherche impossible', 'erreur'); }
+  }, 350);
+});
 
 let filtreCompta = 'tout';
 $('filtres-compta').addEventListener('click', e => {
@@ -748,12 +781,22 @@ $('filtres-compta').addEventListener('click', e => {
 });
 
 function rendreComptabilite(){
-  const q = $('recherche-compta').value.trim().toLowerCase();
+  const banniereHistorique = $('bandeau-pagination-compta');
+  if(!rechercheComptaActive && limiteComptaActuelle > 0 && totalCompta > limiteComptaActuelle){
+    const pageActuelle = Math.floor(decalageComptaActuel / limiteComptaActuelle) + 1;
+    const nbPages = Math.ceil(totalCompta / limiteComptaActuelle);
+    $('texte-pagination-compta').textContent = `Page ${pageActuelle} sur ${nbPages} (${totalCompta} lignes au total)`;
+    $('btn-page-precedente-compta').disabled = decalageComptaActuel === 0;
+    $('btn-page-suivante-compta').disabled = decalageComptaActuel + limiteComptaActuelle >= totalCompta;
+    banniereHistorique.hidden = false;
+  }else{
+    banniereHistorique.hidden = true;
+  }
+
   const visibles = compta.filter(l => {
     if(filtreCompta === 'non-paye' && l.statutPaiement === 'Payé') return false;
     if(filtreCompta !== 'tout' && filtreCompta !== 'non-paye' && l.statutComptable !== filtreCompta) return false;
-    if(!q) return true;
-    return (l.referenceCommande + ' ' + l.referenceFacture + ' ' + l.nomStructure).toLowerCase().includes(q);
+    return true;
   });
 
   if(!visibles.length){
