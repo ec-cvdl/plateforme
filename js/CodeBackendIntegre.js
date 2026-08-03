@@ -250,6 +250,26 @@ function obtenirReglages(data) {
   };
 }
 
+/** Regroupe en un seul appel les 4 lectures les plus légères et les plus systématiques de la
+ *  connexion admin (réglages, structures, produits, statuts SAV) — jusqu'ici, chacune partait
+ *  comme une exécution Apps Script séparée. Chaque exécution a un coût fixe (200-1000+ ms
+ *  mesurés, incompressible : ni le classeur ni le code n'en sont la cause, voir l'audit de
+ *  performance) — les regrouper ici fait passer 4 exécutions à 1 pour cette partie du
+ *  chargement, sans rien changer côté données ni côté cache. \`list\`/\`sav-list\` restent des
+ *  appels séparés : ils ont leur propre pagination et leur propre cache, plus lourds à combiner
+ *  proprement, et déjà rapides une fois chauds. */
+function demarrageAdmin(password) {
+  if (password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
+  const reglages = obtenirReglages({ password: password });
+  return {
+    ok: true,
+    reglages: reglages,
+    structures: listerStructures(password),
+    produits: listerProduits(password),
+    statutsSav: listerStatutsSav(password)
+  };
+}
+
 /** Nom de l'organisation, lisible sans mot de passe : sert à afficher le bon nom sur
  *  l'écran de connexion lui-même, avant toute authentification (aucune donnée sensible). */
 function obtenirNomOrganisationPublic() {
@@ -977,6 +997,8 @@ function doGet(e) {
         : { ok: false, erreur: 'Mot de passe incorrect' };
     } else if (p.action === 'reglages') {
       res = obtenirReglages(p);
+    } else if (p.action === 'demarrage-admin') {
+      res = demarrageAdmin(p.password);
     } else {
       res = { ok: false, erreur: 'Action inconnue' };
     }

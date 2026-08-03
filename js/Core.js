@@ -533,26 +533,49 @@ async function connecter(){
               if(res.ok){ commandes = res.commandes; totalCommandes = res.total; limiteCommandesActuelle = LIMITE_COMMANDES_DEFAUT; appliquerAgregatsCommandes(res); }
             });
           } },
-        { label: 'Réglages', fn: () => jsonp({action:'reglages', password:mdp}).then(res => {
+        // Réglages + Structures + Produits + Statuts SAV regroupés en un seul appel
+        // ('demarrage-admin' côté backend) : chacune de ces 4 lectures est légère (jamais
+        // paginée) mais chaque exécution Apps Script a un coût fixe incompressible d'environ
+        // 200 à plusieurs centaines de ms, mesuré indépendamment du volume de données (voir
+        // l'audit de performance) — les regrouper fait passer 4 exécutions à 1 pour cette
+        // partie du chargement. Les tickets SAV sont chargés à la suite, dans la même étape
+        // (jamais en parallèle d'elle), pour garantir que les statuts SAV sont déjà en place
+        // avant de les afficher — même garantie qu'avant, juste réécrite.
+        { label: 'Démarrage', fn: () => jsonp({action:'demarrage-admin', password:mdp}).then(res => {
             if(!res.ok) return;
-            seuilAlerteImpayee = res.seuilAlerteImpayee;
-            appliquerNomOrganisation(res.nomOrganisation);
-            suppressionSimple = !!res.suppressionSimple;
-            appliquerLienDossierFactures(res.dossierPrincipal);
-            appliquerLienFichierNumerotation(res.fichierNumerotation);
-            fichierNumerotationConfigure = !!res.fichierNumerotation;
-            dossierPrincipalConfigure = !!res.dossierPrincipal;
-            badgeNouvelleJours = res.badgeNouvelleJours || 1.5;
-            badgeNouvelleSavJours = res.badgeNouvelleSavJours || 1.5;
-            heureFinVendredi = res.heureFinVendredi != null ? res.heureFinVendredi : 17;
-            heureDebutLundi = res.heureDebutLundi != null ? res.heureDebutLundi : 8;
-            if(res.symptomesSav && res.symptomesSav.length) symptomesSav = res.symptomesSav;
-            appliquerOngletsVisibles(res.ongletsMasques || '');
-            if(res.modeleFacturation) modeleFacturationUrl = 'https://docs.google.com/spreadsheets/d/' + res.modeleFacturation;
-          }) },
-        { label: 'Structures', fn: chargerStructures },
-        { label: 'Produits', fn: chargerProduits },
-        { label: 'SAV', fn: () => chargerStatutsSav().then(() => chargerSav(true)) }
+            const rg = res.reglages;
+            if(rg && rg.ok){
+              seuilAlerteImpayee = rg.seuilAlerteImpayee;
+              appliquerNomOrganisation(rg.nomOrganisation);
+              suppressionSimple = !!rg.suppressionSimple;
+              appliquerLienDossierFactures(rg.dossierPrincipal);
+              appliquerLienFichierNumerotation(rg.fichierNumerotation);
+              fichierNumerotationConfigure = !!rg.fichierNumerotation;
+              dossierPrincipalConfigure = !!rg.dossierPrincipal;
+              badgeNouvelleJours = rg.badgeNouvelleJours || 1.5;
+              badgeNouvelleSavJours = rg.badgeNouvelleSavJours || 1.5;
+              heureFinVendredi = rg.heureFinVendredi != null ? rg.heureFinVendredi : 17;
+              heureDebutLundi = rg.heureDebutLundi != null ? rg.heureDebutLundi : 8;
+              if(rg.symptomesSav && rg.symptomesSav.length) symptomesSav = rg.symptomesSav;
+              appliquerOngletsVisibles(rg.ongletsMasques || '');
+              if(rg.modeleFacturation) modeleFacturationUrl = 'https://docs.google.com/spreadsheets/d/' + rg.modeleFacturation;
+            }
+            if(res.structures && res.structures.ok){
+              structures = res.structures.structures;
+              rendreStructures();
+              $('nc-structures-liste').innerHTML = structures.map(s =>
+                `<option value="${echapper(s.code)}">${echapper(s.nom)}</option>`).join('');
+            }
+            if(res.produits && res.produits.ok){
+              produits = res.produits.produits;
+              rendreProduits();
+            }
+            if(res.statutsSav && res.statutsSav.ok){
+              statutsSav = res.statutsSav.statuts;
+              rendreFiltresSav();
+              rendreConfigStatutsSav();
+            }
+          }).then(() => chargerSav(true)) }
       ];
 
       let termines = 0;
