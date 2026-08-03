@@ -597,9 +597,38 @@ const ENTETES_FACTURES = [
 const CACHE_TTL_LISTES = 300; // 5 minutes : largement assez pour absorber des clics de pagination rapprochés
 const TAILLE_CHUNK_CACHE = 90000; // marge de sécurité sous la limite de 100 Ko par entrée
 
+/** Sait, pour chaque nom de cache, sur quel classeur il faut vérifier la date de dernière
+ *  modification — celui des données de la période active (Commandes/Factures/Devis/SAV) ou
+ *  le classeur principal (Structures/Produits). */
+function classeurPourCache(nom) {
+  const surClasseurActif = ['commandes', 'factures', 'devis', 'sav', 'comptabilite'];
+  return surClasseurActif.indexOf(nom) !== -1 ? classeurActif() : obtenirClasseur();
+}
+
+/** Mémorisé le temps d'une exécution : plusieurs appels à versionCache() dans la même requête
+ *  ne redemandent pas la date de modification à Drive à chaque fois pour le même classeur. */
+const _dateModifClasseurCache = {};
+function dateModifClasseur(classeur) {
+  const id = classeur.getId();
+  if (_dateModifClasseurCache[id] === undefined) {
+    try {
+      _dateModifClasseurCache[id] = String(DriveApp.getFileById(id).getLastUpdated().getTime());
+    } catch (e) {
+      _dateModifClasseurCache[id] = '0'; // classeur inaccessible pour une raison quelconque : on ne bloque pas là-dessus
+    }
+  }
+  return _dateModifClasseurCache[id];
+}
+
+/** Combine le compteur manuel (posé par le script à chaque écriture qu'il fait lui-même) et
+ *  la date de dernière modification réelle du classeur (posée par Google, quelle que soit
+ *  l'origine du changement — le script, mais aussi un import CSV ou une modification
+ *  manuelle directement dans Sheets). Sans ce second signal, une modification faite hors de
+ *  l'application ne serait jamais détectée : le cache continuerait de servir les anciennes
+ *  données jusqu'à son expiration naturelle, silencieusement. */
 function versionCache(nom) {
-  const v = CacheService.getScriptCache().get('version_' + nom);
-  return v || '0';
+  const v = CacheService.getScriptCache().get('version_' + nom) || '0';
+  return v + '_' + dateModifClasseur(classeurPourCache(nom));
 }
 
 function invaliderCache(nom) {
@@ -1137,6 +1166,15 @@ function testerPerformanceComptabilite() {
   const reponse = doGet({ parameter: { action: 'comptabilite', password: ADMIN_PASSWORD, limite: '20', decalage: '0' } });
   Logger.log('=== Requête simulée terminée en ' + (Date.now() - debut) + ' ms au total ===');
   Logger.log('Taille de la réponse : ' + reponse.getContent().length + ' caractères');
+}
+
+/** À lancer à la main (menu déroulant en haut de l'éditeur → sélectionner cette fonction →
+ *  Exécuter ▶) pour forcer un cache tout neuf immédiatement, sans attendre. Utile après avoir
+ *  remplacé des données directement dans Sheets, si jamais on ne veut pas attendre le prochain
+ *  chargement (qui s'en rendrait de toute façon compte tout seul depuis ce correctif). */
+function viderTousLesCaches() {
+  CacheService.getScriptCache().removeAll(['version_commandes', 'version_factures', 'version_devis', 'version_sav', 'version_comptabilite']);
+  Logger.log('Caches vidés — le prochain chargement reconstruira tout depuis les feuilles.');
 }
 
 /**
