@@ -1162,6 +1162,41 @@ function testerPerformanceComptabilite() {
   Logger.log('Taille de la réponse : ' + reponse.getContent().length + ' caractères');
 }
 
+function testerPerformanceStructures() {
+  const debut = Date.now();
+  const reponse = doGet({ parameter: { action: 'structures', password: ADMIN_PASSWORD } });
+  Logger.log('=== Requête simulée terminée en ' + (Date.now() - debut) + ' ms au total ===');
+  Logger.log('Taille de la réponse : ' + reponse.getContent().length + ' caractères');
+}
+
+function testerPerformanceProduits() {
+  const debut = Date.now();
+  const reponse = doGet({ parameter: { action: 'produits', password: ADMIN_PASSWORD } });
+  Logger.log('=== Requête simulée terminée en ' + (Date.now() - debut) + ' ms au total ===');
+  Logger.log('Taille de la réponse : ' + reponse.getContent().length + ' caractères');
+}
+
+function testerPerformanceSav() {
+  const debut = Date.now();
+  const reponse = doGet({ parameter: { action: 'sav-list', password: ADMIN_PASSWORD, limite: '20', decalage: '0' } });
+  Logger.log('=== Requête simulée terminée en ' + (Date.now() - debut) + ' ms au total ===');
+  Logger.log('Taille de la réponse : ' + reponse.getContent().length + ' caractères');
+}
+
+function testerPerformanceFactures() {
+  const debut = Date.now();
+  const reponse = doGet({ parameter: { action: 'factures', password: ADMIN_PASSWORD, limite: '20', decalage: '0' } });
+  Logger.log('=== Requête simulée terminée en ' + (Date.now() - debut) + ' ms au total ===');
+  Logger.log('Taille de la réponse : ' + reponse.getContent().length + ' caractères');
+}
+
+function testerPerformanceDevis() {
+  const debut = Date.now();
+  const reponse = doGet({ parameter: { action: 'devis', password: ADMIN_PASSWORD, limite: '20', decalage: '0' } });
+  Logger.log('=== Requête simulée terminée en ' + (Date.now() - debut) + ' ms au total ===');
+  Logger.log('Taille de la réponse : ' + reponse.getContent().length + ' caractères');
+}
+
 /** À lancer à la main (menu déroulant en haut de l'éditeur → sélectionner cette fonction →
  *  Exécuter ▶) pour forcer un cache tout neuf immédiatement, sans attendre. Utile après avoir
  *  remplacé des données directement dans Sheets, si jamais on ne veut pas attendre le prochain
@@ -1240,24 +1275,11 @@ function verifierCode(code) {
 
 function listerStructures(password) {
   if (password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
+  const debut = Date.now();
 
-  const lignes = feuilleStructures().getDataRange().getValues();
-  const structures = [];
+  const structures = Object.values(lireStructures());
 
-  for (let i = 1; i < lignes.length; i++) {
-    if (!String(lignes[i][0] || '').trim()) continue;
-    structures.push({
-      ligne:     i + 1,
-      code:      lignes[i][0],
-      nom:       lignes[i][1],
-      email:     lignes[i][2],
-      telephone: lignes[i][3],
-      adresse:   lignes[i][4],
-      rn:        lignes[i][5] === true || String(lignes[i][5]).trim().toUpperCase() === 'TRUE',
-      esn:       lignes[i][6] === true || String(lignes[i][6]).trim().toUpperCase() === 'TRUE',
-      interne:   lignes[i][7] === true || String(lignes[i][7]).trim().toUpperCase() === 'TRUE'
-    });
-  }
+  Logger.log('[listerStructures] ' + structures.length + ' structures — ' + (Date.now() - debut) + ' ms');
   return { ok: true, structures: structures };
 }
 
@@ -1737,7 +1759,10 @@ function synchroniserStockTectech(data) {
 
 function listerProduits(password) {
   if (password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
-  return { ok: true, produits: Object.values(lireProduits()) };
+  const debut = Date.now();
+  const produits = Object.values(lireProduits());
+  Logger.log('[listerProduits] ' + produits.length + ' produits — ' + (Date.now() - debut) + ' ms');
+  return { ok: true, produits: produits };
 }
 
 function creerProduit(data) {
@@ -4005,6 +4030,7 @@ function creerTicketSavManuel(data) {
 
 function listerSav(password, limite, decalage, recherche) {
   if (password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
+  const debutTotal = Date.now();
 
   const cleCache = 'sav_v' + versionCache('sav');
   let baseSav = lireCacheDecoupe(cleCache);
@@ -4026,13 +4052,17 @@ function listerSav(password, limite, decalage, recherche) {
       const cible = (t.reference + ' ' + t.nom + ' ' + t.numeroSerie + ' ' + t.referenceCommande + ' ' + t.referenceFacture).toLowerCase();
       return cible.includes(termeRecherche);
     });
-    return { ok: true, tickets: resultats.slice(0, 200).map(formaterDatesSav), total: toutes.length, recherche: true, nombreEnAttente: nombreEnAttente };
+    const resultat = { ok: true, tickets: resultats.slice(0, 200).map(formaterDatesSav), total: toutes.length, recherche: true, nombreEnAttente: nombreEnAttente };
+    Logger.log('[listerSav] recherche "' + termeRecherche + '" — ' + resultats.length + ' résultats, total ' + (Date.now() - debutTotal) + ' ms');
+    return resultat;
   }
 
   const limiteNombre = parseInt(limite, 10) || 0;
   const decalageNombre = parseInt(decalage, 10) || 0;
   const limitees = (limiteNombre > 0 ? toutes.slice(decalageNombre, decalageNombre + limiteNombre) : toutes).map(formaterDatesSav);
-  return { ok: true, tickets: limitees, total: toutes.length, nombreEnAttente: nombreEnAttente };
+  const resultat = { ok: true, tickets: limitees, total: toutes.length, nombreEnAttente: nombreEnAttente };
+  Logger.log('[listerSav] page decalage=' + decalageNombre + ' limite=' + limiteNombre + ' — total ' + toutes.length + ' tickets en base, ' + (Date.now() - debutTotal) + ' ms');
+  return resultat;
 }
 
 /** Le vrai travail coûteux de listerSav — isolé pour pouvoir être mis en cache. */
@@ -4450,6 +4480,7 @@ function supprimerFacture(data) {
 
 function listerDevis(password, limite, decalage, recherche) {
   if (password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
+  const debutTotal = Date.now();
 
   const cleCache = 'devis_v' + versionCache('devis');
   let toutes = lireCacheDecoupe(cleCache);
@@ -4490,13 +4521,17 @@ function listerDevis(password, limite, decalage, recherche) {
       const cible = (d.referenceDevis + ' ' + d.referenceCommande + ' ' + d.nomStructure + ' ' + d.email + ' ' + d.produit).toLowerCase();
       return cible.includes(termeRecherche);
     });
-    return { ok: true, devis: resultats.slice(0, 200).map(formaterDateDevis), total: toutes.length, recherche: true };
+    const resultat = { ok: true, devis: resultats.slice(0, 200).map(formaterDateDevis), total: toutes.length, recherche: true };
+    Logger.log('[listerDevis] recherche "' + termeRecherche + '" — ' + resultats.length + ' résultats, total ' + (Date.now() - debutTotal) + ' ms');
+    return resultat;
   }
 
   const limiteNombre = parseInt(limite, 10) || 0;
   const decalageNombre = parseInt(decalage, 10) || 0;
   const limitees = (limiteNombre > 0 ? toutes.slice(decalageNombre, decalageNombre + limiteNombre) : toutes).map(formaterDateDevis);
-  return { ok: true, devis: limitees, total: toutes.length };
+  const resultat = { ok: true, devis: limitees, total: toutes.length };
+  Logger.log('[listerDevis] page decalage=' + decalageNombre + ' limite=' + limiteNombre + ' — total ' + toutes.length + ' devis en base, ' + (Date.now() - debutTotal) + ' ms');
+  return resultat;
 }
 
 /**
@@ -4755,6 +4790,7 @@ function reporterFactureSurCommande(referenceCommande, numeroFacture) {
 
 function listerFactures(password, limite, decalage, recherche) {
   if (password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
+  const debutTotal = Date.now();
 
   const cleCache = 'factures_v' + versionCache('factures');
   let toutes = lireCacheDecoupe(cleCache);
@@ -4796,13 +4832,17 @@ function listerFactures(password, limite, decalage, recherche) {
       const cible = (f.referenceFacture + ' ' + f.referenceCommande + ' ' + f.nomStructure + ' ' + f.email + ' ' + f.produit).toLowerCase();
       return cible.includes(termeRecherche);
     });
-    return { ok: true, factures: resultats.slice(0, 200).map(formaterDateFacture), total: toutes.length, montantTotalGlobal: montantTotalGlobal, recherche: true };
+    const resultat = { ok: true, factures: resultats.slice(0, 200).map(formaterDateFacture), total: toutes.length, montantTotalGlobal: montantTotalGlobal, recherche: true };
+    Logger.log('[listerFactures] recherche "' + termeRecherche + '" — ' + resultats.length + ' résultats, total ' + (Date.now() - debutTotal) + ' ms');
+    return resultat;
   }
 
   const limiteNombre = parseInt(limite, 10) || 0;
   const decalageNombre = parseInt(decalage, 10) || 0;
   const limitees = (limiteNombre > 0 ? toutes.slice(decalageNombre, decalageNombre + limiteNombre) : toutes).map(formaterDateFacture);
-  return { ok: true, factures: limitees, total: toutes.length, montantTotalGlobal: montantTotalGlobal };
+  const resultat = { ok: true, factures: limitees, total: toutes.length, montantTotalGlobal: montantTotalGlobal };
+  Logger.log('[listerFactures] page decalage=' + decalageNombre + ' limite=' + limiteNombre + ' — total ' + toutes.length + ' factures en base, ' + (Date.now() - debutTotal) + ' ms');
+  return resultat;
 }
 
 /** Édition manuelle d'une facture déjà émise (produit, quantité, prix, commentaire).
@@ -5060,6 +5100,7 @@ function accesComptaAutorise(password) {
  *  repris de la facture, et deux champs propres à la compta (statut, dépôt). */
 function listerComptabilite(password, limite, decalage, recherche) {
   if (!accesComptaAutorise(password)) return { ok: false, erreur: 'Mot de passe incorrect' };
+  const debutTotal = Date.now();
 
   const cleCache = 'comptabilite_v' + versionCache('commandes') + '_' + versionCache('factures') + '_' + versionCache('comptabilite');
   let toutes = lireCacheDecoupe(cleCache);
@@ -5107,13 +5148,17 @@ function listerComptabilite(password, limite, decalage, recherche) {
       const cible = (c.referenceCommande + ' ' + c.referenceFacture + ' ' + c.nomStructure + ' ' + c.produit + ' ' + c.numeroDepot).toLowerCase();
       return cible.includes(termeRecherche);
     });
-    return { ok: true, lignes: resultats.slice(0, 200).map(formaterDateCompta), total: toutes.length, recherche: true };
+    const resultat = { ok: true, lignes: resultats.slice(0, 200).map(formaterDateCompta), total: toutes.length, recherche: true };
+    Logger.log('[listerComptabilite] recherche "' + termeRecherche + '" — ' + resultats.length + ' résultats, total ' + (Date.now() - debutTotal) + ' ms');
+    return resultat;
   }
 
   const limiteNombre = parseInt(limite, 10) || 0;
   const decalageNombre = parseInt(decalage, 10) || 0;
   const limitees = (limiteNombre > 0 ? toutes.slice(decalageNombre, decalageNombre + limiteNombre) : toutes).map(formaterDateCompta);
-  return { ok: true, lignes: limitees, total: toutes.length };
+  const resultat = { ok: true, lignes: limitees, total: toutes.length };
+  Logger.log('[listerComptabilite] page decalage=' + decalageNombre + ' limite=' + limiteNombre + ' — total ' + toutes.length + ' lignes en base, ' + (Date.now() - debutTotal) + ' ms');
+  return resultat;
 }
 
 function majCompta(data) {
