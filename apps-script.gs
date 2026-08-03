@@ -982,6 +982,8 @@ function doGet(e) {
       res = flotteObtenir(p);
     } else if (p.action === 'structures-coordonnees') {
       res = obtenirCoordonneesStructures(p);
+    } else if (p.action === 'analytique-stats') {
+      res = statistiquesAnalytique(p.password, p.formulaire);
     } else if (p.action === 'flotte-lister') {
       res = flotteListerAppareils(p);
     } else if (p.action === 'sav-par-numero-serie') {
@@ -1089,6 +1091,8 @@ function doPost(e) {
       res = basculerVersNouveauClasseur(data);
     } else if (data.action === 'enquete-repondre') {
       res = enregistrerReponseEnquete(data);
+    } else if (data.action === 'analytique-enregistrer') {
+      res = enregistrerAnalytique(data);
     } else if (data.action === 'commande-delete') {
       res = supprimerCommande(data);
     } else if (data.action === 'devis-create') {
@@ -3587,6 +3591,84 @@ function enregistrerReponseEnquete(data) {
   ]);
   return { ok: true };
 }
+
+/* ══════════════ Analytique comportementale du formulaire ══════════════
+   But : repérer les points de friction du formulaire (étapes longues, qui génèrent des
+   erreurs, où les gens abandonnent) — jamais suivre individuellement une structure ou une
+   personne. Une seule ligne écrite par session, envoyée à la toute fin du parcours (ou à
+   l'abandon) — jamais une écriture par clic ou par étape, qui coûterait cher à l'échelle et
+   n'apporterait rien de plus pour cet usage. */
+function enregistrerAnalytique(data) {
+  const feuille = classeurActif().getSheetByName('Analytique') || (function() {
+    const f = classeurActif().insertSheet('Analytique');
+    f.appendRow(['Date', 'Formulaire', 'Code structure', 'Terminé', 'Étape d\'abandon', 'Détail par étape (JSON)']);
+    f.getRange(1, 1, 1, 6).setFontWeight('bold');
+    return f;
+  })();
+
+  let detail = '';
+  try { detail = JSON.stringify(data.etapes || []); } catch (e) { detail = '[]'; }
+
+  feuille.appendRow([
+    new Date(),
+    String(data.formulaire || 'commande').trim(),
+    String(data.code || '').trim(),
+    data.termine ? 'Oui' : 'Non',
+    data.termine ? '' : String(data.etapeAbandon || '').trim(),
+    detail
+  ]);
+  return { ok: true };
+}
+
+/** Agrège les sessions collectées : temps moyen par étape, nombre moyen d'erreurs rencontrées
+ *  par étape, et là où les gens abandonnent le plus — pour repérer concrètement où le
+ *  formulaire coince, pas pour profiler qui que ce soit individuellement. */
+function statistiquesAnalytique(password, formulaire) {
+  if (password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
+
+  const feuille = classeurActif().getSheetByName('Analytique');
+  if (!feuille) return { ok: true, sessions: 0, etapes: [], abandons: [] };
+
+  const lignes = feuille.getDataRange().getValues();
+  const tempsParEtape = {};   // { etape: [temps, temps, ...] }
+  const erreursParEtape = {}; // { etape: nombre total d'erreurs }
+  const abandonsParEtape = {};
+  let sessions = 0;
+  let terminees = 0;
+
+  for (let i = 1; i < lignes.length; i++) {
+    const l = lignes[i];
+    if (!l[0]) continue;
+    if (formulaire && l[1] !== formulaire) continue;
+    sessions++;
+    if (l[3] === 'Oui') terminees++;
+    else if (l[4]) abandonsParEtape[l[4]] = (abandonsParEtape[l[4]] || 0) + 1;
+
+    let etapesSession = [];
+    try { etapesSession = JSON.parse(l[5] || '[]'); } catch (e) { continue; }
+    etapesSession.forEach(function(e) {
+      if (!e || !e.etape) return;
+      if (typeof e.tempsMs === 'number' && e.tempsMs > 0) {
+        if (!tempsParEtape[e.etape]) tempsParEtape[e.etape] = [];
+        tempsParEtape[e.etape].push(e.tempsMs);
+      }
+      if (e.erreurs) erreursParEtape[e.etape] = (erreursParEtape[e.etape] || 0) + e.erreurs;
+    });
+  }
+
+  const etapes = Object.keys(tempsParEtape).map(function(nom) {
+    const temps = tempsParEtape[nom];
+    const moyenneMs = temps.reduce(function(s, t) { return s + t; }, 0) / temps.length;
+    return { etape: nom, tempsMoyenSecondes: Math.round(moyenneMs / 100) / 10, nombreErreurs: erreursParEtape[nom] || 0 };
+  });
+
+  const abandons = Object.keys(abandonsParEtape).map(function(nom) {
+    return { etape: nom, nombre: abandonsParEtape[nom] };
+  });
+
+  return { ok: true, sessions: sessions, terminees: terminees, etapes: etapes, abandons: abandons };
+}
+
 
 
 /**

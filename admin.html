@@ -12,7 +12,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="admin.css?v=20260802-22">
+<link rel="stylesheet" href="admin.css?v=20260803-2">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 </head>
@@ -390,6 +390,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
           <button data-bt="materiel" class="actif">📦 Matériel</button>
           <button data-bt="sav">🎫 SAV</button>
           <button data-bt="tout">Les deux</button>
+          <button data-bt="analytique">📊 Formulaire</button>
         </div>
         <label style="font-size:13px;font-weight:600;color:var(--steel);display:flex;align-items:center;gap:8px">
           Du
@@ -404,6 +405,14 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
       </div>
       <div id="bilan-contenu"></div>
       <div id="bilan-sav-contenu"></div>
+      <div id="bilan-analytique-contenu" hidden>
+        <div class="filtres" id="filtres-analytique-formulaire" style="margin-bottom:16px">
+          <button data-form="commande" class="actif">Commande</button>
+          <button data-form="sav-structure">SAV — structure</button>
+          <button data-form="sav-beneficiaire">SAV — bénéficiaire</button>
+        </div>
+        <div id="bilan-analytique-details"></div>
+      </div>
     </section>
 
     <!-- Vue carte -->
@@ -1573,15 +1582,15 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
   </div>
 </div>
 
-<script src="js/Core.js?v=20260802-22"></script>
-<script src="js/Commandes.js?v=20260802-22"></script>
-<script src="js/Bilan.js?v=20260802-22"></script>
-<script src="js/Structures.js?v=20260802-22"></script>
-<script src="js/Produits.js?v=20260802-22"></script>
-<script src="js/DevisEtReglages.js?v=20260802-22"></script>
-<script src="js/Factures.js?v=20260802-22"></script>
-<script src="js/ModalesPartagees.js?v=20260802-22"></script>
-<script src="js/CodeBackendIntegre.js?v=20260802-22"></script>
-<script src="js/Installateur.js?v=20260802-22"></script>
+<script src="js/Core.js?v=20260803-2"></script>
+<script src="js/Commandes.js?v=20260803-2"></script>
+<script src="js/Bilan.js?v=20260803-2"></script>
+<script src="js/Structures.js?v=20260803-2"></script>
+<script src="js/Produits.js?v=20260803-2"></script>
+<script src="js/DevisEtReglages.js?v=20260803-2"></script>
+<script src="js/Factures.js?v=20260803-2"></script>
+<script src="js/ModalesPartagees.js?v=20260803-2"></script>
+<script src="js/CodeBackendIntegre.js?v=20260803-2"></script>
+<script src="js/Installateur.js?v=20260803-2"></script>
 </body>
 </html>
