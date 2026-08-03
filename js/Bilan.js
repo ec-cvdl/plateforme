@@ -125,16 +125,10 @@ $('bilan-date-fin').addEventListener('change', () => { rendreBilan(); rendreBila
 initialiserFiltreBilan();
 
 let filtreBilanAffichage = 'materiel';
-let analytiqueChargeeUneFois = false;
 function appliquerAffichageBilan(){
-  $('bilan-bandeau').hidden = (filtreBilanAffichage !== 'materiel' && filtreBilanAffichage !== 'tout');
-  $('bilan-contenu').hidden = (filtreBilanAffichage !== 'materiel' && filtreBilanAffichage !== 'tout');
-  $('bilan-sav-contenu').hidden = (filtreBilanAffichage !== 'sav' && filtreBilanAffichage !== 'tout');
-  $('bilan-analytique-contenu').hidden = (filtreBilanAffichage !== 'analytique');
-  if(filtreBilanAffichage === 'analytique' && !analytiqueChargeeUneFois){
-    analytiqueChargeeUneFois = true;
-    chargerAnalytique();
-  }
+  $('bilan-bandeau').hidden = (filtreBilanAffichage === 'sav');
+  $('bilan-contenu').hidden = (filtreBilanAffichage === 'sav');
+  $('bilan-sav-contenu').hidden = (filtreBilanAffichage === 'materiel');
 }
 $('filtres-bilan-type').addEventListener('click', e => {
   const b = e.target.closest('button');
@@ -143,69 +137,6 @@ $('filtres-bilan-type').addEventListener('click', e => {
   filtreBilanAffichage = b.dataset.bt;
   appliquerAffichageBilan();
 });
-
-let formulaireAnalytiqueActuel = 'commande';
-$('filtres-analytique-formulaire').addEventListener('click', e => {
-  const b = e.target.closest('button');
-  if(!b) return;
-  document.querySelectorAll('#filtres-analytique-formulaire button').forEach(x => x.classList.toggle('actif', x === b));
-  formulaireAnalytiqueActuel = b.dataset.form;
-  chargerAnalytique();
-});
-
-async function chargerAnalytique(){
-  $('bilan-analytique-details').innerHTML = '<p class="sous-question">Chargement…</p>';
-  try{
-    const r = await jsonp({action:'analytique-stats', password:motDePasse, formulaire:formulaireAnalytiqueActuel});
-    if(!r.ok){ $('bilan-analytique-details').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur || 'Chargement impossible.')}</div>`; return; }
-    rendreAnalytique(r);
-  }catch(e){
-    $('bilan-analytique-details').innerHTML = '<div class="msg msg-erreur">Chargement impossible — réessaie.</div>';
-  }
-}
-
-function rendreAnalytique(r){
-  if(!r.sessions){
-    $('bilan-analytique-details').innerHTML = `<div class="vide">
-      <strong>Rien à afficher pour le moment</strong>
-      Ces statistiques se construisent au fil des visites de ce formulaire — reviens un peu plus tard.
-    </div>`;
-    return;
-  }
-
-  const tauxAbandon = r.sessions ? Math.round(((r.sessions - r.terminees) / r.sessions) * 100) : 0;
-  const etapesTriees = r.etapes.slice().sort((a, b) => b.tempsMoyenSecondes - a.tempsMoyenSecondes);
-  const abandonsTries = r.abandons.slice().sort((a, b) => b.nombre - a.nombre);
-
-  $('bilan-analytique-details').innerHTML = `
-    <p class="sous-question" style="margin-bottom:18px">
-      ${r.sessions} session${r.sessions > 1 ? 's' : ''} enregistrée${r.sessions > 1 ? 's' : ''} —
-      ${r.terminees} commande${r.terminees > 1 ? 's' : ''} allée${r.terminees > 1 ? 's' : ''} au bout
-      (${tauxAbandon}% d'abandon toutes étapes confondues).
-    </p>
-    <h3 style="font-size:14px;margin:0 0 10px">⏱ Temps moyen passé par étape</h3>
-    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:24px">
-      ${etapesTriees.map(e => `
-        <div style="display:flex;align-items:center;gap:12px">
-          <span style="min-width:140px;font-size:13px;font-weight:600;text-transform:capitalize">${echapper(e.etape)}</span>
-          <div style="flex:1;background:var(--paper);border-radius:6px;height:22px;position:relative;overflow:hidden">
-            <div style="background:var(--t-bleu-t);height:100%;width:${Math.min(100, e.tempsMoyenSecondes * 3)}%"></div>
-          </div>
-          <span style="min-width:60px;font-size:12.5px;color:var(--steel);text-align:right">${e.tempsMoyenSecondes}s</span>
-          ${e.nombreErreurs ? `<span style="font-size:11px;background:var(--t-rouge-f);color:var(--t-rouge-t);padding:3px 8px;border-radius:999px;white-space:nowrap">${e.nombreErreurs} erreur${e.nombreErreurs > 1 ? 's' : ''}</span>` : ''}
-        </div>`).join('')}
-    </div>
-    ${abandonsTries.length ? `
-    <h3 style="font-size:14px;margin:0 0 10px">🚪 Où les gens abandonnent</h3>
-    <div style="display:flex;flex-direction:column;gap:6px">
-      ${abandonsTries.map(a => `
-        <div style="display:flex;justify-content:space-between;font-size:13px;padding:8px 12px;background:var(--paper);border-radius:8px">
-          <span style="text-transform:capitalize;font-weight:600">${echapper(a.etape)}</span>
-          <span style="color:var(--steel)">${a.nombre} abandon${a.nombre > 1 ? 's' : ''}</span>
-        </div>`).join('')}
-    </div>` : ''}
-  `;
-}
 
 function rendreBilan(){
   const debut = $('bilan-date-debut').value; // yyyy-mm-dd, ou '' si vide (= pas de borne basse)

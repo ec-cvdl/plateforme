@@ -533,49 +533,26 @@ async function connecter(){
               if(res.ok){ commandes = res.commandes; totalCommandes = res.total; limiteCommandesActuelle = LIMITE_COMMANDES_DEFAUT; appliquerAgregatsCommandes(res); }
             });
           } },
-        { label: 'Réglages, Structures, Produits, SAV', fn: () => jsonp({action:'donnees-login', password:mdp}).then(res => {
+        { label: 'Réglages', fn: () => jsonp({action:'reglages', password:mdp}).then(res => {
             if(!res.ok) return;
-
-            // Réglages
-            const rg = res.reglages;
-            if(rg && rg.ok){
-              seuilAlerteImpayee = rg.seuilAlerteImpayee;
-              appliquerNomOrganisation(rg.nomOrganisation);
-              suppressionSimple = !!rg.suppressionSimple;
-              appliquerLienDossierFactures(rg.dossierPrincipal);
-              appliquerLienFichierNumerotation(rg.fichierNumerotation);
-              fichierNumerotationConfigure = !!rg.fichierNumerotation;
-              dossierPrincipalConfigure = !!rg.dossierPrincipal;
-              badgeNouvelleJours = rg.badgeNouvelleJours || 1.5;
-              badgeNouvelleSavJours = rg.badgeNouvelleSavJours || 1.5;
-              heureFinVendredi = rg.heureFinVendredi != null ? rg.heureFinVendredi : 17;
-              heureDebutLundi = rg.heureDebutLundi != null ? rg.heureDebutLundi : 8;
-              if(rg.symptomesSav && rg.symptomesSav.length) symptomesSav = rg.symptomesSav;
-              appliquerOngletsVisibles(rg.ongletsMasques || '');
-              if(rg.modeleFacturation) modeleFacturationUrl = 'https://docs.google.com/spreadsheets/d/' + rg.modeleFacturation;
-            }
-
-            // Structures
-            const st = res.structures;
-            if(st && st.ok){
-              structures = st.structures;
-              rendreStructures();
-              $('nc-structures-liste').innerHTML = structures.map(s =>
-                `<option value="${echapper(s.code)}">${echapper(s.nom)}</option>`).join('');
-            }
-
-            // Produits
-            const pr = res.produits;
-            if(pr && pr.ok){ produits = pr.produits; rendreProduits(); }
-
-            // Statuts SAV
-            const ss = res.statutsSav;
-            if(ss && ss.ok){ statutsSav = ss.statuts; rendreFiltresSav(); rendreConfigStatutsSav(); }
-
-            // SAV (les 20 premiers tickets)
-            const sv = res.sav;
-            if(sv && sv.ok){ sav = sv.tickets; totalSav = sv.total; appliquerAgregatsSav(sv); rendreSav(); rendreApercuGeneral(); }
+            seuilAlerteImpayee = res.seuilAlerteImpayee;
+            appliquerNomOrganisation(res.nomOrganisation);
+            suppressionSimple = !!res.suppressionSimple;
+            appliquerLienDossierFactures(res.dossierPrincipal);
+            appliquerLienFichierNumerotation(res.fichierNumerotation);
+            fichierNumerotationConfigure = !!res.fichierNumerotation;
+            dossierPrincipalConfigure = !!res.dossierPrincipal;
+            badgeNouvelleJours = res.badgeNouvelleJours || 1.5;
+            badgeNouvelleSavJours = res.badgeNouvelleSavJours || 1.5;
+            heureFinVendredi = res.heureFinVendredi != null ? res.heureFinVendredi : 17;
+            heureDebutLundi = res.heureDebutLundi != null ? res.heureDebutLundi : 8;
+            if(res.symptomesSav && res.symptomesSav.length) symptomesSav = res.symptomesSav;
+            appliquerOngletsVisibles(res.ongletsMasques || '');
+            if(res.modeleFacturation) modeleFacturationUrl = 'https://docs.google.com/spreadsheets/d/' + res.modeleFacturation;
           }) },
+        { label: 'Structures', fn: chargerStructures },
+        { label: 'Produits', fn: chargerProduits },
+        { label: 'SAV', fn: () => chargerStatutsSav().then(() => chargerSav(true)) }
       ];
 
       let termines = 0;
