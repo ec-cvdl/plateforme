@@ -12,7 +12,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=20260803-2">
+<link rel="stylesheet" href="styles.css?v=20260802-2">
 <style>
   .grille-symptomes{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-top:14px}
   .carte-symptome{
@@ -238,7 +238,6 @@ function posterAvecProgression(data, onProgression){
 }
 function afficherMsg(cible, texte, type){
   $(cible).innerHTML = texte ? '<div class="msg msg-' + type + '">' + texte + '</div>' : '';
-  if(texte && type === 'erreur') analytique.erreursEtapeActuelle++;
 }
 function echapper(s){
   return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
@@ -315,49 +314,10 @@ function afficherEtape(nom){
   if(champPrincipal) setTimeout(function(){ champPrincipal.focus(); }, 50);
 }
 
-/* ─── Analytique comportementale : même principe que sur commande.html/sav.html, identifiant
-   distinct pour bien séparer les tickets ouverts par un bénéficiaire de ceux ouverts par une
-   structure dans les statistiques admin. Pas de code structure ici (identification par n° de
-   série) — on se base sur le fait d'avoir dépassé la toute première étape. ─── */
-const analytique = { etapes: [], etapeActuelle: null, debutEtape: Date.now(), erreursEtapeActuelle: 0, aCommence: false };
-function noterChangementEtape(nomEtape){
-  if(analytique.etapeActuelle){
-    analytique.etapes.push({ etape: analytique.etapeActuelle, tempsMs: Date.now() - analytique.debutEtape, erreurs: analytique.erreursEtapeActuelle });
-  }
-  analytique.aCommence = true;
-  analytique.etapeActuelle = nomEtape;
-  analytique.debutEtape = Date.now();
-  analytique.erreursEtapeActuelle = 0;
-}
-function envoyerAnalytique(termine){
-  if(analytique.etapeActuelle){
-    analytique.etapes.push({ etape: analytique.etapeActuelle, tempsMs: Date.now() - analytique.debutEtape, erreurs: analytique.erreursEtapeActuelle });
-    analytique.etapeActuelle = null;
-  }
-  const donnees = {
-    action: 'analytique-enregistrer',
-    formulaire: 'sav-beneficiaire',
-    code: '',
-    termine: !!termine,
-    etapeAbandon: termine ? '' : (analytique.etapes.length ? analytique.etapes[analytique.etapes.length - 1].etape : ''),
-    etapes: analytique.etapes
-  };
-  try{
-    if(termine) poster(donnees).catch(function(){});
-    else navigator.sendBeacon(API, new Blob([JSON.stringify(donnees)], {type:'text/plain;charset=utf-8'}));
-  }catch(e){}
-}
-window.addEventListener('beforeunload', function(){
-  if(!analytique.aCommence) return;
-  if(document.querySelector('.confirmation') && !document.querySelector('.confirmation').hidden) return;
-  envoyerAnalytique(false);
-});
-
 function allerA(nomEtape){
   const idx = etapes.indexOf(nomEtape);
   if(idx === -1) return;
   indexEtape = idx;
-  noterChangementEtape(nomEtape);
   afficherEtape(nomEtape);
 }
 function suivant(){
@@ -527,7 +487,6 @@ $('btn-envoyer-sav').addEventListener('click', async function(){
     });
     barreProgression.hidden = true;
     if(r.ok){
-      envoyerAnalytique(true);
       texteVoile.textContent = 'C\'est envoyé…';
       $('reference-sav').textContent = r.reference;
       $$('.etape').forEach(function(s){ s.hidden = true; });

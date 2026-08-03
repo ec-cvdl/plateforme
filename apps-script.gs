@@ -200,27 +200,6 @@ const MAX_FICHIER_MO  = 8;   // Mo par fichier, vérifié aussi côté serveur
 const LIMITE_SOUMISSIONS_PAR_HEURE = 5; // par code structure, protège en cas de fuite d'un code
 
 /** Lit tous les réglages exposés dans l'onglet "Réglages" du back-office, en un seul appel. */
-/** Fusionne 5 requêtes qui étaient jusque-là séparées (Réglages, Structures, Produits,
- *  Statuts SAV, SAV) en une seule — chacune d'entre elles est individuellement rapide (elles
- *  lisent peu de données), mais Apps Script a un coût fixe incompressible par requête,
- *  indépendant du volume traité (mesuré : entre 250 et 500 ms rien que pour ce coût de base,
- *  même sur une poignée de lignes). Regrouper 5 requêtes en 1 ne fait pas disparaître ce coût
- *  fixe, mais on ne le paie plus qu'une fois au lieu de cinq — c'est là que se trouve le
- *  vrai gain, pas dans le volume de données (déjà optimisé par ailleurs). */
-function donneesLogin(password) {
-  if (password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
-  const debut = Date.now();
-
-  const reglages = obtenirReglages({ password: password });
-  const structures = listerStructures(password);
-  const produits = listerProduits(password);
-  const statutsSav = listerStatutsSav(password);
-  const sav = listerSav(password, 20, 0, '');
-
-  Logger.log('[donneesLogin] Réglages + Structures + Produits + StatutsSav + SAV combinés — ' + (Date.now() - debut) + ' ms au total');
-  return { ok: true, reglages: reglages, structures: structures, produits: produits, statutsSav: statutsSav, sav: sav };
-}
-
 function obtenirReglages(data) {
   if (data.password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
   return {
@@ -612,38 +591,9 @@ const ENTETES_FACTURES = [
 const CACHE_TTL_LISTES = 300; // 5 minutes : largement assez pour absorber des clics de pagination rapprochés
 const TAILLE_CHUNK_CACHE = 90000; // marge de sécurité sous la limite de 100 Ko par entrée
 
-/** Sait, pour chaque nom de cache, sur quel classeur il faut vérifier la date de dernière
- *  modification — celui des données de la période active (Commandes/Factures/Devis/SAV) ou
- *  le classeur principal (Structures/Produits). */
-function classeurPourCache(nom) {
-  const surClasseurActif = ['commandes', 'factures', 'devis', 'sav', 'comptabilite'];
-  return surClasseurActif.indexOf(nom) !== -1 ? classeurActif() : obtenirClasseur();
-}
-
-/** Mémorisé le temps d'une exécution : plusieurs appels à versionCache() dans la même requête
- *  ne redemandent pas la date de modification à Drive à chaque fois pour le même classeur. */
-const _dateModifClasseurCache = {};
-function dateModifClasseur(classeur) {
-  const id = classeur.getId();
-  if (_dateModifClasseurCache[id] === undefined) {
-    try {
-      _dateModifClasseurCache[id] = String(DriveApp.getFileById(id).getLastUpdated().getTime());
-    } catch (e) {
-      _dateModifClasseurCache[id] = '0'; // classeur inaccessible pour une raison quelconque : on ne bloque pas là-dessus
-    }
-  }
-  return _dateModifClasseurCache[id];
-}
-
-/** Combine le compteur manuel (posé par le script à chaque écriture qu'il fait lui-même) et
- *  la date de dernière modification réelle du classeur (posée par Google, quelle que soit
- *  l'origine du changement — le script, mais aussi un import CSV ou une modification
- *  manuelle directement dans Sheets). Sans ce second signal, une modification faite hors de
- *  l'application ne serait jamais détectée : le cache continuerait de servir les anciennes
- *  données jusqu'à son expiration naturelle, silencieusement. */
 function versionCache(nom) {
-  const v = CacheService.getScriptCache().get('version_' + nom) || '0';
-  return v + '_' + dateModifClasseur(classeurPourCache(nom));
+  const v = CacheService.getScriptCache().get('version_' + nom);
+  return v || '0';
 }
 
 function invaliderCache(nom) {
@@ -974,16 +924,12 @@ function doGet(e) {
       res = { ok: true, terminee: installationTerminee() };
     } else if (p.action === 'check') {
       res = verifierCode(p.code);
-    } else if (p.action === 'donnees-commande') {
-      res = donneesCommande(p.code);
     } else if (p.action === 'commandes-par-code') {
       res = listerCommandesParCode(p);
     } else if (p.action === 'flotte-obtenir') {
       res = flotteObtenir(p);
     } else if (p.action === 'structures-coordonnees') {
       res = obtenirCoordonneesStructures(p);
-    } else if (p.action === 'analytique-stats') {
-      res = statistiquesAnalytique(p.password, p.formulaire);
     } else if (p.action === 'flotte-lister') {
       res = flotteListerAppareils(p);
     } else if (p.action === 'sav-par-numero-serie') {
@@ -1022,8 +968,6 @@ function doGet(e) {
         : { ok: false, erreur: 'Mot de passe incorrect' };
     } else if (p.action === 'reglages') {
       res = obtenirReglages(p);
-    } else if (p.action === 'donnees-login') {
-      res = donneesLogin(p.password);
     } else {
       res = { ok: false, erreur: 'Action inconnue' };
     }
@@ -1091,8 +1035,6 @@ function doPost(e) {
       res = basculerVersNouveauClasseur(data);
     } else if (data.action === 'enquete-repondre') {
       res = enregistrerReponseEnquete(data);
-    } else if (data.action === 'analytique-enregistrer') {
-      res = enregistrerAnalytique(data);
     } else if (data.action === 'commande-delete') {
       res = supprimerCommande(data);
     } else if (data.action === 'devis-create') {
@@ -1191,57 +1133,6 @@ function testerPerformanceComptabilite() {
   Logger.log('Taille de la réponse : ' + reponse.getContent().length + ' caractères');
 }
 
-function testerPerformanceStructures() {
-  const debut = Date.now();
-  const reponse = doGet({ parameter: { action: 'structures', password: ADMIN_PASSWORD } });
-  Logger.log('=== Requête simulée terminée en ' + (Date.now() - debut) + ' ms au total ===');
-  Logger.log('Taille de la réponse : ' + reponse.getContent().length + ' caractères');
-}
-
-function testerPerformanceProduits() {
-  const debut = Date.now();
-  const reponse = doGet({ parameter: { action: 'produits', password: ADMIN_PASSWORD } });
-  Logger.log('=== Requête simulée terminée en ' + (Date.now() - debut) + ' ms au total ===');
-  Logger.log('Taille de la réponse : ' + reponse.getContent().length + ' caractères');
-}
-
-function testerPerformanceSav() {
-  const debut = Date.now();
-  const reponse = doGet({ parameter: { action: 'sav-list', password: ADMIN_PASSWORD, limite: '20', decalage: '0' } });
-  Logger.log('=== Requête simulée terminée en ' + (Date.now() - debut) + ' ms au total ===');
-  Logger.log('Taille de la réponse : ' + reponse.getContent().length + ' caractères');
-}
-
-function testerPerformanceFactures() {
-  const debut = Date.now();
-  const reponse = doGet({ parameter: { action: 'factures', password: ADMIN_PASSWORD, limite: '20', decalage: '0' } });
-  Logger.log('=== Requête simulée terminée en ' + (Date.now() - debut) + ' ms au total ===');
-  Logger.log('Taille de la réponse : ' + reponse.getContent().length + ' caractères');
-}
-
-function testerPerformanceDevis() {
-  const debut = Date.now();
-  const reponse = doGet({ parameter: { action: 'devis', password: ADMIN_PASSWORD, limite: '20', decalage: '0' } });
-  Logger.log('=== Requête simulée terminée en ' + (Date.now() - debut) + ' ms au total ===');
-  Logger.log('Taille de la réponse : ' + reponse.getContent().length + ' caractères');
-}
-
-function testerPerformanceDonneesLogin() {
-  const debut = Date.now();
-  const reponse = doGet({ parameter: { action: 'donnees-login', password: ADMIN_PASSWORD } });
-  Logger.log('=== Requête simulée terminée en ' + (Date.now() - debut) + ' ms au total ===');
-  Logger.log('Taille de la réponse : ' + reponse.getContent().length + ' caractères');
-}
-
-/** À lancer à la main (menu déroulant en haut de l'éditeur → sélectionner cette fonction →
- *  Exécuter ▶) pour forcer un cache tout neuf immédiatement, sans attendre. Utile après avoir
- *  remplacé des données directement dans Sheets, si jamais on ne veut pas attendre le prochain
- *  chargement (qui s'en rendrait de toute façon compte tout seul depuis ce correctif). */
-function viderTousLesCaches() {
-  CacheService.getScriptCache().removeAll(['version_commandes', 'version_factures', 'version_devis', 'version_sav', 'version_comptabilite']);
-  Logger.log('Caches vidés — le prochain chargement reconstruira tout depuis les feuilles.');
-}
-
 /**
  * CVDL — Backend commandes matériel (source : Structures.gs, 3 sur 8 — CRUD structures partenaires)
  * Fait partie de backend/*.gs — voir Config.gs pour les instructions de génération.
@@ -1309,24 +1200,26 @@ function verifierCode(code) {
   };
 }
 
-/** Fusionne vérification du code et catalogue produits en une seule requête — le formulaire
- *  de commande a systématiquement besoin des deux à la suite, jamais l'un sans l'autre.
- *  Même principe que donneesLogin côté admin : le coût fixe par requête d'Apps Script se paie
- *  une fois au lieu de deux. */
-function donneesCommande(code) {
-  const verif = verifierCode(code);
-  if (!verif.ok) return verif;
-  const catalogue = listerProduitsPublic(code);
-  return { ok: true, verification: verif, catalogue: catalogue };
-}
-
 function listerStructures(password) {
   if (password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
-  const debut = Date.now();
 
-  const structures = Object.values(lireStructures());
+  const lignes = feuilleStructures().getDataRange().getValues();
+  const structures = [];
 
-  Logger.log('[listerStructures] ' + structures.length + ' structures — ' + (Date.now() - debut) + ' ms');
+  for (let i = 1; i < lignes.length; i++) {
+    if (!String(lignes[i][0] || '').trim()) continue;
+    structures.push({
+      ligne:     i + 1,
+      code:      lignes[i][0],
+      nom:       lignes[i][1],
+      email:     lignes[i][2],
+      telephone: lignes[i][3],
+      adresse:   lignes[i][4],
+      rn:        lignes[i][5] === true || String(lignes[i][5]).trim().toUpperCase() === 'TRUE',
+      esn:       lignes[i][6] === true || String(lignes[i][6]).trim().toUpperCase() === 'TRUE',
+      interne:   lignes[i][7] === true || String(lignes[i][7]).trim().toUpperCase() === 'TRUE'
+    });
+  }
   return { ok: true, structures: structures };
 }
 
@@ -1806,10 +1699,7 @@ function synchroniserStockTectech(data) {
 
 function listerProduits(password) {
   if (password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
-  const debut = Date.now();
-  const produits = Object.values(lireProduits());
-  Logger.log('[listerProduits] ' + produits.length + ' produits — ' + (Date.now() - debut) + ' ms');
-  return { ok: true, produits: produits };
+  return { ok: true, produits: Object.values(lireProduits()) };
 }
 
 function creerProduit(data) {
@@ -3592,84 +3482,6 @@ function enregistrerReponseEnquete(data) {
   return { ok: true };
 }
 
-/* ══════════════ Analytique comportementale du formulaire ══════════════
-   But : repérer les points de friction du formulaire (étapes longues, qui génèrent des
-   erreurs, où les gens abandonnent) — jamais suivre individuellement une structure ou une
-   personne. Une seule ligne écrite par session, envoyée à la toute fin du parcours (ou à
-   l'abandon) — jamais une écriture par clic ou par étape, qui coûterait cher à l'échelle et
-   n'apporterait rien de plus pour cet usage. */
-function enregistrerAnalytique(data) {
-  const feuille = classeurActif().getSheetByName('Analytique') || (function() {
-    const f = classeurActif().insertSheet('Analytique');
-    f.appendRow(['Date', 'Formulaire', 'Code structure', 'Terminé', 'Étape d\'abandon', 'Détail par étape (JSON)']);
-    f.getRange(1, 1, 1, 6).setFontWeight('bold');
-    return f;
-  })();
-
-  let detail = '';
-  try { detail = JSON.stringify(data.etapes || []); } catch (e) { detail = '[]'; }
-
-  feuille.appendRow([
-    new Date(),
-    String(data.formulaire || 'commande').trim(),
-    String(data.code || '').trim(),
-    data.termine ? 'Oui' : 'Non',
-    data.termine ? '' : String(data.etapeAbandon || '').trim(),
-    detail
-  ]);
-  return { ok: true };
-}
-
-/** Agrège les sessions collectées : temps moyen par étape, nombre moyen d'erreurs rencontrées
- *  par étape, et là où les gens abandonnent le plus — pour repérer concrètement où le
- *  formulaire coince, pas pour profiler qui que ce soit individuellement. */
-function statistiquesAnalytique(password, formulaire) {
-  if (password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
-
-  const feuille = classeurActif().getSheetByName('Analytique');
-  if (!feuille) return { ok: true, sessions: 0, etapes: [], abandons: [] };
-
-  const lignes = feuille.getDataRange().getValues();
-  const tempsParEtape = {};   // { etape: [temps, temps, ...] }
-  const erreursParEtape = {}; // { etape: nombre total d'erreurs }
-  const abandonsParEtape = {};
-  let sessions = 0;
-  let terminees = 0;
-
-  for (let i = 1; i < lignes.length; i++) {
-    const l = lignes[i];
-    if (!l[0]) continue;
-    if (formulaire && l[1] !== formulaire) continue;
-    sessions++;
-    if (l[3] === 'Oui') terminees++;
-    else if (l[4]) abandonsParEtape[l[4]] = (abandonsParEtape[l[4]] || 0) + 1;
-
-    let etapesSession = [];
-    try { etapesSession = JSON.parse(l[5] || '[]'); } catch (e) { continue; }
-    etapesSession.forEach(function(e) {
-      if (!e || !e.etape) return;
-      if (typeof e.tempsMs === 'number' && e.tempsMs > 0) {
-        if (!tempsParEtape[e.etape]) tempsParEtape[e.etape] = [];
-        tempsParEtape[e.etape].push(e.tempsMs);
-      }
-      if (e.erreurs) erreursParEtape[e.etape] = (erreursParEtape[e.etape] || 0) + e.erreurs;
-    });
-  }
-
-  const etapes = Object.keys(tempsParEtape).map(function(nom) {
-    const temps = tempsParEtape[nom];
-    const moyenneMs = temps.reduce(function(s, t) { return s + t; }, 0) / temps.length;
-    return { etape: nom, tempsMoyenSecondes: Math.round(moyenneMs / 100) / 10, nombreErreurs: erreursParEtape[nom] || 0 };
-  });
-
-  const abandons = Object.keys(abandonsParEtape).map(function(nom) {
-    return { etape: nom, nombre: abandonsParEtape[nom] };
-  });
-
-  return { ok: true, sessions: sessions, terminees: terminees, etapes: etapes, abandons: abandons };
-}
-
-
 
 /**
  * CVDL — Backend commandes matériel (source : Devis.gs, 6 sur 8 — génération des devis)
@@ -4155,7 +3967,6 @@ function creerTicketSavManuel(data) {
 
 function listerSav(password, limite, decalage, recherche) {
   if (password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
-  const debutTotal = Date.now();
 
   const cleCache = 'sav_v' + versionCache('sav');
   let baseSav = lireCacheDecoupe(cleCache);
@@ -4177,17 +3988,13 @@ function listerSav(password, limite, decalage, recherche) {
       const cible = (t.reference + ' ' + t.nom + ' ' + t.numeroSerie + ' ' + t.referenceCommande + ' ' + t.referenceFacture).toLowerCase();
       return cible.includes(termeRecherche);
     });
-    const resultat = { ok: true, tickets: resultats.slice(0, 200).map(formaterDatesSav), total: toutes.length, recherche: true, nombreEnAttente: nombreEnAttente };
-    Logger.log('[listerSav] recherche "' + termeRecherche + '" — ' + resultats.length + ' résultats, total ' + (Date.now() - debutTotal) + ' ms');
-    return resultat;
+    return { ok: true, tickets: resultats.slice(0, 200).map(formaterDatesSav), total: toutes.length, recherche: true, nombreEnAttente: nombreEnAttente };
   }
 
   const limiteNombre = parseInt(limite, 10) || 0;
   const decalageNombre = parseInt(decalage, 10) || 0;
   const limitees = (limiteNombre > 0 ? toutes.slice(decalageNombre, decalageNombre + limiteNombre) : toutes).map(formaterDatesSav);
-  const resultat = { ok: true, tickets: limitees, total: toutes.length, nombreEnAttente: nombreEnAttente };
-  Logger.log('[listerSav] page decalage=' + decalageNombre + ' limite=' + limiteNombre + ' — total ' + toutes.length + ' tickets en base, ' + (Date.now() - debutTotal) + ' ms');
-  return resultat;
+  return { ok: true, tickets: limitees, total: toutes.length, nombreEnAttente: nombreEnAttente };
 }
 
 /** Le vrai travail coûteux de listerSav — isolé pour pouvoir être mis en cache. */
@@ -4605,7 +4412,6 @@ function supprimerFacture(data) {
 
 function listerDevis(password, limite, decalage, recherche) {
   if (password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
-  const debutTotal = Date.now();
 
   const cleCache = 'devis_v' + versionCache('devis');
   let toutes = lireCacheDecoupe(cleCache);
@@ -4646,17 +4452,13 @@ function listerDevis(password, limite, decalage, recherche) {
       const cible = (d.referenceDevis + ' ' + d.referenceCommande + ' ' + d.nomStructure + ' ' + d.email + ' ' + d.produit).toLowerCase();
       return cible.includes(termeRecherche);
     });
-    const resultat = { ok: true, devis: resultats.slice(0, 200).map(formaterDateDevis), total: toutes.length, recherche: true };
-    Logger.log('[listerDevis] recherche "' + termeRecherche + '" — ' + resultats.length + ' résultats, total ' + (Date.now() - debutTotal) + ' ms');
-    return resultat;
+    return { ok: true, devis: resultats.slice(0, 200).map(formaterDateDevis), total: toutes.length, recherche: true };
   }
 
   const limiteNombre = parseInt(limite, 10) || 0;
   const decalageNombre = parseInt(decalage, 10) || 0;
   const limitees = (limiteNombre > 0 ? toutes.slice(decalageNombre, decalageNombre + limiteNombre) : toutes).map(formaterDateDevis);
-  const resultat = { ok: true, devis: limitees, total: toutes.length };
-  Logger.log('[listerDevis] page decalage=' + decalageNombre + ' limite=' + limiteNombre + ' — total ' + toutes.length + ' devis en base, ' + (Date.now() - debutTotal) + ' ms');
-  return resultat;
+  return { ok: true, devis: limitees, total: toutes.length };
 }
 
 /**
@@ -4915,7 +4717,6 @@ function reporterFactureSurCommande(referenceCommande, numeroFacture) {
 
 function listerFactures(password, limite, decalage, recherche) {
   if (password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
-  const debutTotal = Date.now();
 
   const cleCache = 'factures_v' + versionCache('factures');
   let toutes = lireCacheDecoupe(cleCache);
@@ -4957,17 +4758,13 @@ function listerFactures(password, limite, decalage, recherche) {
       const cible = (f.referenceFacture + ' ' + f.referenceCommande + ' ' + f.nomStructure + ' ' + f.email + ' ' + f.produit).toLowerCase();
       return cible.includes(termeRecherche);
     });
-    const resultat = { ok: true, factures: resultats.slice(0, 200).map(formaterDateFacture), total: toutes.length, montantTotalGlobal: montantTotalGlobal, recherche: true };
-    Logger.log('[listerFactures] recherche "' + termeRecherche + '" — ' + resultats.length + ' résultats, total ' + (Date.now() - debutTotal) + ' ms');
-    return resultat;
+    return { ok: true, factures: resultats.slice(0, 200).map(formaterDateFacture), total: toutes.length, montantTotalGlobal: montantTotalGlobal, recherche: true };
   }
 
   const limiteNombre = parseInt(limite, 10) || 0;
   const decalageNombre = parseInt(decalage, 10) || 0;
   const limitees = (limiteNombre > 0 ? toutes.slice(decalageNombre, decalageNombre + limiteNombre) : toutes).map(formaterDateFacture);
-  const resultat = { ok: true, factures: limitees, total: toutes.length, montantTotalGlobal: montantTotalGlobal };
-  Logger.log('[listerFactures] page decalage=' + decalageNombre + ' limite=' + limiteNombre + ' — total ' + toutes.length + ' factures en base, ' + (Date.now() - debutTotal) + ' ms');
-  return resultat;
+  return { ok: true, factures: limitees, total: toutes.length, montantTotalGlobal: montantTotalGlobal };
 }
 
 /** Édition manuelle d'une facture déjà émise (produit, quantité, prix, commentaire).
@@ -5225,7 +5022,6 @@ function accesComptaAutorise(password) {
  *  repris de la facture, et deux champs propres à la compta (statut, dépôt). */
 function listerComptabilite(password, limite, decalage, recherche) {
   if (!accesComptaAutorise(password)) return { ok: false, erreur: 'Mot de passe incorrect' };
-  const debutTotal = Date.now();
 
   const cleCache = 'comptabilite_v' + versionCache('commandes') + '_' + versionCache('factures') + '_' + versionCache('comptabilite');
   let toutes = lireCacheDecoupe(cleCache);
@@ -5273,17 +5069,13 @@ function listerComptabilite(password, limite, decalage, recherche) {
       const cible = (c.referenceCommande + ' ' + c.referenceFacture + ' ' + c.nomStructure + ' ' + c.produit + ' ' + c.numeroDepot).toLowerCase();
       return cible.includes(termeRecherche);
     });
-    const resultat = { ok: true, lignes: resultats.slice(0, 200).map(formaterDateCompta), total: toutes.length, recherche: true };
-    Logger.log('[listerComptabilite] recherche "' + termeRecherche + '" — ' + resultats.length + ' résultats, total ' + (Date.now() - debutTotal) + ' ms');
-    return resultat;
+    return { ok: true, lignes: resultats.slice(0, 200).map(formaterDateCompta), total: toutes.length, recherche: true };
   }
 
   const limiteNombre = parseInt(limite, 10) || 0;
   const decalageNombre = parseInt(decalage, 10) || 0;
   const limitees = (limiteNombre > 0 ? toutes.slice(decalageNombre, decalageNombre + limiteNombre) : toutes).map(formaterDateCompta);
-  const resultat = { ok: true, lignes: limitees, total: toutes.length };
-  Logger.log('[listerComptabilite] page decalage=' + decalageNombre + ' limite=' + limiteNombre + ' — total ' + toutes.length + ' lignes en base, ' + (Date.now() - debutTotal) + ' ms');
-  return resultat;
+  return { ok: true, lignes: limitees, total: toutes.length };
 }
 
 function majCompta(data) {

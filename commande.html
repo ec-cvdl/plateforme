@@ -12,7 +12,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=20260803-1">
+<link rel="stylesheet" href="styles.css?v=20260802-2">
 </head>
 <body>
 <a href="#contenu-principal" class="lien-evitement">Aller au contenu</a>
@@ -299,54 +299,8 @@ function posterAvecProgression(data, onProgression){
     throw erreur;
   });
 }
-/* ─── Analytique comportementale : temps par étape + erreurs rencontrées, envoyé en une
-   seule fois à la fin du parcours (ou à l'abandon) — jamais une écriture par clic. ─── */
-const analytique = { etapes: [], etapeActuelle: null, debutEtape: Date.now(), erreursEtapeActuelle: 0 };
-function noterChangementEtape(nomEtape){
-  if(analytique.etapeActuelle){
-    analytique.etapes.push({
-      etape: analytique.etapeActuelle,
-      tempsMs: Date.now() - analytique.debutEtape,
-      erreurs: analytique.erreursEtapeActuelle
-    });
-  }
-  analytique.etapeActuelle = nomEtape;
-  analytique.debutEtape = Date.now();
-  analytique.erreursEtapeActuelle = 0;
-}
-function envoyerAnalytique(termine){
-  if(analytique.etapeActuelle){
-    analytique.etapes.push({
-      etape: analytique.etapeActuelle,
-      tempsMs: Date.now() - analytique.debutEtape,
-      erreurs: analytique.erreursEtapeActuelle
-    });
-    analytique.etapeActuelle = null; // ne pas compter deux fois si appelée plusieurs fois
-  }
-  const donnees = {
-    action: 'analytique-enregistrer',
-    formulaire: 'commande',
-    code: etat.code || '',
-    termine: !!termine,
-    etapeAbandon: termine ? '' : (analytique.etapes.length ? analytique.etapes[analytique.etapes.length - 1].etape : ''),
-    etapes: analytique.etapes
-  };
-  try{
-    // sendBeacon fonctionne même quand la page se ferme (contrairement à fetch) — utilisé à
-    // l'abandon ; à la fin normale du parcours, un simple poster() suffit.
-    if(termine) poster(donnees).catch(function(){});
-    else navigator.sendBeacon(API, new Blob([JSON.stringify(donnees)], {type:'text/plain;charset=utf-8'}));
-  }catch(e){ /* jamais bloquant — l'analytique ne doit jamais gêner l'envoi de la vraie commande */ }
-}
-window.addEventListener('beforeunload', function(){
-  if(!etat.code) return; // pas encore identifié : rien d'utile à envoyer
-  if(document.querySelector('.confirmation') && !document.querySelector('.confirmation').hidden) return; // déjà terminé
-  envoyerAnalytique(false);
-});
-
 function afficherMsg(cible, texte, type){
   $(cible).innerHTML = texte ? '<div class="msg msg-' + type + '">' + texte + '</div>' : '';
-  if(texte && type === 'erreur') analytique.erreursEtapeActuelle++;
 }
 function echapper(s){
   return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
@@ -473,7 +427,6 @@ function allerA(nomEtape){
   const idx = etapes.indexOf(nomEtape);
   if(idx === -1) return;
   indexEtape = idx;
-  noterChangementEtape(nomEtape);
   afficherEtape(nomEtape);
 }
 
@@ -501,16 +454,15 @@ async function verifierCode(){
   afficherMsg('retour-code', '', 'info');
 
   try{
-    const r = await jsonp({action:'donnees-commande', code: code});
+    const r = await jsonp({action:'check', code: code});
     if(r.ok){
-      const verif = r.verification;
       etat.code = code;
       try{ sessionStorage.setItem('cvdl-code-structure', code); }catch(e){}
-      etat.nomStructure = verif.nom;
-      moyenImpose = verif.moyenImpose || null;
-      estEsn = !!verif.esn || !!verif.interne;
-      estSansDevisNiAttestations = !!verif.esn || !!verif.interne || !!verif.autres;
-      estInterne = !!verif.interne;
+      etat.nomStructure = r.nom;
+      moyenImpose = r.moyenImpose || null;
+      estEsn = !!r.esn || !!r.interne;
+      estSansDevisNiAttestations = !!r.esn || !!r.interne || !!r.autres;
+      estInterne = !!r.interne;
       $('demande-devis').closest('.case-attestation').hidden = estSansDevisNiAttestations;
       if(estSansDevisNiAttestations) $('demande-devis').checked = false;
 
@@ -524,10 +476,9 @@ async function verifierCode(){
 
       $('retour-code').innerHTML =
         '<div class="plaque"><span class="puce">OK</span>' +
-        '<div class="contenu"><b>' + echapper(verif.nom) + '</b><span>Code reconnu</span></div></div>';
+        '<div class="contenu"><b>' + echapper(r.nom) + '</b><span>Code reconnu</span></div></div>';
 
-      if(r.catalogue && r.catalogue.ok) afficherProduits(r.catalogue.produits.filter(function(p){ return p.visible; }));
-      else afficherMsg('retour-produit', 'Impossible de charger le catalogue.', 'erreur');
+      await chargerProduits();
       suivant();
       return;
     }
@@ -550,8 +501,17 @@ $('btn-changer-code').addEventListener('click', () => {
 });
 $('code').addEventListener('keydown', function(e){ if(e.key === 'Enter'){ e.preventDefault(); verifierCode(); } });
 
-
 /* Étape 2 : matériel — une liste de lignes {produit, quantite, prixUnitaire}, ajoutées une à une */
+async function chargerProduits(){
+  $('grille-produits').innerHTML = '<p class="sous-question">Chargement du catalogue…</p>';
+  try{
+    const r = await jsonp({action:'produits-public', code: etat.code});
+    if(r.ok) afficherProduits(r.produits.filter(function(p){ return p.visible; }));
+    else afficherMsg('retour-produit', 'Impossible de charger le catalogue.', 'erreur');
+  }catch(e){
+    afficherMsg('retour-produit', 'Connexion impossible.', 'erreur');
+  }
+}
 
 let produitsCache = [];
 let produitSelectionne = null; // le produit choisi dans la grille, en attente d'ajout
@@ -822,7 +782,6 @@ $('btn-envoyer').addEventListener('click', async function(){
     });
     barreProgression.hidden = true;
     if(r.ok){
-      envoyerAnalytique(true);
       texteVoile.textContent = 'C\'est envoyé…';
       $('reference').textContent = r.reference;
       if(typeof r.montant === 'number'){
