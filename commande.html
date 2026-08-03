@@ -454,15 +454,16 @@ async function verifierCode(){
   afficherMsg('retour-code', '', 'info');
 
   try{
-    const r = await jsonp({action:'check', code: code});
+    const r = await jsonp({action:'donnees-commande', code: code});
     if(r.ok){
+      const verif = r.verification;
       etat.code = code;
       try{ sessionStorage.setItem('cvdl-code-structure', code); }catch(e){}
-      etat.nomStructure = r.nom;
-      moyenImpose = r.moyenImpose || null;
-      estEsn = !!r.esn || !!r.interne;
-      estSansDevisNiAttestations = !!r.esn || !!r.interne || !!r.autres;
-      estInterne = !!r.interne;
+      etat.nomStructure = verif.nom;
+      moyenImpose = verif.moyenImpose || null;
+      estEsn = !!verif.esn || !!verif.interne;
+      estSansDevisNiAttestations = !!verif.esn || !!verif.interne || !!verif.autres;
+      estInterne = !!verif.interne;
       $('demande-devis').closest('.case-attestation').hidden = estSansDevisNiAttestations;
       if(estSansDevisNiAttestations) $('demande-devis').checked = false;
 
@@ -476,9 +477,10 @@ async function verifierCode(){
 
       $('retour-code').innerHTML =
         '<div class="plaque"><span class="puce">OK</span>' +
-        '<div class="contenu"><b>' + echapper(r.nom) + '</b><span>Code reconnu</span></div></div>';
+        '<div class="contenu"><b>' + echapper(verif.nom) + '</b><span>Code reconnu</span></div></div>';
 
-      await chargerProduits();
+      if(r.catalogue && r.catalogue.ok) afficherProduits(r.catalogue.produits.filter(function(p){ return p.visible; }));
+      else afficherMsg('retour-produit', 'Impossible de charger le catalogue.', 'erreur');
       suivant();
       return;
     }
@@ -501,17 +503,8 @@ $('btn-changer-code').addEventListener('click', () => {
 });
 $('code').addEventListener('keydown', function(e){ if(e.key === 'Enter'){ e.preventDefault(); verifierCode(); } });
 
+
 /* Étape 2 : matériel — une liste de lignes {produit, quantite, prixUnitaire}, ajoutées une à une */
-async function chargerProduits(){
-  $('grille-produits').innerHTML = '<p class="sous-question">Chargement du catalogue…</p>';
-  try{
-    const r = await jsonp({action:'produits-public', code: etat.code});
-    if(r.ok) afficherProduits(r.produits.filter(function(p){ return p.visible; }));
-    else afficherMsg('retour-produit', 'Impossible de charger le catalogue.', 'erreur');
-  }catch(e){
-    afficherMsg('retour-produit', 'Connexion impossible.', 'erreur');
-  }
-}
 
 let produitsCache = [];
 let produitSelectionne = null; // le produit choisi dans la grille, en attente d'ajout

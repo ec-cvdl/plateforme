@@ -311,12 +311,18 @@ function precedent(){
 $$('[data-retour]').forEach(function(b){ b.addEventListener('click', precedent); });
 
 /* Étape 1 : identification (code structure uniquement) */
+let symptomesPrecharges = null;
+function prechargerSymptomesEnArrierePlan(){
+  jsonp({action:'sav-symptomes'}).then(r => { if(r.ok) symptomesPrecharges = r.symptomes; }).catch(() => {});
+}
+
 $('btn-verifier-code').addEventListener('click', async function(){
   const code = $('id-code').value.trim();
   if(!code){ afficherMsg('retour-id-code', 'Saisissez votre code structure.', 'erreur'); return; }
   $('btn-verifier-code').disabled = true;
   $('btn-verifier-code').innerHTML = '<span class="spinner-inline"></span>Vérification…';
   afficherMsg('retour-id-code', '', 'info');
+  prechargerSymptomesEnArrierePlan(); // en parallèle, jamais attendu — prêt d'avance pour l'étape 3
   try{
     const r = await jsonp({action:'check', code: code});
     if(r.ok){
@@ -361,6 +367,7 @@ $('btn-nom-suivant').addEventListener('click', function(){
 
 /* Étape 3 : symptôme + numéro de série (si pas déjà connu à l'identification) */
 async function chargerSymptomes(){
+  if(symptomesPrecharges){ afficherSymptomes(symptomesPrecharges); return; } // déjà arrivé pendant la saisie du nom/email
   try{
     const r = await jsonp({action:'sav-symptomes'});
     if(r.ok) afficherSymptomes(r.symptomes);

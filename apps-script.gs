@@ -200,6 +200,27 @@ const MAX_FICHIER_MO  = 8;   // Mo par fichier, vérifié aussi côté serveur
 const LIMITE_SOUMISSIONS_PAR_HEURE = 5; // par code structure, protège en cas de fuite d'un code
 
 /** Lit tous les réglages exposés dans l'onglet "Réglages" du back-office, en un seul appel. */
+/** Fusionne 5 requêtes qui étaient jusque-là séparées (Réglages, Structures, Produits,
+ *  Statuts SAV, SAV) en une seule — chacune d'entre elles est individuellement rapide (elles
+ *  lisent peu de données), mais Apps Script a un coût fixe incompressible par requête,
+ *  indépendant du volume traité (mesuré : entre 250 et 500 ms rien que pour ce coût de base,
+ *  même sur une poignée de lignes). Regrouper 5 requêtes en 1 ne fait pas disparaître ce coût
+ *  fixe, mais on ne le paie plus qu'une fois au lieu de cinq — c'est là que se trouve le
+ *  vrai gain, pas dans le volume de données (déjà optimisé par ailleurs). */
+function donneesLogin(password) {
+  if (password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
+  const debut = Date.now();
+
+  const reglages = obtenirReglages({ password: password });
+  const structures = listerStructures(password);
+  const produits = listerProduits(password);
+  const statutsSav = listerStatutsSav(password);
+  const sav = listerSav(password, 20, 0, '');
+
+  Logger.log('[donneesLogin] Réglages + Structures + Produits + StatutsSav + SAV combinés — ' + (Date.now() - debut) + ' ms au total');
+  return { ok: true, reglages: reglages, structures: structures, produits: produits, statutsSav: statutsSav, sav: sav };
+}
+
 function obtenirReglages(data) {
   if (data.password !== ADMIN_PASSWORD) return { ok: false, erreur: 'Mot de passe incorrect' };
   return {
@@ -953,6 +974,8 @@ function doGet(e) {
       res = { ok: true, terminee: installationTerminee() };
     } else if (p.action === 'check') {
       res = verifierCode(p.code);
+    } else if (p.action === 'donnees-commande') {
+      res = donneesCommande(p.code);
     } else if (p.action === 'commandes-par-code') {
       res = listerCommandesParCode(p);
     } else if (p.action === 'flotte-obtenir') {
@@ -997,6 +1020,8 @@ function doGet(e) {
         : { ok: false, erreur: 'Mot de passe incorrect' };
     } else if (p.action === 'reglages') {
       res = obtenirReglages(p);
+    } else if (p.action === 'donnees-login') {
+      res = donneesLogin(p.password);
     } else {
       res = { ok: false, erreur: 'Action inconnue' };
     }
@@ -1197,6 +1222,13 @@ function testerPerformanceDevis() {
   Logger.log('Taille de la réponse : ' + reponse.getContent().length + ' caractères');
 }
 
+function testerPerformanceDonneesLogin() {
+  const debut = Date.now();
+  const reponse = doGet({ parameter: { action: 'donnees-login', password: ADMIN_PASSWORD } });
+  Logger.log('=== Requête simulée terminée en ' + (Date.now() - debut) + ' ms au total ===');
+  Logger.log('Taille de la réponse : ' + reponse.getContent().length + ' caractères');
+}
+
 /** À lancer à la main (menu déroulant en haut de l'éditeur → sélectionner cette fonction →
  *  Exécuter ▶) pour forcer un cache tout neuf immédiatement, sans attendre. Utile après avoir
  *  remplacé des données directement dans Sheets, si jamais on ne veut pas attendre le prochain
@@ -1271,6 +1303,17 @@ function verifierCode(code) {
     interne: !!structure.interne,
     autres: !!structure.autres
   };
+}
+
+/** Fusionne vérification du code et catalogue produits en une seule requête — le formulaire
+ *  de commande a systématiquement besoin des deux à la suite, jamais l'un sans l'autre.
+ *  Même principe que donneesLogin côté admin : le coût fixe par requête d'Apps Script se paie
+ *  une fois au lieu de deux. */
+function donneesCommande(code) {
+  const verif = verifierCode(code);
+  if (!verif.ok) return verif;
+  const catalogue = listerProduitsPublic(code);
+  return { ok: true, verification: verif, catalogue: catalogue };
 }
 
 function listerStructures(password) {
