@@ -654,6 +654,7 @@ document.querySelector('.onglets').addEventListener('click', e => {
   if(b.dataset.vue === 'factures' && !facturesChargeesUneFois) chargerFactures();
   if(b.dataset.vue === 'comptabilite' && !comptaChargeUneFois) chargerComptabilite();
   if(b.dataset.vue === 'carte' && !carteChargeeUneFois){ carteChargeeUneFois = true; chargerCarteStructures(); }
+  if(b.dataset.vue === 'calendrier' && !calendrierChargeUneFois){ calendrierChargeUneFois = true; chargerCalendrier(); }
   $('vue-reglages').hidden = b.dataset.vue !== 'reglages';
   if(b.dataset.vue === 'reglages'){
     chargerReglages();
