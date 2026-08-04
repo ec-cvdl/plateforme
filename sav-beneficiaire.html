@@ -3,6 +3,8 @@
 <head>
 <script>
 // 👉 C'EST ICI, LA LIGNE JUSTE EN DESSOUS ↓↓↓ — remplace UNIQUEMENT le texte entre guillemets
+// ⚠️ Depuis la migration vers Cloud Functions : colle ici l'URL de ta fonction déployée
+// (celle donnée par `gcloud functions deploy`), PAS l'URL Apps Script en .../exec
 const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy9-ZwhkG-hhmh7eI1f8NuMGtdofnXixQhgJAQr4gN0Q/exec';
 // 👆 C'ÉTAIT ICI — fais la même chose dans admin.html, commande.html, sav.html, suivi.html, suivi-sav-structure.html, suivi-sav-beneficiaire.html, flotte-structure.html, enquete-satisfaction.html et portail-structure.html
 </script>
@@ -12,7 +14,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=20260802-2">
+<link rel="stylesheet" href="styles.css?v=20260803-2">
 <style>
   .grille-symptomes{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-top:14px}
   .carte-symptome{
@@ -198,16 +200,7 @@ const $  = id => document.getElementById(id);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
 
 function jsonp(params){
-  return new Promise((ok, ko) => {
-    const nom = 'cb' + Date.now() + Math.floor(Math.random()*1000);
-    const balise = document.createElement('script');
-    const t = setTimeout(() => { nettoyer(); ko(new Error('Délai dépassé')); }, 90000);
-    function nettoyer(){ clearTimeout(t); window[nom] = () => {}; balise.remove(); }
-    window[nom] = data => { nettoyer(); ok(data); };
-    balise.src = API + '?' + new URLSearchParams({...params, callback:nom});
-    balise.onerror = () => { nettoyer(); ko(new Error('Connexion impossible')); };
-    document.body.appendChild(balise);
-  });
+  return fetch(API + '?' + new URLSearchParams(params)).then(r => r.json());
 }
 function poster(data){
   return fetch(API, {
@@ -238,6 +231,7 @@ function posterAvecProgression(data, onProgression){
 }
 function afficherMsg(cible, texte, type){
   $(cible).innerHTML = texte ? '<div class="msg msg-' + type + '">' + texte + '</div>' : '';
+  if(texte && type === 'erreur') analytique.erreursEtapeActuelle++;
 }
 function echapper(s){
   return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
@@ -314,10 +308,49 @@ function afficherEtape(nom){
   if(champPrincipal) setTimeout(function(){ champPrincipal.focus(); }, 50);
 }
 
+/* ─── Analytique comportementale : même principe que sur commande.html/sav.html, identifiant
+   distinct pour bien séparer les tickets ouverts par un bénéficiaire de ceux ouverts par une
+   structure dans les statistiques admin. Pas de code structure ici (identification par n° de
+   série) — on se base sur le fait d'avoir dépassé la toute première étape. ─── */
+const analytique = { etapes: [], etapeActuelle: null, debutEtape: Date.now(), erreursEtapeActuelle: 0, aCommence: false };
+function noterChangementEtape(nomEtape){
+  if(analytique.etapeActuelle){
+    analytique.etapes.push({ etape: analytique.etapeActuelle, tempsMs: Date.now() - analytique.debutEtape, erreurs: analytique.erreursEtapeActuelle });
+  }
+  analytique.aCommence = true;
+  analytique.etapeActuelle = nomEtape;
+  analytique.debutEtape = Date.now();
+  analytique.erreursEtapeActuelle = 0;
+}
+function envoyerAnalytique(termine){
+  if(analytique.etapeActuelle){
+    analytique.etapes.push({ etape: analytique.etapeActuelle, tempsMs: Date.now() - analytique.debutEtape, erreurs: analytique.erreursEtapeActuelle });
+    analytique.etapeActuelle = null;
+  }
+  const donnees = {
+    action: 'analytique-enregistrer',
+    formulaire: 'sav-beneficiaire',
+    code: '',
+    termine: !!termine,
+    etapeAbandon: termine ? '' : (analytique.etapes.length ? analytique.etapes[analytique.etapes.length - 1].etape : ''),
+    etapes: analytique.etapes
+  };
+  try{
+    if(termine) poster(donnees).catch(function(){});
+    else navigator.sendBeacon(API, new Blob([JSON.stringify(donnees)], {type:'text/plain;charset=utf-8'}));
+  }catch(e){}
+}
+window.addEventListener('beforeunload', function(){
+  if(!analytique.aCommence) return;
+  if(document.querySelector('.confirmation') && !document.querySelector('.confirmation').hidden) return;
+  envoyerAnalytique(false);
+});
+
 function allerA(nomEtape){
   const idx = etapes.indexOf(nomEtape);
   if(idx === -1) return;
   indexEtape = idx;
+  noterChangementEtape(nomEtape);
   afficherEtape(nomEtape);
 }
 function suivant(){
@@ -487,6 +520,7 @@ $('btn-envoyer-sav').addEventListener('click', async function(){
     });
     barreProgression.hidden = true;
     if(r.ok){
+      envoyerAnalytique(true);
       texteVoile.textContent = 'C\'est envoyé…';
       $('reference-sav').textContent = r.reference;
       $$('.etape').forEach(function(s){ s.hidden = true; });

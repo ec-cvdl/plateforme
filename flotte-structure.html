@@ -3,6 +3,8 @@
 <head>
 <script>
 // 👉 C'EST ICI, LA LIGNE JUSTE EN DESSOUS ↓↓↓ — remplace UNIQUEMENT le texte entre guillemets
+// ⚠️ Depuis la migration vers Cloud Functions : colle ici l'URL de ta fonction déployée
+// (celle donnée par `gcloud functions deploy`), PAS l'URL Apps Script en .../exec
 const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy9-ZwhkG-hhmh7eI1f8NuMGtdofnXixQhgJAQr4gN0Q/exec';
 // 👆 C'ÉTAIT ICI — fais la même chose dans admin.html, commande.html, sav.html, sav-beneficiaire.html, suivi.html, suivi-sav-structure.html, suivi-sav-beneficiaire.html, enquete-satisfaction.html et portail-structure.html
 </script>
@@ -133,16 +135,7 @@ const $  = id => document.getElementById(id);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
 
 function jsonp(params){
-  return new Promise((ok, ko) => {
-    const nom = 'cb' + Date.now() + Math.floor(Math.random()*1000);
-    const balise = document.createElement('script');
-    const t = setTimeout(() => { nettoyer(); ko(new Error('Délai dépassé')); }, 90000);
-    function nettoyer(){ clearTimeout(t); window[nom] = () => {}; balise.remove(); }
-    window[nom] = data => { nettoyer(); ok(data); };
-    balise.src = API + '?' + new URLSearchParams({...params, callback:nom});
-    balise.onerror = () => { nettoyer(); ko(new Error('Connexion impossible')); };
-    document.body.appendChild(balise);
-  });
+  return fetch(API + '?' + new URLSearchParams(params)).then(r => r.json());
 }
 function poster(data){
   return fetch(API, {

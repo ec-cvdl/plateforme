@@ -3,6 +3,8 @@
 <head>
 <script>
 // 👉 C'EST ICI, LA LIGNE JUSTE EN DESSOUS ↓↓↓ — remplace UNIQUEMENT le texte entre guillemets
+// ⚠️ Depuis la migration vers Cloud Functions : colle ici l'URL de ta fonction déployée
+// (celle donnée par `gcloud functions deploy`), PAS l'URL Apps Script en .../exec
 const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy9-ZwhkG-hhmh7eI1f8NuMGtdofnXixQhgJAQr4gN0Q/exec';
 // 👆 C'ÉTAIT ICI — fais la même chose dans admin.html, commande.html, sav.html, sav-beneficiaire.html, suivi.html, suivi-sav-structure.html, flotte-structure.html, enquete-satisfaction.html et portail-structure.html
 </script>
@@ -125,21 +127,7 @@ function afficherMsg(id, texte, type){
 }
 
 function jsonp(params){
-  return new Promise((resolve, reject) => {
-    const nomCallback = 'cb_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
-    const script = document.createElement('script');
-    const minuteur = setTimeout(() => { nettoyer(); reject(new Error('Délai dépassé')); }, 90000);
-    function nettoyer(){
-      clearTimeout(minuteur);
-      window[nomCallback] = () => {};
-      script.remove();
-    }
-    window[nomCallback] = data => { nettoyer(); resolve(data); };
-    const q = Object.keys(params).map(k => encodeURIComponent(k) + '=' + encodeURIComponent(params[k])).join('&');
-    script.src = API + '?callback=' + nomCallback + '&' + q;
-    script.onerror = () => { nettoyer(); reject(new Error('Requête impossible')); };
-    document.body.appendChild(script);
-  });
+  return fetch(API + '?' + new URLSearchParams(params)).then(r => r.json());
 }
 
 /* Mêmes teintes que le back-office, pour que la couleur du statut reste cohérente partout */
