@@ -326,7 +326,7 @@ function rendreSav(){
 
   $('liste-sav').innerHTML = visibles.map(t => {
     const info = statutSavInfo(t.statut);
-    const montrerColissimo = !!info.colissimo;
+    const montrerColissimo = !!info.colissimo || !!info.terminal;
     const montrerDiagnostic = info.ordre >= seuilDiagnostic;
     const liensColissimo = (t.colissimo || '').split('\n').map(s => s.trim()).filter(Boolean);
 

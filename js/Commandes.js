@@ -443,14 +443,23 @@ document.addEventListener('click', async e => {
   const ligne = parseInt(b.dataset.renvoyerValidation, 10);
   const c = commandes.find(x => x.ligne === ligne);
   if(!c) return;
-  if(!confirm(`Renvoyer le mail de validation logistique pour la commande ${c.reference} ?`)) return;
+  const texteConfirmation = memePersonneLogistiqueDistribution
+    ? `Valider la commande ${c.reference} et la faire passer à l'étape suivante ?`
+    : `Renvoyer le mail de validation logistique pour la commande ${c.reference} ?`;
+  if(!confirm(texteConfirmation)) return;
 
   b.disabled = true;
   try{
     const r = await poster({ action:'demander-validation-logistique', ligne });
     if(r.ok){
-      c.validationLogistiqueEnAttente = true;
-      etat('Mail de validation envoyé', 'succes');
+      if(r.valideDirectement){
+        c.statutCommande = 'Validée';
+        c.validationLogistiqueEnAttente = false;
+        etat('Commande validée', 'succes');
+      }else{
+        c.validationLogistiqueEnAttente = true;
+        etat('Mail de validation envoyé', 'succes');
+      }
       rendre();
     }else{
       etat(r.erreur || 'Envoi impossible', 'erreur');

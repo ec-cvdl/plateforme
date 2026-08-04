@@ -83,6 +83,8 @@ async function chargerReglages(){
       $('symptomes-sav-input').value = (r.symptomesSav || symptomesSav).join('\n');
       $('email-contact-sav-input').value = r.emailContactSav || '';
       $('email-logistique-input').value = r.emailLogistique || '';
+      $('meme-personne-logistique-input').checked = !!r.memePersonneLogistiqueDistribution;
+      memePersonneLogistiqueDistribution = !!r.memePersonneLogistiqueDistribution;
       $('email-modele-sav-input').value = r.emailModeleSav || '';
       peuplerCasesOngletsVisibles(r.ongletsMasques || '');
       appliquerOngletsVisibles(r.ongletsMasques || '');
@@ -105,6 +107,8 @@ async function chargerReglages(){
       $('modele-bon-orientation-input').value = r.modeleBonOrientation || '';
       $('modele-attestation-input').value = r.modeleAttestationPaiement || '';
       $('modele-flotte-input').value = r.modeleFlotteMateriel || '';
+      const typesDateSouhaitee = (r.structuresDateSouhaitee || '').split(',').map(s => s.trim()).filter(Boolean);
+      ['rn', 'esn', 'interne', 'autres'].forEach(t => { $('date-souhaitee-' + t).checked = typesDateSouhaitee.includes(t); });
       $('nettoyage-fichiers-input').value = r.nettoyageFichiersJours || '';
       $('enquetes-satisfaction-input').checked = !!r.enquetesSatisfactionActivees;
       $('bascule-annuelle-input').checked = !!r.basculeAnnuelleActivee;
@@ -422,6 +426,24 @@ function creerHandlerReglageSimple(idBouton, idChamp, idRetour, cle){
 creerHandlerReglageSimple('btn-modele-bon-orientation-enregistrer', 'modele-bon-orientation-input', 'retour-modele-bon-orientation', 'modeleBonOrientation');
 creerHandlerReglageSimple('btn-modele-attestation-enregistrer', 'modele-attestation-input', 'retour-modele-attestation', 'modeleAttestationPaiement');
 creerHandlerReglageSimple('btn-modele-flotte-enregistrer', 'modele-flotte-input', 'retour-modele-flotte', 'modeleFlotteMateriel');
+
+$('btn-date-souhaitee-enregistrer').addEventListener('click', async () => {
+  const types = ['rn', 'esn', 'interne', 'autres'].filter(t => $('date-souhaitee-' + t).checked);
+  $('btn-date-souhaitee-enregistrer').disabled = true;
+  $('retour-date-souhaitee').innerHTML = '';
+  try{
+    const r = await poster({ action:'reglages-set', password:motDePasse, structuresDateSouhaitee: types.join(',') });
+    if(r.ok){
+      $('retour-date-souhaitee').innerHTML = '<div class="msg msg-succes">Enregistré.</div>';
+      etat('Réglages enregistrés', 'succes');
+    }else{
+      $('retour-date-souhaitee').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur)}</div>`;
+    }
+  }catch(e){
+    $('retour-date-souhaitee').innerHTML = '<div class="msg msg-erreur">Enregistrement impossible.</div>';
+  }
+  $('btn-date-souhaitee-enregistrer').disabled = false;
+});
 creerHandlerReglageSimple('btn-nettoyage-fichiers-enregistrer', 'nettoyage-fichiers-input', 'retour-nettoyage-fichiers', 'nettoyageFichiersJours');
 
 $('btn-responsable-enregistrer').addEventListener('click', async () => {
@@ -490,11 +512,13 @@ $('btn-email-contact-sav-enregistrer').addEventListener('click', async () => {
 
 $('btn-email-logistique-enregistrer').addEventListener('click', async () => {
   const email = $('email-logistique-input').value.trim();
+  const memePersonne = $('meme-personne-logistique-input').checked;
   $('btn-email-logistique-enregistrer').disabled = true;
   $('retour-email-logistique').innerHTML = '';
   try{
-    const r = await poster({ action:'reglages-set', password:motDePasse, emailLogistique: email });
+    const r = await poster({ action:'reglages-set', password:motDePasse, emailLogistique: email, memePersonneLogistiqueDistribution: memePersonne });
     if(r.ok){
+      memePersonneLogistiqueDistribution = memePersonne;
       $('retour-email-logistique').innerHTML = '<div class="msg msg-succes">Enregistré.</div>';
       etat('Réglages enregistrés', 'succes');
     }else{

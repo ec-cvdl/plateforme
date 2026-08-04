@@ -277,6 +277,7 @@ let suppressionSimple = false; // idem
 let dossierFacturesPdfId = ''; // idem — sert au bouton "Ouvrir le dossier" de l'onglet Factures
 let fichierNumerotationConfigure = false; // idem — conditionne l'affichage de la recherche auto de numéro
 let dossierPrincipalConfigure = false; // conditionne l'affichage de la modale bloquante à l'ouverture des Réglages
+let memePersonneLogistiqueDistribution = false; // conditionne le texte + le comportement avant validation logistique
 let structures = [];
 
 /* Rappels "facture manquante" masqués par l'utilisateur — persistés pour ne pas
@@ -528,6 +529,7 @@ async function connecter(){
               appliquerLienFichierNumerotation(rg.fichierNumerotation);
               fichierNumerotationConfigure = !!rg.fichierNumerotation;
               dossierPrincipalConfigure = !!rg.dossierPrincipal;
+              memePersonneLogistiqueDistribution = !!rg.memePersonneLogistiqueDistribution;
               badgeNouvelleJours = rg.badgeNouvelleJours || 1.5;
               badgeNouvelleSavJours = rg.badgeNouvelleSavJours || 1.5;
               heureFinVendredi = rg.heureFinVendredi != null ? rg.heureFinVendredi : 17;

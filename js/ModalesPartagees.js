@@ -13,7 +13,8 @@ function ouvrirModaleDateSouhaitee(ligne, contexteEnvoi){
   $('date-souhaitee-champ').value = (c.dateLivraisonSouhaitee && c.dateLivraisonSouhaitee !== 'ASAP')
     ? dateLivraisonISO(c.dateLivraisonSouhaitee) : '';
   $('retour-date-souhaitee').innerHTML = '';
-  $('date-souhaitee-confirmer').textContent = contexteEnvoi ? 'Confirmer et envoyer' : 'Confirmer';
+  $('date-souhaitee-confirmer').textContent = contexteEnvoi
+    ? (memePersonneLogistiqueDistribution ? 'Confirmer et valider' : 'Confirmer et envoyer') : 'Confirmer';
   $('modale-date-souhaitee').hidden = false;
 }
 
@@ -35,8 +36,14 @@ async function validerDateSouhaitee(valeur){
     if(dateSouhaiteeContexteEnvoi){
       const rValidation = await poster({ action:'demander-validation-logistique', ligne: dateSouhaiteeLigneCourante });
       if(rValidation.ok){
-        if(c) c.validationLogistiqueEnAttente = true;
-        etat('Mail de validation envoyé', 'succes');
+        if(rValidation.valideDirectement){
+          if(c) c.statutCommande = 'Validée';
+          if(c) c.validationLogistiqueEnAttente = false;
+          etat('Commande validée', 'succes');
+        }else{
+          if(c) c.validationLogistiqueEnAttente = true;
+          etat('Mail de validation envoyé', 'succes');
+        }
       }else{
         etat(rValidation.erreur || 'Envoi impossible', 'erreur');
       }
