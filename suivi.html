@@ -74,8 +74,30 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
   body.mode-sombre .liens-colissimo-cs a{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.18);color:#fff}
   body.mode-sombre .pilule-numero-serie-cs{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.18);color:#fff}
 </style>
+<script>
+// Si un code est déjà mémorisé sur cet appareil, on masque l'étape de saisie AVANT même
+// qu'elle ne s'affiche (pas de flash) — un voile de chargement neutre prend sa place le temps
+// que la vérification se termine en arrière-plan.
+try{
+  if(sessionStorage.getItem('cvdl-code-structure')) document.documentElement.classList.add('deja-identifie');
+}catch(e){}
+</script>
+<style>
+  html.deja-identifie #etape-code{display:none !important}
+  html.deja-identifie #voile-verification-precoce{display:flex}
+  #voile-verification-precoce{
+    display:none;position:fixed;inset:0;z-index:9999;background:#fff;
+    align-items:center;justify-content:center;flex-direction:column;gap:14px;
+  }
+  #voile-verification-precoce .spinner-precoce{
+    width:34px;height:34px;border:3px solid #E2E6EA;border-top-color:#222;border-radius:50%;
+    animation:tourner-spinner-precoce .8s linear infinite;
+  }
+  @keyframes tourner-spinner-precoce{to{transform:rotate(360deg)}}
+</style>
 </head>
 <body>
+<div id="voile-verification-precoce"><div class="spinner-precoce"></div></div>
 <a href="#contenu-principal" class="lien-evitement">Aller au contenu</a>
 
 <div class="barre-retour-portail">
@@ -263,7 +285,13 @@ $('btn-autre-code').addEventListener('click', () => {
 
 try{
   const codeMemorise = sessionStorage.getItem('cvdl-code-structure');
-  if(codeMemorise){ $('code-structure').value = codeMemorise; chargerCommandesSuivi(); }
+  if(codeMemorise){
+    $('code-structure').value = codeMemorise;
+    chargerCommandesSuivi().finally(() => {
+      document.documentElement.classList.remove('deja-identifie');
+      const v = $('voile-verification-precoce'); if(v) v.style.display = 'none';
+    });
+  }
 }catch(e){}
 </script>
 </body>

@@ -34,8 +34,30 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
   .zone-photo-video label{font-size:13px;font-weight:600;color:var(--gris);display:block;margin-bottom:6px}
   body.mode-sombre .zone-photo-video label{color:rgba(255,255,255,.7)}
 </style>
+<script>
+// Si un code est déjà mémorisé sur cet appareil, on masque l'étape de saisie AVANT même
+// qu'elle ne s'affiche (pas de flash) — un voile de chargement neutre prend sa place le temps
+// que la vérification se termine en arrière-plan.
+try{
+  if(sessionStorage.getItem('cvdl-code-structure')) document.documentElement.classList.add('deja-identifie');
+}catch(e){}
+</script>
+<style>
+  html.deja-identifie .etape[data-etape="identification"]{display:none !important}
+  html.deja-identifie #voile-verification-precoce{display:flex}
+  #voile-verification-precoce{
+    display:none;position:fixed;inset:0;z-index:9999;background:#fff;
+    align-items:center;justify-content:center;flex-direction:column;gap:14px;
+  }
+  #voile-verification-precoce .spinner-precoce{
+    width:34px;height:34px;border:3px solid #E2E6EA;border-top-color:#222;border-radius:50%;
+    animation:tourner-spinner-precoce .8s linear infinite;
+  }
+  @keyframes tourner-spinner-precoce{to{transform:rotate(360deg)}}
+</style>
 </head>
 <body>
+<div id="voile-verification-precoce"><div class="spinner-precoce"></div></div>
 <a href="#contenu-principal" class="lien-evitement">Aller au contenu</a>
 
 <div class="barre-retour-portail" style="display:flex;justify-content:space-between;align-items:center">
@@ -361,6 +383,7 @@ $('btn-verifier-code').addEventListener('click', async function(){
       try{ sessionStorage.setItem('cvdl-code-structure', code); }catch(e){}
       etat.nomStructure = r.nom;
       $('nom-personne').value = r.nom;
+      if(r.email) $('email-personne').value = r.email;
       suivant();
     }else{
       afficherMsg('retour-id-code', r.erreur || 'Code invalide.', 'erreur');
@@ -370,6 +393,9 @@ $('btn-verifier-code').addEventListener('click', async function(){
   }
   $('btn-verifier-code').disabled = false;
   $('btn-verifier-code').textContent = 'Continuer →';
+  document.documentElement.classList.remove('deja-identifie');
+  const voilePrecoce = $('voile-verification-precoce');
+  if(voilePrecoce) voilePrecoce.style.display = 'none';
 });
 
 try{

@@ -15,8 +15,30 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css?v=20260803-1">
+<script>
+// Si un code est déjà mémorisé sur cet appareil, on masque l'étape de saisie AVANT même
+// qu'elle ne s'affiche (pas de flash) — un voile de chargement neutre prend sa place le temps
+// que la vérification se termine en arrière-plan.
+try{
+  if(sessionStorage.getItem('cvdl-code-structure')) document.documentElement.classList.add('deja-identifie');
+}catch(e){}
+</script>
+<style>
+  html.deja-identifie .etape[data-etape="code"]{display:none !important}
+  html.deja-identifie #voile-verification-precoce{display:flex}
+  #voile-verification-precoce{
+    display:none;position:fixed;inset:0;z-index:9999;background:#fff;
+    align-items:center;justify-content:center;flex-direction:column;gap:14px;
+  }
+  #voile-verification-precoce .spinner-precoce{
+    width:34px;height:34px;border:3px solid #E2E6EA;border-top-color:#222;border-radius:50%;
+    animation:tourner-spinner-precoce .8s linear infinite;
+  }
+  @keyframes tourner-spinner-precoce{to{transform:rotate(360deg)}}
+</style>
 </head>
 <body>
+<div id="voile-verification-precoce"><div class="spinner-precoce"></div></div>
 <a href="#contenu-principal" class="lien-evitement">Aller au contenu</a>
 
 <div class="barre-retour-portail" style="display:flex;justify-content:space-between;align-items:center">
@@ -535,7 +557,14 @@ $('btn-verifier').addEventListener('click', verifierCode);
 
 try{
   const codeMemorise = sessionStorage.getItem('cvdl-code-structure');
-  if(codeMemorise){ $('code').value = codeMemorise; verifierCode(); $('btn-changer-code').hidden = false; }
+  if(codeMemorise){
+    $('code').value = codeMemorise;
+    $('btn-changer-code').hidden = false;
+    verifierCode().finally(() => {
+      document.documentElement.classList.remove('deja-identifie');
+      const v = $('voile-verification-precoce'); if(v) v.style.display = 'none';
+    });
+  }
 }catch(e){}
 $('btn-changer-code').addEventListener('click', () => {
   try{ sessionStorage.removeItem('cvdl-code-structure'); }catch(e){}
