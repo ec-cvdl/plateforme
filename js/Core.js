@@ -371,25 +371,7 @@ function jsonp(params){
   return jsonpVersUrl(urlApiActive(), params);
 }
 function jsonpVersUrl(url, params){
-  return new Promise((ok, ko) => {
-    const nom = 'cb' + Date.now() + Math.floor(Math.random()*1000);
-    const balise = document.createElement('script');
-    const t = setTimeout(() => { nettoyer(); ko(new Error('Délai dépassé')); }, 90000);
-    function nettoyer(){
-      clearTimeout(t);
-      // On ne supprime jamais complètement window[nom] : la balise <script> peut avoir déjà
-      // reçu sa réponse réseau au moment où on abandonne côté client (gros jeu de données,
-      // redémarrage à froid d'Apps Script...) — si elle arrive après coup, elle appellera
-      // quand même ce nom de fonction. Un no-op évite un "ReferenceError" bruyant en console
-      // pour une réponse qu'on n'attend de toute façon plus.
-      window[nom] = () => {};
-      balise.remove();
-    }
-    window[nom] = d => { nettoyer(); ok(d); };
-    balise.src = url + '?' + new URLSearchParams({...params, callback:nom});
-    balise.onerror = () => { nettoyer(); ko(new Error('Connexion impossible')); };
-    document.body.appendChild(balise);
-  });
+  return fetch(url + '?' + new URLSearchParams(params)).then(r => r.json());
 }
 
 function poster(data){
@@ -533,16 +515,10 @@ async function connecter(){
               if(res.ok){ commandes = res.commandes; totalCommandes = res.total; limiteCommandesActuelle = LIMITE_COMMANDES_DEFAUT; appliquerAgregatsCommandes(res); }
             });
           } },
-        // Réglages + Structures + Produits + Statuts SAV regroupés en un seul appel
-        // ('demarrage-admin' côté backend) : chacune de ces 4 lectures est légère (jamais
-        // paginée) mais chaque exécution Apps Script a un coût fixe incompressible d'environ
-        // 200 à plusieurs centaines de ms, mesuré indépendamment du volume de données (voir
-        // l'audit de performance) — les regrouper fait passer 4 exécutions à 1 pour cette
-        // partie du chargement. Les tickets SAV sont chargés à la suite, dans la même étape
-        // (jamais en parallèle d'elle), pour garantir que les statuts SAV sont déjà en place
-        // avant de les afficher — même garantie qu'avant, juste réécrite.
-        { label: 'Démarrage', fn: () => jsonp({action:'demarrage-admin', password:mdp}).then(res => {
+        { label: 'Réglages, Structures, Produits, SAV', fn: () => jsonp({action:'donnees-login', password:mdp}).then(res => {
             if(!res.ok) return;
+
+            // Réglages
             const rg = res.reglages;
             if(rg && rg.ok){
               seuilAlerteImpayee = rg.seuilAlerteImpayee;
@@ -560,22 +536,28 @@ async function connecter(){
               appliquerOngletsVisibles(rg.ongletsMasques || '');
               if(rg.modeleFacturation) modeleFacturationUrl = 'https://docs.google.com/spreadsheets/d/' + rg.modeleFacturation;
             }
-            if(res.structures && res.structures.ok){
-              structures = res.structures.structures;
+
+            // Structures
+            const st = res.structures;
+            if(st && st.ok){
+              structures = st.structures;
               rendreStructures();
               $('nc-structures-liste').innerHTML = structures.map(s =>
                 `<option value="${echapper(s.code)}">${echapper(s.nom)}</option>`).join('');
             }
-            if(res.produits && res.produits.ok){
-              produits = res.produits.produits;
-              rendreProduits();
-            }
-            if(res.statutsSav && res.statutsSav.ok){
-              statutsSav = res.statutsSav.statuts;
-              rendreFiltresSav();
-              rendreConfigStatutsSav();
-            }
-          }).then(() => chargerSav(true)) }
+
+            // Produits
+            const pr = res.produits;
+            if(pr && pr.ok){ produits = pr.produits; rendreProduits(); }
+
+            // Statuts SAV
+            const ss = res.statutsSav;
+            if(ss && ss.ok){ statutsSav = ss.statuts; rendreFiltresSav(); rendreConfigStatutsSav(); }
+
+            // SAV (les 20 premiers tickets)
+            const sv = res.sav;
+            if(sv && sv.ok){ sav = sv.tickets; totalSav = sv.total; appliquerAgregatsSav(sv); rendreSav(); rendreApercuGeneral(); }
+          }) },
       ];
 
       let termines = 0;
