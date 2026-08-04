@@ -5,7 +5,7 @@
 // 👉 C'EST ICI, LA LIGNE JUSTE EN DESSOUS ↓↓↓ — remplace UNIQUEMENT le texte entre guillemets
 // ⚠️ Depuis la migration vers Cloud Functions : colle ici l'URL de ta fonction déployée
 // (celle donnée par `gcloud functions deploy`), PAS l'URL Apps Script en .../exec
-const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
+const API = 'https://script.google.com/macros/s/AKfycbwknEc-uJCzXM9cbHiGHzuHUnXy9-ZwhkG-hhmh7eI1f8NuMGtdofnXixQhgJAQr4gN0Q/exec';
 // 👆 C'ÉTAIT ICI — fais la même chose dans commande.html, sav.html, sav-beneficiaire.html, suivi.html, suivi-sav-structure.html, suivi-sav-beneficiaire.html, flotte-structure.html, enquete-satisfaction.html et portail-structure.html
 </script>
 <meta charset="utf-8">
@@ -14,7 +14,7 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="admin.css?v=20260803-3">
+<link rel="stylesheet" href="admin.css?v=20260804-1">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 </head>
@@ -219,6 +219,7 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
         <span class="separateur-onglets"></span>
         <button data-vue="bilan">Statistiques</button>
         <button data-vue="carte">🗺️ Carte</button>
+        <button data-vue="calendrier">📅 Calendrier</button>
         <span class="separateur-onglets"></span>
         <button data-vue="reglages">Réglages</button>
       </nav>
@@ -424,6 +425,27 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
         <button class="action claire" id="btn-actualiser-carte">🔄 Actualiser</button>
       </div>
       <div id="carte-structures" style="height:600px;border-radius:14px;overflow:hidden;border:1px solid var(--line);margin-top:14px"></div>
+    </section>
+
+    <!-- Vue calendrier -->
+    <section id="vue-calendrier" hidden>
+      <div class="outils" style="flex-wrap:wrap;gap:12px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <button class="action claire" id="btn-calendrier-precedent">←</button>
+          <span id="calendrier-titre-periode" style="font-weight:700;font-size:15px;min-width:170px;text-align:center"></span>
+          <button class="action claire" id="btn-calendrier-suivant">→</button>
+          <button class="action claire" id="btn-calendrier-aujourdhui">Aujourd'hui</button>
+        </div>
+        <div class="filtres" id="filtres-calendrier-vue">
+          <button data-cal-vue="mois" class="actif">Mois</button>
+          <button data-cal-vue="semaine">Semaine</button>
+        </div>
+        <div class="filtres" id="filtres-calendrier-dates">
+          <button data-cal-dates="souhaitee" class="actif">📌 Souhaitées</button>
+          <button data-cal-dates="reelle" class="actif">✅ Réelles</button>
+        </div>
+      </div>
+      <div id="calendrier-grille" style="margin-top:16px"></div>
     </section>
 
     <!-- Vue réglages -->
@@ -1033,6 +1055,16 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
      pour fermer (voile sans gestionnaire de fermeture), tant qu'il n'est pas renseigné. -->
 <!-- Modale : rappel de bascule annuelle — pas bloquante (contrairement au dossier Drive),
      réapparaît à chaque connexion tant que la bascule n'est pas faite. -->
+<div class="voile-modale" id="modale-jour-calendrier" hidden>
+  <div class="modale">
+    <h2 id="modale-jour-calendrier-titre"></h2>
+    <div id="modale-jour-calendrier-liste" style="display:flex;flex-direction:column;gap:8px;margin:14px 0"></div>
+    <div class="pied-modale">
+      <button type="button" class="action claire" id="btn-fermer-modale-jour-calendrier">Fermer</button>
+    </div>
+  </div>
+</div>
+
 <div class="voile-modale" id="modale-rappel-bascule" hidden>
   <div class="modale">
     <h2>🔄 C'est l'heure de la bascule annuelle</h2>
@@ -1584,15 +1616,16 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
   </div>
 </div>
 
-<script src="js/Core.js?v=20260803-3"></script>
-<script src="js/Commandes.js?v=20260803-3"></script>
-<script src="js/Bilan.js?v=20260803-3"></script>
-<script src="js/Structures.js?v=20260803-3"></script>
-<script src="js/Produits.js?v=20260803-3"></script>
-<script src="js/DevisEtReglages.js?v=20260803-3"></script>
-<script src="js/Factures.js?v=20260803-3"></script>
-<script src="js/ModalesPartagees.js?v=20260803-3"></script>
-<script src="js/CodeBackendIntegre.js?v=20260803-3"></script>
-<script src="js/Installateur.js?v=20260803-3"></script>
+<script src="js/Core.js?v=20260804-1"></script>
+<script src="js/Commandes.js?v=20260804-1"></script>
+<script src="js/Bilan.js?v=20260804-1"></script>
+<script src="js/Calendrier.js?v=20260804-1"></script>
+<script src="js/Structures.js?v=20260804-1"></script>
+<script src="js/Produits.js?v=20260804-1"></script>
+<script src="js/DevisEtReglages.js?v=20260804-1"></script>
+<script src="js/Factures.js?v=20260804-1"></script>
+<script src="js/ModalesPartagees.js?v=20260804-1"></script>
+<script src="js/CodeBackendIntegre.js?v=20260804-1"></script>
+<script src="js/Installateur.js?v=20260804-1"></script>
 </body>
 </html>

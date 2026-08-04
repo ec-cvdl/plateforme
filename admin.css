@@ -1177,3 +1177,33 @@ select.statut option{background:#fff;color:var(--ink);font-weight:500}
 .carte-choix-role span{line-height:1.3}
 .carte-choix-role:hover{border-color:var(--ink-2);background:var(--paper)}
 
+
+/* ═══ Calendrier des livraisons ═══ */
+.grille-calendrier-entetes{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:6px;padding:0 2px}
+.grille-calendrier-entetes span{font-size:11.5px;font-weight:700;color:var(--steel);text-align:center;text-transform:uppercase;letter-spacing:.03em}
+.grille-calendrier-mois{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.grille-calendrier-semaine{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.cellule-calendrier{
+  background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px;min-height:92px;
+  display:flex;flex-direction:column;gap:4px;cursor:pointer;transition:border-color .12s;
+}
+.cellule-calendrier:hover{border-color:var(--ink-2)}
+.cellule-calendrier.cellule-vide{background:transparent;border:none;cursor:default}
+.cellule-calendrier.cellule-aujourdhui{border-color:var(--t-bleu-t);background:var(--t-bleu-f)}
+.numero-jour-calendrier{font-size:12.5px;font-weight:700;color:var(--ink)}
+.evenements-jour-calendrier{display:flex;flex-direction:column;gap:3px;overflow:hidden}
+.puce-evenement-calendrier{
+  font-size:10.5px;font-weight:600;padding:2px 6px;border-radius:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.puce-evenement-calendrier.puce-souhaitee{background:var(--t-ambre-f);color:var(--t-ambre-t)}
+.puce-evenement-calendrier.puce-reelle{background:var(--t-vert-f);color:var(--t-vert-t)}
+.puce-plus-calendrier{font-size:10px;font-weight:700;color:var(--steel);padding-left:4px}
+.ligne-jour-calendrier{
+  display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--paper);border-radius:8px;font-size:13px;flex-wrap:wrap;
+}
+.ligne-jour-calendrier .mono{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600}
+.pastille-statut-mini{font-size:11px;font-weight:600;color:var(--steel);margin-left:auto}
+@media(max-width:720px){
+  .cellule-calendrier{min-height:60px;padding:5px}
+  .puce-evenement-calendrier{font-size:9px}
+}
