@@ -3325,7 +3325,7 @@ function majCommande(data) {
       if (data.valeur === 'Livrée') {
         const dateLivraisonActuelle = feuille.getRange(data.ligne, 24).getValue();
         if (!dateLivraisonActuelle) {
-          return { ok: false, erreur: 'Renseigne d\\'abord la date de livraison avant de passer cette commande en Livrée.' };
+          feuille.getRange(data.ligne, 24).setValue(new Date());
         }
       }
     }

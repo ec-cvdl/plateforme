@@ -337,7 +337,8 @@ function construireDetailsCommande(ligne){
       <div class="fiche-badges-statut" style="flex-direction:row;flex-wrap:wrap;margin-bottom:16px">
         ${badgeStatut(c.statutCommande)}
         ${estEsnCommande ? '' : badgeStatut(c.statutPaiement)}
-        ${estEsnCommande ? '' : `<div class="rappel-montant-commande">${formaterMontant(c.montantFacture != null ? c.montantFacture : c.montantEstime)}</div>`}
+        ${(!estEsnCommande && (parseFloat(c.montantFacture != null ? c.montantFacture : c.montantEstime) || 0) > 0)
+          ? `<div class="rappel-montant-commande">${formaterMontant(c.montantFacture != null ? c.montantFacture : c.montantEstime)}</div>` : ''}
       </div>
 
       <div class="fiche-materiel-structure" style="display:block">

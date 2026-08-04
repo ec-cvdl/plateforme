@@ -216,10 +216,10 @@ function rendreConfigStatutsSav(){
       <select class="select-couleur ${s.couleur}" data-statut-config="${s.ligne}" data-champ="couleur">
         ${COULEURS_SAV_DISPONIBLES.map(c => `<option value="${c}"${c === s.couleur ? ' selected' : ''}>${c.replace('t-', '')}</option>`).join('')}
       </select>
-      <label class="case-drapeau"><input type="checkbox" data-statut-config="${s.ligne}" data-champ="colissimo" ${s.colissimo ? 'checked' : ''}> Colissimo</label>
-      <label class="case-drapeau"><input type="checkbox" data-statut-config="${s.ligne}" data-champ="diagnostic" ${s.diagnostic ? 'checked' : ''}> Diagnostic</label>
-      <label class="case-drapeau"><input type="checkbox" data-statut-config="${s.ligne}" data-champ="departDelai" ${s.departDelai ? 'checked' : ''}> Départ délai</label>
-      <label class="case-drapeau"><input type="checkbox" data-statut-config="${s.ligne}" data-champ="terminal" ${s.terminal ? 'checked' : ''}> Terminal</label>
+      <label class="case-drapeau" title="Ce statut déclenche l'affichage du champ et de la pilule de suivi Colissimo, côté admin comme côté structure/bénéficiaire"><input type="checkbox" data-statut-config="${s.ligne}" data-champ="colissimo" ${s.colissimo ? 'checked' : ''}> Colissimo</label>
+      <label class="case-drapeau" title="Ce statut correspond à une phase de diagnostic technique de l'appareil"><input type="checkbox" data-statut-config="${s.ligne}" data-champ="diagnostic" ${s.diagnostic ? 'checked' : ''}> Diagnostic</label>
+      <label class="case-drapeau" title="Ce statut marque le point de départ du décompte du délai de traitement affiché sur le ticket"><input type="checkbox" data-statut-config="${s.ligne}" data-champ="departDelai" ${s.departDelai ? 'checked' : ''}> Départ délai</label>
+      <label class="case-drapeau" title="Ce statut clôture le ticket — plus aucun changement de statut n'est possible ensuite"><input type="checkbox" data-statut-config="${s.ligne}" data-champ="terminal" ${s.terminal ? 'checked' : ''}> Terminal</label>
       <label class="case-drapeau" title="Ferme l'anneau de progression à 100% dans le suivi structure/bénéficiaire — à cocher sur le statut qui représente une résolution réussie, pas sur une sortie alternative (faux positif, hors garantie…)"><input type="checkbox" data-statut-config="${s.ligne}" data-champ="finCycle" ${s.finCycle ? 'checked' : ''}> Fin de cycle (anneau)</label>
       <button type="button" class="btn-icone-fiche danger" data-statut-supprimer="${s.ligne}" data-statut-nom="${echapper(s.statut)}" title="Supprimer ce statut" aria-label="Supprimer">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7m2 0v13a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 7 20V7h10z"/><path d="M10 11v6M14 11v6"/></svg>
@@ -322,12 +322,11 @@ function rendreSav(){
     return;
   }
 
-  const seuilColissimo = seuilOrdreSav('colissimo');
   const seuilDiagnostic = seuilOrdreSav('diagnostic');
 
   $('liste-sav').innerHTML = visibles.map(t => {
     const info = statutSavInfo(t.statut);
-    const montrerColissimo = info.ordre >= seuilColissimo;
+    const montrerColissimo = !!info.colissimo;
     const montrerDiagnostic = info.ordre >= seuilDiagnostic;
     const liensColissimo = (t.colissimo || '').split('\n').map(s => s.trim()).filter(Boolean);
 
@@ -368,12 +367,12 @@ function rendreSav(){
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5V5a2 2 0 0 1 2-2h6.5L21 11.5a2 2 0 0 1 0 2.8L14.3 21a2 2 0 0 1-2.8 0L3 12.5z"/><circle cx="7.5" cy="7.5" r="1.1" fill="currentColor" stroke="none"/></svg>
             ${t.numeroSerie ? echapper(t.numeroSerie) : 'N° série non renseigné'}
           </span>
-          ${garantieHtml ? `<span class="pilule-info-sav">${garantieHtml}</span>` : ''}
-          ${montrerColissimo && liensColissimo.length ? liensColissimo.map(l => `
+          ${garantieHtml ? `<span class="pilule-info-sav pilule-large">${garantieHtml}</span>` : ''}
+          ${montrerColissimo && liensColissimo.length ? `<span class="tsc-pilules-colis">${liensColissimo.map(l => `
           <a class="pilule-info-sav type-colis" href="${echapper(l)}" target="_blank" rel="noopener">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8.5v7l-9 4.5-9-4.5v-7L12 4z"/><path d="M3.3 8.2 12 12.5l8.7-4.3M12 12.5V21"/></svg>
             Suivre le colis
-          </a>`).join('') : ''}
+          </a>`).join('')}</span>` : ''}
         </div>
         ${delaiHtml}
         ${historiqueHtml}
@@ -395,6 +394,10 @@ function rendreSav(){
 let clotureSavLigneCourante = null;
 let clotureSavValeurPrecedente = null;
 let clotureSavSelectCourant = null;
+let colissimoSavLigneCourante = null;
+let colissimoSavValeurPrecedente = null;
+let colissimoSavSelectCourant = null;
+let colissimoSavNouveauStatut = null;
 
 $('liste-sav').addEventListener('change', async e => {
   const el = e.target;
@@ -413,6 +416,24 @@ $('liste-sav').addEventListener('change', async e => {
       $('retour-cloture-sav').innerHTML = '';
       $('modale-cloture-sav').hidden = false;
       return; // rien n'est enregistré tant que la clôture n'est pas confirmée
+    }
+    // Statut qui exige un lien Colissimo et le ticket n'en a encore aucun : on force la saisie
+    // avant d'enregistrer, plutôt que de laisser passer un statut "en livraison" sans moyen de
+    // suivre le colis.
+    if(infoNouveauStatut && infoNouveauStatut.colissimo){
+      const t = sav.find(x => x.ligne === ligne);
+      const dejaRenseigne = t && String(t.colissimo || '').trim().length > 0;
+      if(!dejaRenseigne){
+        colissimoSavLigneCourante = ligne;
+        colissimoSavValeurPrecedente = t ? t.statut : '';
+        colissimoSavSelectCourant = el;
+        colissimoSavNouveauStatut = el.value;
+        $('modale-colissimo-sav-statut').textContent = `Nouveau statut : ${el.value} — renseigne au moins un lien avant de continuer.`;
+        $('colissimo-sav-texte').value = '';
+        $('retour-colissimo-sav').innerHTML = '';
+        $('modale-colissimo-sav').hidden = false;
+        return;
+      }
     }
   }
 
@@ -440,6 +461,45 @@ $('cloture-sav-annuler').addEventListener('click', () => {
   $('modale-cloture-sav').hidden = true;
   clotureSavLigneCourante = null;
   clotureSavSelectCourant = null;
+});
+
+$('colissimo-sav-annuler').addEventListener('click', () => {
+  if(colissimoSavSelectCourant) colissimoSavSelectCourant.value = colissimoSavValeurPrecedente;
+  $('modale-colissimo-sav').hidden = true;
+  colissimoSavLigneCourante = null;
+  colissimoSavSelectCourant = null;
+});
+
+$('colissimo-sav-confirmer').addEventListener('click', async () => {
+  const valeur = $('colissimo-sav-texte').value.split('\n').map(s => s.trim()).filter(Boolean).join('\n');
+  if(!valeur){
+    $('retour-colissimo-sav').innerHTML = '<div class="msg msg-erreur">Merci de renseigner au moins un lien Colissimo.</div>';
+    return;
+  }
+  $('colissimo-sav-confirmer').disabled = true;
+  $('retour-colissimo-sav').innerHTML = '';
+  try{
+    const rColissimo = await poster({ action:'sav-update', password:motDePasse, ligne: colissimoSavLigneCourante, champ:'colissimo', valeur });
+    if(!rColissimo.ok){
+      $('retour-colissimo-sav').innerHTML = `<div class="msg msg-erreur">${echapper(rColissimo.erreur)}</div>`;
+      $('colissimo-sav-confirmer').disabled = false;
+      return;
+    }
+    const rStatut = await poster({ action:'sav-update', password:motDePasse, ligne: colissimoSavLigneCourante, champ:'statut', valeur: colissimoSavNouveauStatut });
+    if(!rStatut.ok){
+      $('retour-colissimo-sav').innerHTML = `<div class="msg msg-erreur">${echapper(rStatut.erreur)}</div>`;
+      $('colissimo-sav-confirmer').disabled = false;
+      return;
+    }
+    $('modale-colissimo-sav').hidden = true;
+    colissimoSavLigneCourante = null;
+    colissimoSavSelectCourant = null;
+    await chargerSav();
+    etat('Enregistré', 'succes');
+  }catch(e){
+    $('retour-colissimo-sav').innerHTML = '<div class="msg msg-erreur">Enregistrement impossible.</div>';
+  }
+  $('colissimo-sav-confirmer').disabled = false;
 });
 
 $('cloture-sav-confirmer').addEventListener('click', async () => {
