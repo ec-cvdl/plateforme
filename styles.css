@@ -69,7 +69,7 @@ body{
 /* ═══ Barre de marque + bascule de mode ═══ */
 .marque-barre{
   display:flex;align-items:center;justify-content:space-between;
-  max-width:640px;margin:0 auto;padding:22px 20px 0;
+  max-width:900px;margin:0 auto;padding:22px 20px 0;
 }
 .marque{display:flex;align-items:center;gap:10px}
 .marque img{height:84px;width:auto;display:block}

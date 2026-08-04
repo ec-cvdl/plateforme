@@ -186,7 +186,9 @@ function rendreTicketsSuivi(tickets){
     return;
   }
   $('liste-tickets-suivi').innerHTML = tickets.map((t, i) => {
-    const liensColissimo = String(t.colissimo || '').split('\n').map(s => s.trim()).filter(Boolean);
+    const statutCourantTicket = statutsSavPublic.find(s => s.statut === t.statut);
+    const liensColissimo = (statutCourantTicket && statutCourantTicket.colissimo)
+      ? String(t.colissimo || '').split('\n').map(s => s.trim()).filter(Boolean) : [];
     const historique = t.historique || [];
     return `<div class="carte-ticket-suivi">
       <div class="entete-ts">
@@ -222,6 +224,7 @@ function rendreTicketsSuivi(tickets){
 async function chargerTicketsSuivi(){
   const numeroSerie = $('numero-serie').value.trim();
   if(!numeroSerie){ afficherMsg('retour-numero', 'Merci de saisir un numéro de série.', 'erreur'); return; }
+  try{ sessionStorage.setItem('cvdl-numero-serie-suivi', numeroSerie); }catch(e){}
 
   $('btn-voir-tickets').disabled = true;
   $('btn-voir-tickets').innerHTML = '<span class="spinner-inline"></span>Recherche…';
@@ -252,6 +255,11 @@ async function chargerTicketsSuivi(){
 
 $('btn-voir-tickets').addEventListener('click', chargerTicketsSuivi);
 $('numero-serie').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); chargerTicketsSuivi(); } });
+
+try{
+  const serieMemorisee = sessionStorage.getItem('cvdl-numero-serie-suivi');
+  if(serieMemorisee) $('numero-serie').value = serieMemorisee;
+}catch(e){}
 
 $('btn-autre-numero').addEventListener('click', () => {
   $('numero-serie').value = '';

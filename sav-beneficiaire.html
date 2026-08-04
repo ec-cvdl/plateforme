@@ -362,6 +362,11 @@ function precedent(){
 }
 $$('[data-retour]').forEach(function(b){ b.addEventListener('click', precedent); });
 
+try{
+  const serieMemorisee = sessionStorage.getItem('cvdl-numero-serie-sav');
+  if(serieMemorisee) $('id-numero-serie').value = serieMemorisee;
+}catch(e){}
+
 /* Étape 1 : identification (code, ou numéro de série sans code) */
 $('btn-verifier-serie').addEventListener('click', async function(){
   const numeroSerie = $('id-numero-serie').value.trim();
@@ -373,6 +378,7 @@ $('btn-verifier-serie').addEventListener('click', async function(){
   try{
     const r = await jsonp({action:'sav-verifier-numero-serie', numeroSerie: numeroSerie});
     etat.numeroSerie = numeroSerie;
+    try{ sessionStorage.setItem('cvdl-numero-serie-sav', numeroSerie); }catch(e){}
     if(r.ok && r.trouve){
       // On ne pré-remplit jamais le nom avec celui de la structure trouvée : ici, c'est le
       // bénéficiaire qui doit indiquer SON propre nom à l'étape suivante, pas celui de la

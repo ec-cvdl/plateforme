@@ -43,7 +43,7 @@ try{
 
 <div class="barre-retour-portail" style="display:flex;justify-content:space-between;align-items:center">
   <a href="portail-structure.html" class="lien-retour-portail">← Retour portail</a>
-  <button type="button" id="btn-changer-code" class="lien-retour-portail" style="background:none;border:none;cursor:pointer;font:inherit" hidden>Changer de code</button>
+  <button type="button" id="btn-changer-code" class="lien-retour-portail" style="background:none;border:none;cursor:pointer;font:inherit" hidden>Déconnexion</button>
 </div>
 
 <header class="marque-barre">
@@ -568,7 +568,7 @@ try{
 }catch(e){}
 $('btn-changer-code').addEventListener('click', () => {
   try{ sessionStorage.removeItem('cvdl-code-structure'); }catch(e){}
-  location.reload();
+  location.href = 'portail-structure.html';
 });
 $('code').addEventListener('keydown', function(e){ if(e.key === 'Enter'){ e.preventDefault(); verifierCode(); } });
 
@@ -802,7 +802,7 @@ $('attestation-non-acquisition').addEventListener('change', majBoutonEnvoyer);
 /* Étape 4 : commentaire + envoi */
 function majRappelPrix(){
   const connu = etat.lignes.every(function(l){ return typeof l.prixUnitaire === 'number'; });
-  if(!connu || !etat.lignes.length){ $('rappel-prix').innerHTML = ''; return; }
+  if(!connu || !etat.lignes.length || estInterne){ $('rappel-prix').innerHTML = ''; return; }
   const total = etat.lignes.reduce(function(s, l){ return s + l.prixUnitaire * l.quantite; }, 0);
   $('rappel-prix').innerHTML =
     '<span>Montant de cette commande</span><b>' + formaterMontant(total) + '</b>';
@@ -847,7 +847,7 @@ $('btn-envoyer').addEventListener('click', async function(){
       envoyerAnalytique(true);
       texteVoile.textContent = 'C\'est envoyé…';
       $('reference').textContent = r.reference;
-      if(typeof r.montant === 'number'){
+      if(typeof r.montant === 'number' && !estInterne){
         $('montant-final').innerHTML = '<span>Montant total</span><b>' + formaterMontant(r.montant) + '</b>';
         $('montant-final').hidden = false;
       }

@@ -1152,6 +1152,21 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
   </div>
 </div>
 
+<!-- Modale : lien Colissimo obligatoire avant un statut qui l'exige -->
+<div class="voile-modale" id="modale-colissimo-sav" hidden>
+  <div class="modale">
+    <h2>Lien de suivi Colissimo</h2>
+    <p class="sous-titre" id="modale-colissimo-sav-statut"></p>
+    <label for="colissimo-sav-texte">Lien(s) Colissimo</label>
+    <textarea id="colissimo-sav-texte" style="min-height:80px" placeholder="Un lien par ligne"></textarea>
+    <div id="retour-colissimo-sav"></div>
+    <div class="pied-modale">
+      <button class="action claire" id="colissimo-sav-annuler">Annuler</button>
+      <button class="action" id="colissimo-sav-confirmer">Confirmer</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modale : facturer directement, sans passer par un devis -->
 <div class="voile-modale" id="modale-facturer-direct" hidden>
   <div class="modale">
@@ -1189,22 +1204,24 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
       <input type="text" id="s-tel" placeholder="Téléphone">
       <input type="text" id="s-adresse" placeholder="Adresse">
     </div>
-    <label class="case-rn">
-      <input type="checkbox" id="s-rn">
-      <span>Structure RN <em>(tarif préférentiel + paiement par virement imposé)</em></span>
-    </label>
-    <label class="case-rn">
-      <input type="checkbox" id="s-esn">
-      <span>Structure ESN <em>(aucun prix affiché, aucune facturation générée)</em></span>
-    </label>
-    <label class="case-rn">
-      <input type="checkbox" id="s-interne">
-      <span>Structure Interne <em>(commandes passées en interne — mêmes effets que ESN, juste le nom qui change)</em></span>
-    </label>
-    <label class="case-rn">
-      <input type="checkbox" id="s-autres">
-      <span>Structure Autres <em>(catégorie à part — pas de demande de devis ni d'attestations à la commande, comme Interne)</em></span>
-    </label>
+    <div class="grille-cases-structure">
+      <label class="case-rn">
+        <input type="checkbox" id="s-rn">
+        <span>Structure RN <em>(tarif préférentiel + paiement par virement imposé)</em></span>
+      </label>
+      <label class="case-rn">
+        <input type="checkbox" id="s-esn">
+        <span>Structure ESN <em>(aucun prix affiché, aucune facturation générée)</em></span>
+      </label>
+      <label class="case-rn">
+        <input type="checkbox" id="s-interne">
+        <span>Structure Interne <em>(commandes passées en interne — mêmes effets que ESN, juste le nom qui change)</em></span>
+      </label>
+      <label class="case-rn">
+        <input type="checkbox" id="s-autres">
+        <span>Structure Autres <em>(catégorie à part — pas de demande de devis ni d'attestations à la commande, comme Interne)</em></span>
+      </label>
+    </div>
     <div id="retour-ajout"></div>
     <div class="pied-modale">
       <button class="action claire" id="s-annuler">Annuler</button>

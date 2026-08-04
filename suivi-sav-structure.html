@@ -207,7 +207,9 @@ function rendreTicketsSuivi(tickets){
     return;
   }
   $('liste-tickets-suivi').innerHTML = tickets.map((t, i) => {
-    const liensColissimo = String(t.colissimo || '').split('\n').map(s => s.trim()).filter(Boolean);
+    const statutCourantTicket = statutsSavPublic.find(s => s.statut === t.statut);
+    const liensColissimo = (statutCourantTicket && statutCourantTicket.colissimo)
+      ? String(t.colissimo || '').split('\n').map(s => s.trim()).filter(Boolean) : [];
     const historique = t.historique || [];
     return `<div class="carte-ticket-suivi">
       <div class="entete-ts">

@@ -114,7 +114,7 @@ try{
 
 <div class="barre-retour-portail" style="display:flex;justify-content:space-between;align-items:center">
   <a href="portail-structure.html" class="lien-retour-portail">← Retour portail</a>
-  <button type="button" id="btn-changer-code" class="lien-retour-portail" style="background:none;border:none;cursor:pointer;font:inherit" hidden>Changer de code</button>
+  <button type="button" id="btn-changer-code" class="lien-retour-portail" style="background:none;border:none;cursor:pointer;font:inherit" hidden>Déconnexion</button>
 </div>
 
 <header class="marque-barre">
@@ -215,7 +215,7 @@ try{
 }catch(e){}
 $('btn-changer-code').addEventListener('click', () => {
   try{ sessionStorage.removeItem('cvdl-code-structure'); }catch(e){}
-  location.reload();
+  location.href = 'portail-structure.html';
 });
 
 let lienFlotteActuel = '';
