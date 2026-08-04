@@ -392,8 +392,8 @@ body.carte-style-couleur .ccm-pastille{background:rgba(255,255,255,.22)}
 .ccm-pilule-mini.ccm-pilule-serie.pilule-remplie svg{color:var(--t-vert-t)}
 .ccm-pilule-commentaire{position:relative}
 .ccm-pilule-commentaire .point-notif-mini{
-  position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;
-  background:var(--alert, #E62460);border:2px solid var(--card, #fff);box-sizing:border-box;
+  position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;
+  background:var(--alert, #E62460);border:3px solid var(--card, #fff);box-sizing:border-box;
 }
 .ccm-pilule-badge{
   min-width:16px;height:16px;padding:0 4px;border-radius:999px;
@@ -852,7 +852,7 @@ select.statut option{background:#fff;color:var(--ink);font-weight:500}
 
 .entete-liste{
   display:grid;grid-template-columns:1.1fr 1fr 1.1fr .8fr 1.3fr auto;gap:10px;
-  padding:0 16px 8px;
+  padding:0 16px 8px;border:1px solid transparent;
   font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:500;
   letter-spacing:.1em;text-transform:uppercase;color:var(--steel);
 }
@@ -933,7 +933,7 @@ select.statut option{background:#fff;color:var(--ink);font-weight:500}
 #liste-sav{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 @media(max-width:900px){#liste-sav{grid-template-columns:1fr}}
 .ticket-sav-conteneur{position:relative;height:100%}
-.ticket-sav-conteneur .badge-nouvelle{left:-8px;top:-8px}
+.ticket-sav-conteneur .badge-nouvelle{left:-8px;top:-11px}
 
 /* ═══ Ticket SAV — accent latéral coloré par statut, badge icône, pastille de statut
    en texte, pilules discrètes pour n° série/garantie/colissimo. ═══ */

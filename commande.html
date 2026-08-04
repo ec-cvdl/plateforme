@@ -430,6 +430,7 @@ let indexEtape = 0;
 let moyenImpose = null;
 let estEsn = false;
 let estInterne = false;
+let autoriseDateSouhaitee = false;
 let estSansDevisNiAttestations = false; // ESN + Interne + Autres : pas de demande de devis, pas d'attestations obligatoires
 
 const etat = {
@@ -448,7 +449,7 @@ function etapesActives(){
     if(e === 'paiement' && (moyenImpose || estEsn)) return false;
     if(e === 'piece-jointe' && (moyenImpose || estEsn)) return false; // RN : pas de bon d'orientation à joindre — ESN : ni paiement ni pièce jointe
     if(e === 'paiement-partage' && (moyenImpose || estEsn || etat.moyenPaiement !== 'Paiement en ligne (CB)' || listePersonnesSaisies().length < 2)) return false;
-    if(e === 'date-livraison' && !estInterne) return false; // uniquement pour les commandes passées en interne
+    if(e === 'date-livraison' && !autoriseDateSouhaitee) return false; // réservé aux types de structure choisis en Réglages
     return true;
   });
 }
@@ -526,6 +527,7 @@ async function verifierCode(){
       estEsn = !!verif.esn || !!verif.interne;
       estSansDevisNiAttestations = !!verif.esn || !!verif.interne || !!verif.autres;
       estInterne = !!verif.interne;
+      autoriseDateSouhaitee = !!verif.dateSouhaitee;
       $('demande-devis').closest('.case-attestation').hidden = estSansDevisNiAttestations;
       if(estSansDevisNiAttestations) $('demande-devis').checked = false;
 

@@ -727,6 +727,22 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
       </div>
 
       <div class="carte-reglage">
+        <h3>Livraison "le plus rapidement possible"</h3>
+        <p class="sous-titre">
+          Types de structure autorisés à demander une livraison urgente dans le formulaire de commande
+          (étape supplémentaire, avec le bouton "⚡ Le plus rapidement possible").
+        </p>
+        <label class="case-rn"><input type="checkbox" id="date-souhaitee-rn" value="rn"><span>Structures RN</span></label>
+        <label class="case-rn"><input type="checkbox" id="date-souhaitee-esn" value="esn"><span>Structures ESN</span></label>
+        <label class="case-rn"><input type="checkbox" id="date-souhaitee-interne" value="interne"><span>Structures Interne</span></label>
+        <label class="case-rn"><input type="checkbox" id="date-souhaitee-autres" value="autres"><span>Structures Autres</span></label>
+        <div class="ligne-reglage" style="margin-top:10px">
+          <button type="button" class="action claire" id="btn-date-souhaitee-enregistrer">Enregistrer</button>
+        </div>
+        <div id="retour-date-souhaitee"></div>
+      </div>
+
+      <div class="carte-reglage">
         <h3>Nettoyage automatique des fichiers générés</h3>
         <p class="reglage-texte">
           Supprime (met à la corbeille Drive, jamais définitivement — récupérable 30 jours) les bons, devis, factures,
@@ -873,6 +889,10 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
           <button type="button" class="action claire" id="btn-email-logistique-enregistrer">Enregistrer</button>
         </div>
         <div id="retour-email-logistique"></div>
+        <label class="case-rn" style="margin-top:14px">
+          <input type="checkbox" id="meme-personne-logistique-input">
+          <span>La même personne gère la logistique et la distribution <em>(aucun mail envoyé — un clic dans l'admin suffit à valider la commande)</em></span>
+        </label>
       </div>
 
       <div class="carte-reglage">
