@@ -673,6 +673,10 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
         <div class="apercu-modele-devis" id="apercu-modele-sav"></div>
       </div>
 
+      <div class="carte-reglage" style="grid-column:1/-1;background:none;border:none;box-shadow:none;padding:0 0 4px;margin-bottom:0">
+        <h3 style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--steel)">📄 Modèles de documents</h3>
+      </div>
+
       <div class="carte-reglage">
         <h3>Modèle de facturation (PDF)</h3>
         <p class="reglage-texte">
@@ -745,6 +749,43 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
       </div>
 
       <div class="carte-reglage">
+        <h3>Modèle flotte matériel (structures)</h3>
+        <p class="reglage-texte">
+          Modèle Google Sheets que chaque structure copie dans son propre Drive pour tenir l'inventaire
+          des appareils reçus (colonnes : Numéro de série, Marque, Modèle, Prix d'achat de base, Personne, Statut,
+          Date de livraison, Date de vente, Payé, Lien de paiement). Le statut (En stock / Vendu / En SAV) est
+          pré-rempli à "En stock" pour chaque nouvel appareil, avec une liste déroulante posée automatiquement sur la colonne.
+          Depuis le portail structure, tout est modifiable sauf le numéro de série, le prix d'achat, la date de
+          livraison et le lien de paiement (renseignés automatiquement, jamais par la structure).
+          Une fois la structure copie partagée en modification et son lien collé dans le portail, on la pré-remplit
+          automatiquement avec les appareils déjà livrés.
+        </p>
+        <div class="ligne-reglage">
+          <input type="text" id="modele-flotte-input" placeholder="URL ou ID du Sheets modèle">
+          <button type="button" class="action claire" id="btn-modele-flotte-enregistrer">Enregistrer</button>
+        </div>
+        <div id="retour-modele-flotte"></div>
+      </div>
+
+      <div class="carte-reglage">
+        <h3>Fichier de numérotation officielle des factures</h3>
+        <p class="reglage-texte">
+          Le classeur externe où sont réservés les numéros de facture (colonne B = structure,
+          colonne C = numéro). Optionnel — sans ça, la saisie manuelle du numéro reste toujours possible.
+        </p>
+        <label for="fichier-numerotation-input">Fichier (URL ou ID)</label>
+        <div class="ligne-reglage">
+          <input type="text" id="fichier-numerotation-input" placeholder="URL ou ID du classeur">
+        </div>
+        <label for="onglet-numerotation-input" style="margin-top:12px">Nom de l'onglet à l'intérieur</label>
+        <div class="ligne-reglage">
+          <input type="text" id="onglet-numerotation-input" placeholder="Ex. 2026" style="max-width:160px">
+          <button type="button" class="action claire" id="btn-numerotation-enregistrer">Enregistrer</button>
+        </div>
+        <div id="retour-numerotation"></div>
+      </div>
+
+      <div class="carte-reglage">
         <h3>API publique en lecture seule</h3>
         <p class="reglage-texte">
           Pour connecter un script ou un outil externe à vos commandes, SAV et flotte, en lecture seule.
@@ -803,25 +844,6 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
           <button type="button" class="action claire" id="btn-delai-livraison-actif-enregistrer">Enregistrer</button>
         </div>
         <div id="retour-delai-livraison-actif"></div>
-      </div>
-
-      <div class="carte-reglage">
-        <h3>Modèle flotte matériel (structures)</h3>
-        <p class="reglage-texte">
-          Modèle Google Sheets que chaque structure copie dans son propre Drive pour tenir l'inventaire
-          des appareils reçus (colonnes : Numéro de série, Marque, Modèle, Prix d'achat de base, Personne, Statut,
-          Date de livraison, Date de vente, Payé, Lien de paiement). Le statut (En stock / Vendu / En SAV) est
-          pré-rempli à "En stock" pour chaque nouvel appareil, avec une liste déroulante posée automatiquement sur la colonne.
-          Depuis le portail structure, tout est modifiable sauf le numéro de série, le prix d'achat, la date de
-          livraison et le lien de paiement (renseignés automatiquement, jamais par la structure).
-          Une fois la structure copie partagée en modification et son lien collé dans le portail, on la pré-remplit
-          automatiquement avec les appareils déjà livrés.
-        </p>
-        <div class="ligne-reglage">
-          <input type="text" id="modele-flotte-input" placeholder="URL ou ID du Sheets modèle">
-          <button type="button" class="action claire" id="btn-modele-flotte-enregistrer">Enregistrer</button>
-        </div>
-        <div id="retour-modele-flotte"></div>
       </div>
 
       <div class="carte-reglage">
@@ -917,24 +939,6 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
         </div>
 
         <div id="liste-archives" style="margin-top:14px"></div>
-      </div>
-
-      <div class="carte-reglage">
-        <h3>Fichier de numérotation officielle des factures</h3>
-        <p class="reglage-texte">
-          Le classeur externe où sont réservés les numéros de facture (colonne B = structure,
-          colonne C = numéro). Optionnel — sans ça, la saisie manuelle du numéro reste toujours possible.
-        </p>
-        <label for="fichier-numerotation-input">Fichier (URL ou ID)</label>
-        <div class="ligne-reglage">
-          <input type="text" id="fichier-numerotation-input" placeholder="URL ou ID du classeur">
-        </div>
-        <label for="onglet-numerotation-input" style="margin-top:12px">Nom de l'onglet à l'intérieur</label>
-        <div class="ligne-reglage">
-          <input type="text" id="onglet-numerotation-input" placeholder="Ex. 2026" style="max-width:160px">
-          <button type="button" class="action claire" id="btn-numerotation-enregistrer">Enregistrer</button>
-        </div>
-        <div id="retour-numerotation"></div>
       </div>
 
       <div class="carte-reglage">

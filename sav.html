@@ -33,6 +33,19 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
   .zone-photo-video{margin-top:18px;display:flex;flex-direction:column;gap:14px}
   .zone-photo-video label{font-size:13px;font-weight:600;color:var(--gris);display:block;margin-bottom:6px}
   body.mode-sombre .zone-photo-video label{color:rgba(255,255,255,.7)}
+
+  .resultats-recherche-serie{
+    position:absolute;top:100%;left:0;right:0;z-index:20;background:#fff;
+    border:1px solid var(--line,#E2E6EA);border-radius:10px;margin-top:4px;
+    box-shadow:0 8px 24px rgba(0,0,0,.12);max-height:240px;overflow:auto;
+  }
+  .resultat-serie-item{
+    display:flex;flex-direction:column;gap:2px;width:100%;text-align:left;
+    padding:9px 12px;border:none;background:none;cursor:pointer;font-family:inherit;
+  }
+  .resultat-serie-item:hover{background:var(--paper,#F5F6F8)}
+  .resultat-serie-item .mono{font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:600}
+  .resultat-serie-item span:last-child{font-size:12px;color:var(--gris)}
 </style>
 <script>
 // Si un code est déjà mémorisé sur cet appareil, on masque l'étape de saisie AVANT même
@@ -130,9 +143,10 @@ try{
       <div class="question">Quel <em>symptôme</em> observez-vous ?</div>
       <div class="grille-symptomes" id="grille-symptomes"></div>
 
-      <div id="bloc-numero-serie-symptome" style="margin-top:22px">
+      <div id="bloc-numero-serie-symptome" style="margin-top:22px;position:relative">
         <label for="numero-serie-symptome" style="display:block;font-size:13px;font-weight:600;color:var(--gris);margin-bottom:8px">Numéro de série de l'appareil</label>
-        <input type="text" class="champ-texte" id="numero-serie-symptome" autocomplete="off" spellcheck="false" placeholder="Si vous le trouvez sur l'appareil">
+        <input type="text" class="champ-texte" id="numero-serie-symptome" autocomplete="off" spellcheck="false" placeholder="Rechercher parmi votre matériel, ou le saisir directement">
+        <div id="resultats-recherche-serie" class="resultats-recherche-serie" hidden></div>
       </div>
 
       <div id="retour-symptome" aria-live="polite"></div>
@@ -369,6 +383,13 @@ function prechargerSymptomesEnArrierePlan(){
   jsonp({action:'sav-symptomes'}).then(r => { if(r.ok) symptomesPrecharges = r.symptomes; }).catch(() => {});
 }
 
+// Matériel déjà reçu par la structure — pré-chargé en arrière-plan pour éviter de retaper un
+// numéro de série à la main : une simple recherche parmi ce qui a déjà été livré.
+let appareilsFlottePrecharges = [];
+function prechargerFlotteEnArrierePlan(code){
+  jsonp({action:'flotte-lister', code}).then(r => { if(r.ok) appareilsFlottePrecharges = r.appareils; }).catch(() => {});
+}
+
 $('btn-verifier-code').addEventListener('click', async function(){
   const code = $('id-code').value.trim();
   if(!code){ afficherMsg('retour-id-code', 'Saisissez votre code structure.', 'erreur'); return; }
@@ -384,6 +405,7 @@ $('btn-verifier-code').addEventListener('click', async function(){
       etat.nomStructure = r.nom;
       $('nom-personne').value = r.nom;
       if(r.email) $('email-personne').value = r.email;
+      prechargerFlotteEnArrierePlan(code); // en parallèle, jamais attendu — prêt d'avance pour l'étape 3
       suivant();
     }else{
       afficherMsg('retour-id-code', r.erreur || 'Code invalide.', 'erreur');
@@ -449,6 +471,32 @@ $('btn-symptome-suivant').addEventListener('click', function(){
   const numeroSerieChamp = $('numero-serie-symptome').value.trim();
   if(numeroSerieChamp) etat.numeroSerie = numeroSerieChamp;
   suivant();
+});
+
+$('numero-serie-symptome').addEventListener('input', () => {
+  const terme = $('numero-serie-symptome').value.trim().toLowerCase();
+  const resultats = $('resultats-recherche-serie');
+  if(!terme || !appareilsFlottePrecharges.length){ resultats.hidden = true; return; }
+  const correspondances = appareilsFlottePrecharges
+    .filter(a => (a.numeroSerie || '').toLowerCase().includes(terme) || (a.marque || '').toLowerCase().includes(terme) || (a.modele || '').toLowerCase().includes(terme))
+    .slice(0, 8);
+  if(!correspondances.length){ resultats.hidden = true; return; }
+  resultats.innerHTML = correspondances.map(a => `
+    <button type="button" class="resultat-serie-item" data-serie="${echapper(a.numeroSerie)}">
+      <span class="mono">${echapper(a.numeroSerie)}</span>
+      <span>${echapper([a.marque, a.modele].filter(Boolean).join(' ') || 'Matériel')}${a.personne ? ' — ' + echapper(a.personne) : ''}</span>
+    </button>`).join('');
+  resultats.hidden = false;
+});
+$('numero-serie-symptome').addEventListener('focus', () => { if($('numero-serie-symptome').value.trim()) $('numero-serie-symptome').dispatchEvent(new Event('input')); });
+$('resultats-recherche-serie').addEventListener('click', e => {
+  const b = e.target.closest('[data-serie]');
+  if(!b) return;
+  $('numero-serie-symptome').value = b.dataset.serie;
+  $('resultats-recherche-serie').hidden = true;
+});
+document.addEventListener('click', e => {
+  if(!e.target.closest('#bloc-numero-serie-symptome')) $('resultats-recherche-serie').hidden = true;
 });
 
 /* Étape 4 : détails (commentaire, photo, vidéo) */

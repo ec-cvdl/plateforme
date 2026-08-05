@@ -140,9 +140,6 @@ try{
       <div class="question" id="titre-structure"></div>
       <p class="sous-question" id="nb-commandes-texte"></p>
       <div class="liste-commandes-suivi" id="liste-commandes-suivi"></div>
-      <div class="suite">
-        <button type="button" class="bouton-principal" id="btn-autre-code" style="background:transparent;color:var(--gris);border:1.5px solid var(--trait)">Consulter un autre code</button>
-      </div>
     </section>
 
   </div>
@@ -276,15 +273,6 @@ async function chargerCommandesSuivi(){
 
 $('btn-voir-commandes').addEventListener('click', chargerCommandesSuivi);
 $('code-structure').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); chargerCommandesSuivi(); } });
-
-$('btn-autre-code').addEventListener('click', () => {
-  try{ sessionStorage.removeItem('cvdl-code-structure'); }catch(e){}
-  $('code-structure').value = '';
-  $('retour-code').innerHTML = '';
-  $('etape-liste').hidden = true;
-  $('etape-code').hidden = false;
-  $('code-structure').focus();
-});
 
 try{
   const codeMemorise = sessionStorage.getItem('cvdl-code-structure');
