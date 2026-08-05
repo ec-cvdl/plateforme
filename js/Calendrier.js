@@ -41,7 +41,7 @@ function rendreBandeauUrgentesCalendrier(){
   conteneur.innerHTML = `
     <div class="entete-zone-prioritaires">⚡ À traiter le plus rapidement possible (${urgentes.length})</div>
     <div class="grille-pilules-urgentes">
-      ${urgentes.map(c => `<span class="pilule-urgente-calendrier" title="${echapper(c.statutCommande)}"><span class="mono">${echapper(c.reference)}</span> · ${echapper(c.nom)}</span>`).join('')}
+      ${urgentes.map(c => `<span class="pilule-urgente-calendrier" title="${echapper(c.statutCommande)} — cliquer pour ouvrir la commande" data-calendrier-aller-vers="${echapper(c.reference)}" style="cursor:pointer"><span class="mono">${echapper(c.reference)}</span> · ${echapper(c.nom)}</span>`).join('')}
     </div>`;
 }
 
@@ -70,7 +70,7 @@ function rendreCalendrier(){
     parJour[cle].push({ commande, type });
   }
   calendrierCommandes.forEach(c => {
-    if(calendrierAfficherSouhaitee && c.dateLivraisonSouhaitee && c.dateLivraisonSouhaitee !== 'ASAP'){
+    if(calendrierAfficherSouhaitee && c.statutCommande !== 'Livrée' && c.dateLivraisonSouhaitee && c.dateLivraisonSouhaitee !== 'ASAP'){
       const d = parserDateCalendrier(c.dateLivraisonSouhaitee);
       if(d) ajouter(cleJour(d), c, 'souhaitee');
     }
@@ -205,9 +205,17 @@ function afficherDetailJourCalendrier(cle){
       <span>${echapper(e.commande.nom)}${e.commande.dateLivraisonSouhaitee === 'ASAP' ? ' ⚡' : ''}</span>
       <span class="pastille-statut-mini">${echapper(e.commande.statutCommande)}</span>
       <span class="materiel-jour-calendrier">${(e.commande.lignes || []).map(l => `${echapper(l.quantite)}× ${echapper(l.produit)}`).join(', ')}</span>
+      ${e.type !== 'lot' ? `<button type="button" class="lien-details-calendrier" data-calendrier-aller-vers="${echapper(e.commande.reference)}">Détails →</button>` : ''}
     </div>`).join('');
   $('modale-jour-calendrier').hidden = false;
 }
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-calendrier-aller-vers]');
+  if(!b) return;
+  $('modale-jour-calendrier').hidden = true;
+  allerVersCommande(b.dataset.calendrierAllerVers);
+});
 $('btn-fermer-modale-jour-calendrier')?.addEventListener('click', () => $('modale-jour-calendrier').hidden = true);
 
 /* ─── Navigation et filtres ─── */

@@ -67,6 +67,28 @@ $('selecteur-limite-commandes').addEventListener('change', () => {
   changerPageCommandes(0);
 });
 
+/** Rejoint une commande depuis ailleurs que l'onglet Commandes (le calendrier, notamment) —
+ *  bascule l'onglet, cherche la référence exacte, puis ouvre directement sa fiche détail dès
+ *  que le résultat arrive. */
+async function allerVersCommande(reference){
+  document.querySelector('[data-vue="commandes"]')?.click();
+  $('recherche').value = reference;
+  etat('Recherche…', 'chargement');
+  try{
+    const r = await jsonp({action:'list', password:motDePasse, recherche:reference, filtre:'tout'});
+    if(r.ok){
+      commandes = r.commandes; totalCommandes = r.total; rechercheCommandesActive = true;
+      appliquerAgregatsCommandes(r); rendre(); etat('À jour', 'succes');
+      const c = commandes.find(x => x.reference === reference);
+      if(c){
+        $('details-commande-corps').innerHTML = construireDetailsCommande(c.ligne);
+        $('details-commande-titre').textContent = `${c.reference} — ${c.nom}`;
+        $('modale-details-commande').hidden = false;
+      }
+    }
+  }catch(e){ etat('Recherche impossible', 'erreur'); }
+}
+
 $('filtres').addEventListener('click', e => {
   const b = e.target.closest('button');
   if(!b) return;
@@ -314,7 +336,7 @@ function carteCommandeHtml(c){
           <div class="ccm-statut-label">
             <div class="ccm-pastille ${teinte}">${iconeStatutPastille}</div>
             <span class="ccm-statut">${echapper(c.statutCommande)}</span>
-            ${c.dateLivraisonSouhaitee === 'ASAP' ? `<span class="ccm-badge-urgent" title="Livraison la plus rapide possible — cliquer pour modifier" data-modifier-date-souhaitee="${c.ligne}">⚡ URGENT<button type="button" class="ccm-badge-urgent-retirer" data-retirer-urgent="${c.ligne}" title="Retirer le statut urgent" aria-label="Retirer le statut urgent">×</button></span>` : ''}
+            ${c.dateLivraisonSouhaitee === 'ASAP' ? `<span class="ccm-badge-urgent" title="Livraison la plus rapide possible — cliquer pour modifier" data-modifier-date-souhaitee="${c.ligne}">⚡ URGENT${c.statutCommande === 'Livrée' ? '<span class="ccm-badge-urgent-livre" title="Livrée">✓</span>' : ''}<button type="button" class="ccm-badge-urgent-retirer" data-retirer-urgent="${c.ligne}" title="Retirer le statut urgent" aria-label="Retirer le statut urgent">×</button></span>` : ''}
           </div>
           ${zoneEtapeSuivante}
         </div>
@@ -1001,14 +1023,23 @@ $('btn-associer-paiement').addEventListener('click', () => {
   if(!c) return;
   associerPaiementLigneCourante = ligne;
 
-  const noms = (c.personnes || '').split('\n').map(p => p.trim()).filter(Boolean).map(p => (p.split('|')[0] || p).trim());
+  const structureCommande = structures.find(s => s.code === c.code);
+  const personnesParsees = (c.personnes || '').split('\n').map(p => p.trim()).filter(Boolean).map(p => {
+    const parties = p.split('|');
+    return { nom: (parties[0] || p).trim(), produit: (parties[2] || '').trim() };
+  });
   const liensExistants = (c.lienPaiement || '').split('\n').map(s => s.trim());
 
-  $('associer-paiement-lignes').innerHTML = noms.map((nom, i) => `
+  $('associer-paiement-lignes').innerHTML = personnesParsees.map((p, i) => {
+    const infoProduit = produits.find(pr => pr.nom === p.produit);
+    const prix = infoProduit ? (structureCommande && structureCommande.rn ? infoProduit.prixRN : infoProduit.prixStandard) : null;
+    const libelle = prix != null ? `${p.nom} (${formaterMontant(prix)})` : p.nom;
+    return `
     <div class="ligne-reglage" style="margin-top:8px;align-items:center">
-      <span style="flex:1;font-size:13.5px">${echapper(nom)}</span>
+      <span style="flex:1;font-size:13.5px">${echapper(libelle)}</span>
       <input type="text" data-associer-paiement-index="${i}" placeholder="Lien de paiement" value="${echapper(liensExistants[i] || '')}" style="flex:2">
-    </div>`).join('');
+    </div>`;
+  }).join('');
   $('retour-associer-paiement').innerHTML = '';
   $('modale-associer-paiement').hidden = false;
 });
