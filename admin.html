@@ -207,7 +207,7 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
         <div class="separateur-entete-pilules" id="separateur-entete-pilules"></div>
         <div class="apercu-general" id="apercu-general"></div>
       </div>
-      <nav class="onglets">
+      <nav class="onglets" id="onglets-nav">
         <button data-vue="commandes" class="actif">Commandes</button>
         <button data-vue="calendrier">Calendrier</button>
         <button data-vue="grande-distribution">Grande distribution</button>
@@ -220,10 +220,15 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
         <span class="separateur-onglets"></span>
         <button data-vue="sav">SAV</button>
         <span class="separateur-onglets"></span>
+        <button data-vue="attestations">Attestations</button>
+        <span class="separateur-onglets"></span>
         <button data-vue="bilan">Statistiques</button>
         <span class="separateur-onglets"></span>
-        <button data-vue="reglages">Réglages</button>
+        <button data-vue="reglages" title="Réglages" aria-label="Réglages">⚙️</button>
       </nav>
+      <button type="button" id="btn-menu-burger" aria-label="Ouvrir le menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
     </div>
   </header>
 
@@ -469,6 +474,52 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
         Chaque projet se livre en un ou plusieurs lots datés, visibles dans le Calendrier.
       </p>
       <div id="liste-grande-distribution" style="margin-top:16px"></div>
+    </section>
+
+    <!-- Vue Attestations -->
+    <section id="vue-attestations" hidden>
+      <div id="attestations-etape-liste">
+        <div class="outils">
+          <input type="text" id="recherche-attestations" placeholder="Rechercher une commande (référence, structure)…">
+          <button class="action claire" id="btn-recharger-attestations">Actualiser</button>
+        </div>
+        <p class="sous-question" style="margin-top:10px">Seules les commandes avec des personnes renseignées apparaissent ici.</p>
+        <div id="liste-commandes-attestations" style="margin-top:16px"></div>
+      </div>
+
+      <div id="attestations-etape-association" hidden>
+        <button type="button" class="action claire" id="btn-attestations-retour">← Retour à la liste</button>
+        <h2 style="margin:14px 0 4px" id="attestations-titre-commande"></h2>
+        <p class="sous-question" id="attestations-sous-titre-commande"></p>
+
+        <div class="carte-reglage" style="margin-top:16px">
+          <h3>Import CSV tec.tech (facultatif)</h3>
+          <p class="reglage-texte">Récupère directement les numéros de série et caractéristiques depuis un export tec.tech.</p>
+          <input type="file" id="attestations-fichier-csv" accept=".csv">
+          <div id="attestations-retour-csv" class="sous-question" style="margin-top:6px"></div>
+        </div>
+
+        <div class="carte-reglage" style="margin-top:16px">
+          <h3>Association personnes ↔ numéros de série</h3>
+          <p class="reglage-texte" id="attestations-aide-association"></p>
+          <div id="attestations-lignes-association"></div>
+          <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+            <button type="button" class="action claire" id="btn-attestations-melanger">🎲 Associer aléatoirement</button>
+            <button type="button" class="action" id="btn-attestations-enregistrer-association">Enregistrer l'association</button>
+          </div>
+          <div id="attestations-retour-association" style="margin-top:10px"></div>
+        </div>
+
+        <div class="carte-reglage" style="margin-top:16px">
+          <h3>Générer les attestations</h3>
+          <p class="reglage-texte">Une attestation par personne, avec son propre produit et prix.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button type="button" class="action" id="btn-attestations-generer-liens">📄 Générer (liens un par un)</button>
+            <button type="button" class="action" id="btn-attestations-generer-zip">⬇️ Générer et télécharger en .zip</button>
+          </div>
+          <div id="attestations-retour-generation" style="margin-top:12px"></div>
+        </div>
+      </div>
     </section>
 
     <!-- Vue réglages -->
@@ -1876,6 +1927,7 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
 <script src="js/Bilan.js?v=20260804-3"></script>
 <script src="js/Calendrier.js?v=20260804-3"></script>
 <script src="js/GrandeDistribution.js?v=20260805-1"></script>
+<script src="js/Attestations.js?v=20260805-1"></script>
 <script src="js/Structures.js?v=20260804-3"></script>
 <script src="js/Produits.js?v=20260804-3"></script>
 <script src="js/DevisEtReglages.js?v=20260804-3"></script>

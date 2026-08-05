@@ -384,28 +384,56 @@ body.carte-style-couleur .ccm-pastille{background:rgba(255,255,255,.22)}
   margin-left:6px;cursor:pointer;vertical-align:middle;
 }
 .ccm-badge-urgent:hover{background:var(--t-rouge-f)}
+.ccm-badge-urgent.ccm-badge-urgent-ok:hover{background:#fff}
 .ccm-badge-urgent-retirer{
   background:none;border:none;padding:0;margin-left:2px;font-size:11px;font-weight:700;
   color:var(--steel);cursor:pointer;vertical-align:middle;line-height:1;
 }
 .ccm-badge-urgent-retirer:hover{color:var(--t-rouge-t)}
 .ccm-badge-urgent-livre{color:var(--t-vert-t, #2EA05A);font-weight:800;margin-left:3px}
+.ccm-badge-urgent.ccm-badge-urgent-ok{
+  color:var(--t-vert-t, #2EA05A);border-color:var(--t-vert-t, #2EA05A);cursor:default;
+}
+.ccm-badge-urgent.ccm-badge-urgent-ok .ccm-badge-urgent-livre{margin-left:2px;color:inherit}
+
+/* ─── Menu burger mobile ─── caché en desktop, la nav reste sur une ligne comme d'habitude.
+   En dessous d'une certaine largeur, la nav se replie en overlay, ouverte/fermée par le burger. */
+#btn-menu-burger{
+  display:none;flex-direction:column;justify-content:center;gap:4px;
+  width:36px;height:36px;background:none;border:1px solid var(--line);border-radius:8px;cursor:pointer;
+}
+#btn-menu-burger span{display:block;width:18px;height:2px;background:var(--ink);margin:0 auto;transition:transform .2s,opacity .2s}
+#btn-menu-burger[aria-expanded="true"] span:nth-child(1){transform:translateY(6px) rotate(45deg)}
+#btn-menu-burger[aria-expanded="true"] span:nth-child(2){opacity:0}
+#btn-menu-burger[aria-expanded="true"] span:nth-child(3){transform:translateY(-6px) rotate(-45deg)}
+@media(max-width:860px){
+  #btn-menu-burger{display:flex;position:absolute;top:18px;right:20px;z-index:201}
+  header.barre .wrap{position:relative}
+  nav.onglets{
+    display:none;position:absolute;top:100%;left:0;right:0;z-index:200;
+    flex-direction:column;align-items:stretch;background:var(--card);border:1px solid var(--line);
+    border-radius:0 0 12px 12px;box-shadow:0 12px 28px rgba(0,0,0,.15);padding:8px;gap:2px;
+  }
+  nav.onglets.ouvert{display:flex}
+  nav.onglets .separateur-onglets{display:none}
+  nav.onglets button{width:100%;text-align:left;padding:12px 14px;border-radius:8px}
+}
 .ccm-statut{font-size:11.5px;font-weight:700}
 .ccm-pilules-bas{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;margin-top:auto;padding-top:14px}
 .ccm-pilule-mini{
-  font-family:inherit;font-size:11px;font-weight:500;
+  font-family:inherit;font-size:12.5px;font-weight:600;
   background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:999px;
-  padding:6px 12px;cursor:pointer;text-decoration:none;
-  display:inline-flex;align-items:center;gap:6px;
+  padding:8px 15px;cursor:pointer;text-decoration:none;
+  display:inline-flex;align-items:center;gap:7px;
 }
 .ccm-pilule-mini:hover{border-color:var(--steel)}
-.ccm-pilule-mini svg{width:14px;height:14px;flex-shrink:0;color:var(--steel)}
+.ccm-pilule-mini svg{width:16px;height:16px;flex-shrink:0;color:var(--steel)}
 .ccm-pilule-mini.pilule-remplie svg{color:var(--t-bleu-t)}
 .ccm-pilule-mini.ccm-pilule-colissimo.pilule-remplie svg{color:var(--t-ambre-t)}
 .ccm-pilule-mini.ccm-pilule-serie.pilule-remplie svg{color:var(--t-vert-t)}
 .ccm-pilule-commentaire{position:relative}
 .ccm-pilule-commentaire .point-notif-mini{
-  position:absolute;top:-2.5px;right:-2.5px;width:9px;height:9px;border-radius:50%;
+  position:absolute;top:-3.5px;right:-3.5px;width:9px;height:9px;border-radius:50%;
   background:var(--alert, #E62460);border:1.5px solid var(--card, #fff);box-sizing:border-box;
 }
 .ccm-pilule-badge{
