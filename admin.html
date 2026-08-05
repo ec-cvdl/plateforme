@@ -257,6 +257,14 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
       <div id="bandeau-pagination" class="msg msg-info" hidden style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
         <button type="button" class="action claire" id="btn-page-precedente">← Précédent</button>
         <span id="texte-pagination"></span>
+        <label style="font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:6px">
+          Par page
+          <select id="selecteur-limite-commandes" style="width:auto">
+            <option value="20">20</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </label>
         <button type="button" class="action claire" id="btn-page-suivante">Suivant →</button>
       </div>
       <div id="zone-prioritaires" hidden></div>
@@ -391,7 +399,6 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
         <div class="filtres" id="filtres-bilan-type">
           <button data-bt="materiel" class="actif">📦 Matériel</button>
           <button data-bt="sav">🎫 SAV</button>
-          <button data-bt="tout">Les deux</button>
           <button data-bt="analytique">📊 Formulaire</button>
           <button data-bt="carte">🗺️ Carte</button>
         </div>
@@ -718,6 +725,30 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
         </div>
         <div id="retour-api-key"></div>
         <button type="button" class="action claire" id="btn-api-key-supprimer" style="margin-top:8px;color:var(--t-rouge-t, #c0364a)" hidden>Retirer la clé (rendre l'API à nouveau ouverte)</button>
+      </div>
+
+      <div class="carte-reglage">
+        <h3>Liste des commandes</h3>
+        <div class="ligne-reglage">
+          <label style="font-size:13px;font-weight:600;color:var(--steel);display:flex;align-items:center;gap:8px">
+            Commandes par page
+            <select id="commandes-par-page-input" style="width:auto">
+              <option value="20">20</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </label>
+          <button type="button" class="action claire" id="btn-commandes-par-page-enregistrer">Enregistrer</button>
+        </div>
+        <div id="retour-commandes-par-page"></div>
+        <label class="case-rn" style="margin-top:10px">
+          <input type="checkbox" id="prioriser-urgentes-input">
+          <span>Toujours afficher en premier les commandes à traiter (Reçue) ou urgentes <em>(quel que soit le filtre ou la page)</em></span>
+        </label>
+        <div class="ligne-reglage" style="margin-top:8px">
+          <button type="button" class="action claire" id="btn-prioriser-urgentes-enregistrer">Enregistrer</button>
+        </div>
+        <div id="retour-prioriser-urgentes"></div>
       </div>
 
       <div class="carte-reglage">

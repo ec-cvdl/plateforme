@@ -36,6 +36,7 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
   .recherche-passeport{display:flex;gap:8px;margin-bottom:8px}
   .recherche-passeport input{flex:1}
   .etat-passeport{text-align:center;padding:40px 20px;color:var(--gris)}
+  .lien-mode-admin{display:block;text-align:center;font-size:12px;color:var(--gris);margin-top:14px;text-decoration:underline;cursor:pointer;background:none;border:none;font-family:inherit;width:100%}
 </style>
 </head>
 <body>
@@ -56,14 +57,31 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
   <div class="scene passeport">
 
     <h1>🛂 Passeport de l'appareil</h1>
-    <p class="sous-question" id="intro-passeport">Numéro de série collé sur l'étiquette de l'appareil, ou scanné depuis le QR code.</p>
 
-    <div class="recherche-passeport">
-      <input type="text" id="champ-numero-serie" class="champ-texte" placeholder="Numéro de série" autocomplete="off" spellcheck="false">
-      <button type="button" class="bouton-principal" id="btn-chercher-passeport" style="width:auto;padding:0 18px">Voir</button>
+    <div id="etape-identification">
+      <p class="sous-question">Ce passeport est réservé aux structures partenaires — identifiez-vous avec votre code habituel.</p>
+      <div class="recherche-passeport">
+        <input type="text" id="champ-code-structure" class="champ-texte" placeholder="Code structure" autocomplete="off" spellcheck="false">
+        <button type="button" class="bouton-principal" id="btn-identifier-structure" style="width:auto;padding:0 18px">Continuer</button>
+      </div>
+      <div id="retour-identification"></div>
+      <button type="button" class="lien-mode-admin" id="btn-mode-admin">Vous êtes de l'équipe CVDL ?</button>
+      <div id="zone-mode-admin" hidden style="margin-top:10px">
+        <div class="recherche-passeport">
+          <input type="password" id="champ-mot-de-passe-admin" class="champ-texte" placeholder="Mot de passe admin" autocomplete="off">
+          <button type="button" class="bouton-principal" id="btn-identifier-admin" style="width:auto;padding:0 18px">Continuer</button>
+        </div>
+      </div>
     </div>
 
-    <div id="zone-passeport"></div>
+    <div id="etape-recherche" hidden>
+      <p class="sous-question" id="intro-passeport">Numéro de série collé sur l'étiquette de l'appareil, ou scanné depuis le QR code.</p>
+      <div class="recherche-passeport">
+        <input type="text" id="champ-numero-serie" class="champ-texte" placeholder="Numéro de série" autocomplete="off" spellcheck="false">
+        <button type="button" class="bouton-principal" id="btn-chercher-passeport" style="width:auto;padding:0 18px">Voir</button>
+      </div>
+      <div id="zone-passeport"></div>
+    </div>
 
   </div>
 </div>
@@ -76,15 +94,68 @@ function echapper(s){
   d.textContent = s == null ? '' : String(s);
   return d.innerHTML;
 }
-function jsonp(params){
-  return fetch(API + '?' + new URLSearchParams(params)).then(r => r.json());
+function poster(data){
+  return fetch(API, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(data) }).then(r => r.json());
 }
+
+/* ─── Identification : code structure (persisté, comme les autres pages) ou mot de passe
+   admin (en mémoire le temps de l'onglet seulement — jamais stocké). ─── */
+let codeIdentifie = '';
+let motDePasseAdminIdentifie = '';
+
+function passerAEtapeRecherche(){
+  $('etape-identification').hidden = true;
+  $('etape-recherche').hidden = false;
+  const depuisUrl = new URLSearchParams(location.search).get('sn');
+  if(depuisUrl){
+    $('champ-numero-serie').value = depuisUrl;
+    afficherPasseport(depuisUrl);
+  }
+}
+
+$('btn-mode-admin').addEventListener('click', () => {
+  $('zone-mode-admin').hidden = !$('zone-mode-admin').hidden;
+  if(!$('zone-mode-admin').hidden) $('champ-mot-de-passe-admin').focus();
+});
+
+$('btn-identifier-structure').addEventListener('click', () => {
+  const code = $('champ-code-structure').value.trim();
+  if(!code) return;
+  codeIdentifie = code;
+  try{ sessionStorage.setItem('cvdl-code-structure', code); }catch(e){}
+  passerAEtapeRecherche();
+});
+$('champ-code-structure').addEventListener('keydown', e => { if(e.key === 'Enter') $('btn-identifier-structure').click(); });
+
+$('btn-identifier-admin').addEventListener('click', () => {
+  const mdp = $('champ-mot-de-passe-admin').value;
+  if(!mdp) return;
+  motDePasseAdminIdentifie = mdp;
+  passerAEtapeRecherche();
+});
+$('champ-mot-de-passe-admin').addEventListener('keydown', e => { if(e.key === 'Enter') $('btn-identifier-admin').click(); });
+
+// Déjà identifiée sur cet appareil (venant d'une autre page du portail structure) : on saute
+// directement l'étape d'identification.
+try{
+  const codeMemorise = sessionStorage.getItem('cvdl-code-structure');
+  if(codeMemorise){ codeIdentifie = codeMemorise; passerAEtapeRecherche(); }
+}catch(e){}
 
 async function afficherPasseport(numeroSerie){
   $('zone-passeport').innerHTML = '<p class="etat-passeport">Recherche en cours…</p>';
   try{
-    const r = await jsonp({action:'passeport-materiel', numeroSerie});
+    const r = await poster({ action:'passeport-materiel', numeroSerie, code: codeIdentifie, password: motDePasseAdminIdentifie });
     if(!r.ok){
+      if(r.identificationRequise){
+        // Le code s'est avéré invalide (ou a été révoqué depuis) : on revient à l'identification.
+        try{ sessionStorage.removeItem('cvdl-code-structure'); }catch(e){}
+        codeIdentifie = ''; motDePasseAdminIdentifie = '';
+        $('etape-recherche').hidden = true;
+        $('etape-identification').hidden = false;
+        $('retour-identification').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur)}</div>`;
+        return;
+      }
       $('zone-passeport').innerHTML = `<p class="etat-passeport">${echapper(r.erreur || "Numéro de série introuvable.")}<br>Vérifiez la saisie, ou contactez la structure qui vous a remis l'appareil.</p>`;
       return;
     }
@@ -94,6 +165,10 @@ async function afficherPasseport(numeroSerie){
         ? `<span class="badge-garantie sous">✓ Sous garantie jusqu'au ${echapper(r.dateFinGarantie)}</span>`
         : `<span class="badge-garantie hors">Hors garantie depuis le ${echapper(r.dateFinGarantie)}</span>`;
 
+    // reconditionneurOriginal / donateur ne sont présents dans la réponse que pour les
+    // structures ESN et l'admin — absents (pas juste vides) pour tout le monde d'autre.
+    const infosCompletes = r.reconditionneurOriginal !== undefined;
+
     $('zone-passeport').innerHTML = `
       <div class="carte-passeport">
         <div class="ligne-passeport"><span class="cle">N° de série</span><span class="valeur">${echapper(r.numeroSerie)}</span></div>
@@ -101,8 +176,8 @@ async function afficherPasseport(numeroSerie){
         ${r.structure ? `<div class="ligne-passeport"><span class="cle">Remis par</span><span class="valeur">${echapper(r.structure)}</span></div>` : ''}
         ${r.dateLivraison ? `<div class="ligne-passeport"><span class="cle">Livré le</span><span class="valeur">${echapper(r.dateLivraison)}</span></div>` : ''}
         ${badgeGarantie ? `<div class="ligne-passeport"><span class="cle">Garantie</span><span class="valeur">${badgeGarantie}</span></div>` : ''}
-        <div class="ligne-passeport"><span class="cle">Reconditionneur</span><span class="valeur">${r.reconditionneurOriginal ? echapper(r.reconditionneurOriginal) : '—'}</span></div>
-        <div class="ligne-passeport"><span class="cle">Donateur</span><span class="valeur">${r.donateur ? echapper(r.donateur) : '—'}</span></div>
+        ${infosCompletes ? `<div class="ligne-passeport"><span class="cle">Reconditionneur</span><span class="valeur">${r.reconditionneurOriginal ? echapper(r.reconditionneurOriginal) : '—'}</span></div>` : ''}
+        ${infosCompletes ? `<div class="ligne-passeport"><span class="cle">Donateur</span><span class="valeur">${r.donateur ? echapper(r.donateur) : '—'}</span></div>` : ''}
       </div>
       ${r.historique && r.historique.length ? `
       <div class="carte-passeport">
@@ -124,12 +199,6 @@ $('btn-chercher-passeport').addEventListener('click', () => {
   if(v){ history.replaceState(null, '', '?sn=' + encodeURIComponent(v)); afficherPasseport(v); }
 });
 $('champ-numero-serie').addEventListener('keydown', e => { if(e.key === 'Enter') $('btn-chercher-passeport').click(); });
-
-const depuisUrl = new URLSearchParams(location.search).get('sn');
-if(depuisUrl){
-  $('champ-numero-serie').value = depuisUrl;
-  afficherPasseport(depuisUrl);
-}
 
 /* Bascule de mode (clair / accessible) */
 function appliquerMode(mode){
