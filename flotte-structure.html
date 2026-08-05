@@ -377,7 +377,7 @@ function rendreAppareils(appareils){
         <button type="button" data-vue-flotte="cartes" class="${vueFlotteActuelle === 'cartes' ? 'actif' : ''}">🗂 Cartes</button>
         <button type="button" data-vue-flotte="tableau" class="${vueFlotteActuelle === 'tableau' ? 'actif' : ''}">📊 Tableau</button>
       </div>
-      <a href="${echapper(lienFlotteActuel)}" target="_blank" rel="noopener">Ouvrir dans Google Sheets ↗</a>
+      ${lienFlotteActuel !== 'interne' ? `<a href="${echapper(lienFlotteActuel)}" target="_blank" rel="noopener">Ouvrir dans Google Sheets ↗</a>` : ''}
     </div>
     <input type="text" id="recherche-flotte" class="champ-texte" style="margin-top:10px" placeholder="Rechercher par n° de série ou personne…" value="${echapper(rechercheFlotte)}">
     ${nbAlertes ? `<div class="msg msg-info" style="margin-top:10px">⏳ ${nbAlertes} appareil${nbAlertes > 1 ? 's' : ''} en stock depuis plus de 3 mois — la garantie court sur ${nbAlertes > 1 ? 'eux' : 'lui'}.</div>` : ''}

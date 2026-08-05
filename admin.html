@@ -1436,6 +1436,18 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
   </div>
 </div>
 
+<!-- Modale : flotte centralisée d'une structure Interne, gérée directement par l'admin -->
+<div class="voile-modale" id="modale-flotte-interne" hidden>
+  <div class="modale" style="max-width:900px">
+    <h2>Flotte — <span id="flotte-interne-nom-structure"></span></h2>
+    <p class="sous-titre">Structure Interne : cette flotte est centralisée, pas de Sheets externe — modifiable ici comme depuis son propre portail.</p>
+    <div id="flotte-interne-contenu" style="margin-top:14px"></div>
+    <div class="pied-modale">
+      <button class="action claire" id="flotte-interne-fermer">Fermer</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modale : associer les numéros de série aux personnes, avant génération des attestations
      de paiement — manuel ou aléatoire. Le rapprochement par type de produit n'est qu'indicatif
      ici (le nom du produit de chaque personne s'affiche à titre de repère) : les numéros de
