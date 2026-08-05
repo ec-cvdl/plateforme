@@ -4,19 +4,25 @@
    de mois, la navigation dans le calendrier doit rester instantanée. */
 
 let calendrierCommandes = null;
+let calendrierLots = [];
 let calendrierChargeUneFois = false;
 let calendrierDateRef = new Date();
 let calendrierVueActuelle = localStorage.getItem('cvdl-calendrier-vue') || 'mois';
 let calendrierAfficherSouhaitee = localStorage.getItem('cvdl-calendrier-souhaitee') !== 'non';
 let calendrierAfficherCible = localStorage.getItem('cvdl-calendrier-cible') !== 'non';
 let calendrierAfficherReelle = localStorage.getItem('cvdl-calendrier-reelle') !== 'non';
+let calendrierAfficherLots = localStorage.getItem('cvdl-calendrier-lots') !== 'non';
 
 async function chargerCalendrier(){
   $('calendrier-grille').innerHTML = '<p class="sous-question">Chargement…</p>';
   try{
-    const r = await jsonp({action:'calendrier-commandes', password:motDePasse});
+    const [r, rLots] = await Promise.all([
+      jsonp({action:'calendrier-commandes', password:motDePasse}),
+      jsonp({action:'calendrier-lots-distribution', password:motDePasse}).catch(() => ({ok:false})),
+    ]);
     if(!r.ok){ $('calendrier-grille').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur||'Chargement impossible.')}</div>`; return; }
     calendrierCommandes = r.commandes;
+    calendrierLots = rLots.ok ? rLots.lots : [];
     rendreCalendrier();
   }catch(e){
     $('calendrier-grille').innerHTML = '<div class="msg msg-erreur">Chargement impossible — réessaie.</div>';
@@ -80,6 +86,17 @@ function rendreCalendrier(){
       if(d) ajouter(cleJour(d), c, 'reelle');
     }
   });
+
+  if(calendrierAfficherLots){
+    calendrierLots.forEach(lot => {
+      const d = parserDateCalendrier(lot.dateLivraison);
+      if(!d) return;
+      ajouter(cleJour(d), {
+        reference: lot.referenceLot, nom: `${lot.nomProjet} — ${lot.quantite} appareil${lot.quantite > 1 ? 's' : ''}`,
+        statutCommande: lot.statut, dateLivraisonSouhaitee: '',
+      }, 'lot');
+    });
+  }
 
   rendreBandeauUrgentesCalendrier();
 
@@ -150,7 +167,7 @@ function construireCelluleCalendrier(jour, cle, evenements, estAujourdhui, detai
   const max = detaille ? 8 : 3;
   const puces = evenements.slice(0, max).map(e => `
     <div class="puce-evenement-calendrier puce-${e.type}" title="${echapper(e.commande.reference)} — ${echapper(e.commande.nom)}${e.commande.dateLivraisonSouhaitee === 'ASAP' ? ' — Urgent' : ''}">
-      ${e.type === 'cible' ? '🎯' : e.type === 'souhaitee' ? '📌' : '✅'}${e.commande.dateLivraisonSouhaitee === 'ASAP' ? '⚡' : ''} ${echapper(e.commande.nom)}
+      ${e.type === 'lot' ? '📦' : e.type === 'cible' ? '🎯' : e.type === 'souhaitee' ? '📌' : '✅'}${e.commande.dateLivraisonSouhaitee === 'ASAP' ? '⚡' : ''} ${echapper(e.commande.nom)}
     </div>`).join('');
   const reste = evenements.length > max ? `<div class="puce-plus-calendrier">+${evenements.length - max}</div>` : '';
   return `<div class="cellule-calendrier${estAujourdhui ? ' cellule-aujourdhui' : ''}" data-jour="${cle}">
@@ -183,7 +200,7 @@ function afficherDetailJourCalendrier(cle){
   $('modale-jour-calendrier-titre').textContent = `${jo}/${mo}/${an}`;
   $('modale-jour-calendrier-liste').innerHTML = evenements.map(e => `
     <div class="ligne-jour-calendrier">
-      <span class="puce-evenement-calendrier puce-${e.type}">${e.type === 'cible' ? '🎯 Date cible' : e.type === 'souhaitee' ? '📌 Souhaitée' : '✅ Livrée'}</span>
+      <span class="puce-evenement-calendrier puce-${e.type}">${e.type === 'lot' ? '📦 Lot' : e.type === 'cible' ? '🎯 Date cible' : e.type === 'souhaitee' ? '📌 Souhaitée' : '✅ Livrée'}</span>
       <span class="mono">${echapper(e.commande.reference)}</span>
       <span>${echapper(e.commande.nom)}${e.commande.dateLivraisonSouhaitee === 'ASAP' ? ' ⚡' : ''}</span>
       <span class="pastille-statut-mini">${echapper(e.commande.statutCommande)}</span>
@@ -198,6 +215,7 @@ document.querySelectorAll('#filtres-calendrier-vue button').forEach(b => b.class
 document.querySelector('[data-cal-dates="souhaitee"]')?.classList.toggle('actif', calendrierAfficherSouhaitee);
 document.querySelector('[data-cal-dates="cible"]')?.classList.toggle('actif', calendrierAfficherCible);
 document.querySelector('[data-cal-dates="reelle"]')?.classList.toggle('actif', calendrierAfficherReelle);
+document.querySelector('[data-cal-dates="lot"]')?.classList.toggle('actif', calendrierAfficherLots);
 
 $('btn-calendrier-precedent').addEventListener('click', () => {
   if(calendrierVueActuelle === 'semaine') calendrierDateRef.setDate(calendrierDateRef.getDate() - 7);
@@ -224,6 +242,7 @@ $('filtres-calendrier-dates').addEventListener('click', e => {
   const type = b.dataset.calDates;
   if(type === 'souhaitee'){ calendrierAfficherSouhaitee = b.classList.contains('actif'); localStorage.setItem('cvdl-calendrier-souhaitee', calendrierAfficherSouhaitee ? 'oui' : 'non'); }
   else if(type === 'cible'){ calendrierAfficherCible = b.classList.contains('actif'); localStorage.setItem('cvdl-calendrier-cible', calendrierAfficherCible ? 'oui' : 'non'); }
+  else if(type === 'lot'){ calendrierAfficherLots = b.classList.contains('actif'); localStorage.setItem('cvdl-calendrier-lots', calendrierAfficherLots ? 'oui' : 'non'); }
   else { calendrierAfficherReelle = b.classList.contains('actif'); localStorage.setItem('cvdl-calendrier-reelle', calendrierAfficherReelle ? 'oui' : 'non'); }
   rendreCalendrier();
 });

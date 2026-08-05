@@ -665,6 +665,7 @@ document.querySelector('.onglets').addEventListener('click', e => {
   $('vue-comptabilite').hidden = b.dataset.vue !== 'comptabilite';
   $('vue-bilan').hidden = b.dataset.vue !== 'bilan';
   $('vue-calendrier').hidden = b.dataset.vue !== 'calendrier';
+  $('vue-grande-distribution').hidden = b.dataset.vue !== 'grande-distribution';
   if(b.dataset.vue === 'bilan'){ chargerDonneesBilan().then(() => { rendreBilan(); rendreBilanSav(); }); }
   // Rechargé depuis l'API à chaque ouverture (pas de cache) : une erreur de stock ici a un
   // impact logistique direct, mieux vaut un aller-retour réseau de plus qu'un chiffre périmé.
@@ -673,6 +674,7 @@ document.querySelector('.onglets').addEventListener('click', e => {
   if(b.dataset.vue === 'factures' && !facturesChargeesUneFois) chargerFactures();
   if(b.dataset.vue === 'comptabilite' && !comptaChargeUneFois) chargerComptabilite();
   if(b.dataset.vue === 'calendrier' && !calendrierChargeUneFois){ calendrierChargeUneFois = true; chargerCalendrier(); }
+  if(b.dataset.vue === 'grande-distribution' && !grandeDistributionChargeeUneFois){ grandeDistributionChargeeUneFois = true; chargerGrandeDistribution(); }
   $('vue-reglages').hidden = b.dataset.vue !== 'reglages';
   if(b.dataset.vue === 'reglages'){
     chargerReglages();
@@ -694,5 +696,22 @@ document.querySelectorAll('.voile-modale').forEach(modale => {
       modale.style.zIndex = zIndexModalePremierPlan;
     }
   }).observe(modale, { attributes: true, attributeFilter: ['hidden'] });
+});
+
+/* Jetons {{...}} des Réglages : cliquer copie directement dans le presse-papiers, avec un
+   retour visuel bref plutôt qu'un message qui s'ajoute ailleurs sur la page. */
+document.addEventListener('click', async e => {
+  const jeton = e.target.closest('.jeton-copiable');
+  if(!jeton) return;
+  try{
+    await navigator.clipboard.writeText(jeton.dataset.jeton);
+    jeton.classList.add('copie');
+    const icone = jeton.querySelector('.icone-copier');
+    if(icone) icone.textContent = '✓';
+    setTimeout(() => {
+      jeton.classList.remove('copie');
+      if(icone) icone.textContent = '📋';
+    }, 1200);
+  }catch(err){ /* presse-papiers indisponible (contexte non sécurisé, permission...) — pas bloquant */ }
 });
 

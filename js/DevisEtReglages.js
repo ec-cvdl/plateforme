@@ -106,6 +106,7 @@ async function chargerReglages(){
       $('modele-bon-livraison-input').value = r.modeleBonLivraison || '';
       $('modele-bon-orientation-input').value = r.modeleBonOrientation || '';
       $('modele-attestation-input').value = r.modeleAttestationPaiement || '';
+      $('modele-association-distribution-input').value = r.modeleAssociationDistribution || '';
       $('api-key-affichee').value = r.apiKeyLecture || '';
       $('btn-api-key-supprimer').hidden = !r.apiKeyLecture;
       $('commandes-par-page-input').value = String(r.commandesParPage || 20);
@@ -431,6 +432,7 @@ function creerHandlerReglageSimple(idBouton, idChamp, idRetour, cle){
 }
 creerHandlerReglageSimple('btn-modele-bon-orientation-enregistrer', 'modele-bon-orientation-input', 'retour-modele-bon-orientation', 'modeleBonOrientation');
 creerHandlerReglageSimple('btn-modele-attestation-enregistrer', 'modele-attestation-input', 'retour-modele-attestation', 'modeleAttestationPaiement');
+creerHandlerReglageSimple('btn-modele-association-distribution-enregistrer', 'modele-association-distribution-input', 'retour-modele-association-distribution', 'modeleAssociationDistribution');
 
 $('btn-api-key-generer').addEventListener('click', async () => {
   if($('api-key-affichee').value && !confirm('Regénérer la clé invalide immédiatement l\'ancienne — l\'outil externe devra être mis à jour. Continuer ?')) return;
@@ -846,6 +848,21 @@ $('btn-basculer-maintenant').addEventListener('click', async () => {
     $('retour-basculer').innerHTML = '<div class="msg msg-erreur">Bascule impossible — réessaie.</div>';
   }
   $('btn-basculer-maintenant').disabled = false;
+});
+
+$('btn-reparer-onglets').addEventListener('click', async () => {
+  if(!confirm("Créer les onglets manquants (Commandes, LignesCommande, SAV, HistoriqueSAV, Devis, Factures) dans le classeur ACTUELLEMENT actif, avec leurs en-têtes ? Rien n'est touché si un onglet existe déjà.")) return;
+  $('btn-reparer-onglets').disabled = true;
+  $('retour-reparer-onglets').innerHTML = '<div class="msg msg-info">Réparation en cours…</div>';
+  try{
+    const r = await poster({action:'reparer-onglets-classeur-actif', password:motDePasse});
+    $('retour-reparer-onglets').innerHTML = r.ok
+      ? '<div class="msg msg-succes">Onglets créés/vérifiés. Recharge la page pour repartir sur des bases saines.</div>'
+      : `<div class="msg msg-erreur">${echapper(r.erreur)}</div>`;
+  }catch(e){
+    $('retour-reparer-onglets').innerHTML = '<div class="msg msg-erreur">Réparation impossible — réessaie.</div>';
+  }
+  $('btn-reparer-onglets').disabled = false;
 });
 
 $('btn-rappel-bascule-plus-tard').addEventListener('click', () => $('modale-rappel-bascule').hidden = true);
