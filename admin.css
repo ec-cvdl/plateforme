@@ -377,7 +377,13 @@ body.carte-style-couleur .ccm-pastille{background:rgba(255,255,255,.22)}
 }
 .ccm-alerte-fermer:hover{opacity:1;background:rgba(0,0,0,.08)}
 .ccm-statut-label{display:flex;align-items:center;gap:8px}
-.ccm-badge-urgent{font-size:14px;line-height:1;filter:drop-shadow(0 0 1px rgba(0,0,0,.15));position:relative;top:2px;margin-left:1px}
+.ccm-badge-urgent{
+  display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:800;
+  letter-spacing:.03em;line-height:1;background:#fff;color:var(--t-rouge-t, #c0364a);
+  border:1.5px solid var(--t-rouge-t, #c0364a);border-radius:999px;padding:4px 8px 4px 9px;
+  margin-left:6px;cursor:pointer;vertical-align:middle;
+}
+.ccm-badge-urgent:hover{background:var(--t-rouge-f)}
 .ccm-badge-urgent-retirer{
   background:none;border:none;padding:0;margin-left:2px;font-size:11px;font-weight:700;
   color:var(--steel);cursor:pointer;vertical-align:middle;line-height:1;
@@ -834,7 +840,7 @@ select.statut option{background:#fff;color:var(--ink);font-weight:500}
 .structure{
   background:var(--card);border:1px solid var(--line);border-radius:var(--r);
   padding:13px 16px;margin-bottom:7px;
-  display:grid;grid-template-columns:1.1fr 1fr 1.1fr 1.1fr .8fr 1.3fr .5fr .5fr .5fr .5fr auto;gap:10px;align-items:center;
+  display:grid;grid-template-columns:150px 130px 150px 150px 105px 175px 64px 64px 64px 64px auto;gap:10px;align-items:center;
 }
 .structure input[type=checkbox]{width:17px;height:17px;display:block;margin:0 auto}
 .structure input{
@@ -913,7 +919,7 @@ select.statut option{background:#fff;color:var(--ink);font-weight:500}
   display:grid;grid-template-columns:1fr 1fr 160px auto;gap:10px;align-items:center;
 }
 .tarif .montant{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:14px}
-.entete-structure{grid-template-columns:1.1fr 1fr 1.1fr 1.1fr .8fr 1.3fr .5fr .5fr .5fr .5fr auto}
+.entete-structure{grid-template-columns:150px 130px 150px 150px 105px 175px 64px 64px 64px 64px auto}
 .entete-produit{grid-template-columns:1.4fr 1fr 1fr .8fr .7fr auto}
 
 .grille-produits-admin{display:grid;grid-template-columns:repeat(auto-fill, minmax(300px, 1fr));gap:14px}

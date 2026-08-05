@@ -447,7 +447,8 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
         </div>
         <div class="filtres" id="filtres-calendrier-dates">
           <button data-cal-dates="souhaitee" class="actif">📌 Souhaitées</button>
-          <button data-cal-dates="reelle" class="actif">✅ Réelles</button>
+          <button data-cal-dates="cible" class="actif">🎯 Dates cibles</button>
+          <button data-cal-dates="reelle" class="actif">✅ Livrées</button>
         </div>
       </div>
       <div id="calendrier-bandeau-urgentes" hidden style="margin-top:16px"></div>
@@ -764,6 +765,14 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
           <button type="button" class="action claire" id="btn-delai-livraison-enregistrer">Enregistrer</button>
         </div>
         <div id="retour-delai-livraison"></div>
+        <label class="case-rn" style="margin-top:10px">
+          <input type="checkbox" id="delai-livraison-actif-input">
+          <span>Activé <em>(décochez pour ne plus faire apparaître de date cible dans le calendrier)</em></span>
+        </label>
+        <div class="ligne-reglage" style="margin-top:8px">
+          <button type="button" class="action claire" id="btn-delai-livraison-actif-enregistrer">Enregistrer</button>
+        </div>
+        <div id="retour-delai-livraison-actif"></div>
       </div>
 
       <div class="carte-reglage">
@@ -1379,7 +1388,7 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
     <input type="text" id="p-sku-tectech" placeholder="SKU / référence Tech.tec (facultatif)" style="width:100%;margin-bottom:11px">
     <label class="case-rn">
       <input type="checkbox" id="p-visible" checked>
-      <span>Visible dans le formulaire public</span>
+      <span>Visible dans le formulaire de commandes structures</span>
     </label>
     <div id="retour-produit"></div>
     <div class="pied-modale">
