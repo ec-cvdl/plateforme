@@ -479,11 +479,15 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
     <!-- Vue Attestations -->
     <section id="vue-attestations" hidden>
       <div id="attestations-etape-liste">
-        <div class="outils">
+        <div class="filtres" id="filtres-source-attestations">
+          <button data-source-attestations="commande" class="actif">Depuis une commande</button>
+          <button data-source-attestations="lot">Depuis Grande distribution</button>
+        </div>
+        <div class="outils" style="margin-top:12px">
           <input type="text" id="recherche-attestations" placeholder="Rechercher une commande (référence, structure)…">
           <button class="action claire" id="btn-recharger-attestations">Actualiser</button>
         </div>
-        <p class="sous-question" style="margin-top:10px">Seules les commandes avec des personnes renseignées apparaissent ici.</p>
+        <p class="sous-question" style="margin-top:10px" id="attestations-liste-aide">Seules les commandes avec des personnes renseignées apparaissent ici.</p>
         <div id="liste-commandes-attestations" style="margin-top:16px"></div>
       </div>
 
