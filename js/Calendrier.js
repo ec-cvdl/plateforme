@@ -123,8 +123,8 @@ function rendreCalendrierSemaine(parJour){
 function construireCelluleCalendrier(jour, cle, evenements, estAujourdhui, detaille){
   const max = detaille ? 8 : 3;
   const puces = evenements.slice(0, max).map(e => `
-    <div class="puce-evenement-calendrier puce-${e.type}" title="${echapper(e.commande.reference)} — ${echapper(e.commande.nom)}">
-      ${e.type === 'souhaitee' ? '📌' : '✅'} ${echapper(e.commande.nom)}
+    <div class="puce-evenement-calendrier puce-${e.type}" title="${echapper(e.commande.reference)} — ${echapper(e.commande.nom)}${e.commande.dateLivraisonSouhaitee === 'ASAP' ? ' — Urgent' : ''}">
+      ${e.type === 'souhaitee' ? '📌' : '✅'}${e.commande.dateLivraisonSouhaitee === 'ASAP' ? '⚡' : ''} ${echapper(e.commande.nom)}
     </div>`).join('');
   const reste = evenements.length > max ? `<div class="puce-plus-calendrier">+${evenements.length - max}</div>` : '';
   return `<div class="cellule-calendrier${estAujourdhui ? ' cellule-aujourdhui' : ''}" data-jour="${cle}">
@@ -159,7 +159,7 @@ function afficherDetailJourCalendrier(cle){
     <div class="ligne-jour-calendrier">
       <span class="puce-evenement-calendrier puce-${e.type}">${e.type === 'souhaitee' ? '📌 Souhaitée' : '✅ Réelle'}</span>
       <span class="mono">${echapper(e.commande.reference)}</span>
-      <span>${echapper(e.commande.nom)}</span>
+      <span>${echapper(e.commande.nom)}${e.commande.dateLivraisonSouhaitee === 'ASAP' ? ' ⚡' : ''}</span>
       <span class="pastille-statut-mini">${echapper(e.commande.statutCommande)}</span>
       <span class="materiel-jour-calendrier">${(e.commande.lignes || []).map(l => `${echapper(l.quantite)}× ${echapper(l.produit)}`).join(', ')}</span>
     </div>`).join('');

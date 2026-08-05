@@ -229,7 +229,7 @@ function rendre(){
     if(aAfficher.length){
       zonePrioritaires.hidden = false;
       zonePrioritaires.innerHTML = `
-        <div class="entete-zone-prioritaires">🕐 En attente ou urgentes — pas perdues dans l'historique (${aAfficher.length})</div>
+        <div class="entete-zone-prioritaires">⚡ À traiter le plus rapidement possible — pas perdues dans l'historique (${aAfficher.length})</div>
         <div class="grille-prioritaires">${aAfficher.map(carteCommandeHtml).join('')}</div>`;
     }else{
       zonePrioritaires.hidden = true;
