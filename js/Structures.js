@@ -35,8 +35,8 @@ function rendreStructures(){
       <textarea rows="2" data-ligne="${s.ligne}" data-champ="adresse" placeholder="Retour à la ligne possible (Entrée)">${echapper(s.adresse)}</textarea>
       <input type="checkbox" data-ligne="${s.ligne}" data-champ="rn" ${s.rn ? 'checked' : ''}>
       <input type="checkbox" data-ligne="${s.ligne}" data-champ="esn" ${s.esn ? 'checked' : ''} title="ESN : aucun prix affiché, aucune facturation générée pour cette structure">
-      <input type="checkbox" data-ligne="${s.ligne}" data-champ="interne" ${s.interne ? 'checked' : ''} title="Interne : mêmes effets que ESN (aucun prix, aucune facturation), pour les commandes passées en interne">
-      <input type="checkbox" data-ligne="${s.ligne}" data-champ="autres" ${s.autres ? 'checked' : ''} title="Autres : pas de demande de devis ni d'attestations à la commande, comme Interne">
+      <input type="checkbox" data-ligne="${s.ligne}" data-champ="interne" ${s.interne ? 'checked' : ''} title="Interne : mêmes principes que ESN, destinés à des commandes pour les territoires (ex : le Loiret commande 10 PC pour une vente itinérante à venir)">
+      <input type="checkbox" data-ligne="${s.ligne}" data-champ="autres" ${s.autres ? 'checked' : ''} title="BO : pas de demande de devis ni d'attestations à la commande, comme Interne. Dédiée aux structures qui doivent remplir un bon d'orientation uniquement">
       <div class="ligne-actions-icones">
         <button type="button" class="btn-icone-fiche" data-structure-modifier="${s.ligne}" title="Modifier (les champs sont éditables directement)" aria-label="Modifier">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l11-11-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>
@@ -57,6 +57,16 @@ $('btn-nouvelle-structure').addEventListener('click', () => {
   $('retour-ajout').innerHTML = '';
   $('modale-nouvelle-structure').hidden = false;
   setTimeout(() => $('s-nom').focus(), 50);
+});
+
+// RN/ESN/Interne/BO sont mutuellement exclusifs — une structure ne peut être que d'un seul
+// type à la fois, cocher l'un décoche automatiquement les autres.
+['s-rn','s-esn','s-interne','s-autres'].forEach(id => {
+  $(id).addEventListener('change', () => {
+    if($(id).checked){
+      ['s-rn','s-esn','s-interne','s-autres'].filter(autre => autre !== id).forEach(autre => { $(autre).checked = false; });
+    }
+  });
 });
 $('s-annuler').addEventListener('click', () => $('modale-nouvelle-structure').hidden = true);
 
@@ -112,6 +122,21 @@ $('btn-ajouter').addEventListener('click', async () => {
 $('liste-structures').addEventListener('change', async e => {
   const el = e.target;
   if(!el.matches('input[data-ligne], textarea[data-ligne]')) return;
+
+  const champsExclusifs = ['rn','esn','interne','autres'];
+  // RN/ESN/Interne/BO sont mutuellement exclusifs — cocher l'un décoche (et sauvegarde) les
+  // autres pour cette même structure, pour ne jamais se retrouver avec deux statuts à la fois.
+  if(el.type === 'checkbox' && el.checked && champsExclusifs.includes(el.dataset.champ)){
+    const ligne = el.dataset.ligne;
+    const autresChamps = champsExclusifs.filter(c => c !== el.dataset.champ);
+    for(const champ of autresChamps){
+      const autreInput = document.querySelector(`#liste-structures input[data-ligne="${ligne}"][data-champ="${champ}"]`);
+      if(autreInput && autreInput.checked){
+        autreInput.checked = false;
+        try{ await poster({ action:'structure-update', ligne: parseInt(ligne, 10), champ, valeur: false }); }catch(err){ /* pas bloquant */ }
+      }
+    }
+  }
 
   const valeur = el.type === 'checkbox' ? el.checked : el.value;
   el.disabled = true;
