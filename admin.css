@@ -378,6 +378,11 @@ body.carte-style-couleur .ccm-pastille{background:rgba(255,255,255,.22)}
 .ccm-alerte-fermer:hover{opacity:1;background:rgba(0,0,0,.08)}
 .ccm-statut-label{display:flex;align-items:center;gap:8px}
 .ccm-badge-urgent{font-size:14px;line-height:1;filter:drop-shadow(0 0 1px rgba(0,0,0,.15));position:relative;top:2px;margin-left:1px}
+.ccm-badge-urgent-retirer{
+  background:none;border:none;padding:0;margin-left:2px;font-size:11px;font-weight:700;
+  color:var(--steel);cursor:pointer;vertical-align:middle;line-height:1;
+}
+.ccm-badge-urgent-retirer:hover{color:var(--t-rouge-t)}
 .ccm-statut{font-size:11.5px;font-weight:700}
 .ccm-pilules-bas{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;margin-top:auto;padding-top:14px}
 .ccm-pilule-mini{
@@ -1220,7 +1225,14 @@ select.statut option{background:#fff;color:var(--ink);font-weight:500}
 .puce-evenement-calendrier.puce-souhaitee{background:var(--t-ambre-f);color:var(--t-ambre-t)}
 .puce-evenement-calendrier.puce-reelle{background:var(--t-vert-f);color:var(--t-vert-t)}
 .puce-evenement-calendrier.puce-urgent{background:var(--t-rouge-f);color:var(--t-rouge-t)}
+.puce-evenement-calendrier.puce-cible{background:var(--t-bleu-f);color:var(--t-bleu-t)}
 .liste-urgentes-calendrier{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.grille-pilules-urgentes{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.pilule-urgente-calendrier{
+  display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;
+  background:var(--t-rouge-f);color:var(--t-rouge-t);font-size:11.5px;font-weight:600;
+}
+.pilule-urgente-calendrier .mono{font-family:'IBM Plex Mono',monospace;font-weight:700}
 .puce-plus-calendrier{font-size:10px;font-weight:700;color:var(--steel);padding-left:4px}
 .ligne-jour-calendrier{
   display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--paper);border-radius:8px;font-size:13px;flex-wrap:wrap;

@@ -98,7 +98,7 @@ try{
         <div class="choix-grille" id="grille-produits"></div>
         <a class="lien-aide" href="#" target="_blank" rel="noopener" id="lien-aide-choix">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9.2"/><path d="M9.3 9.3a2.7 2.7 0 1 1 3.7 2.5c-.9.4-1.4 1-1.4 2v.4"/><circle cx="12" cy="17" r=".3" fill="currentColor" stroke="none"/></svg>
-          Besoin d'aide pour choisir ?
+          Besoin d'aide pour choisir un ordinateur ?
         </a>
         <div id="retour-produit" aria-live="polite"></div>
 
@@ -203,17 +203,9 @@ try{
       <textarea class="champ-long" id="commentaire" maxlength="1000"></textarea>
       <div class="rappel-prix" id="rappel-prix"></div>
 
-      <label class="case-attestation" id="case-bilan-social" style="margin-top:22px">
-        <input type="checkbox" id="attestation-bilan-social">
-        <span>J'atteste avoir réalisé un bilan social et reconnais que la ou les personnes orientées sont bien en situation de précarité sociale et/ou financière.</span>
-      </label>
-      <label class="case-attestation" id="case-non-acquisition">
-        <input type="checkbox" id="attestation-non-acquisition">
-        <span>J'atteste avoir vérifié que le ou les personne(s) orientée(s) n'ont pas fait l'acquisition d'un matériel reconditionné auprès d'Emmaüs Connect ces 2 dernières années.</span>
-      </label>
       <label class="case-attestation" style="margin-top:22px">
         <input type="checkbox" id="attestation-finale">
-        <span>Je certifie que les informations transmises dans ce formulaire sont exactes.</span>
+        <span>Je souhaite valider définitivement cette commande.</span>
       </label>
 
       <div id="retour-envoi" aria-live="assertive"></div>
@@ -531,14 +523,6 @@ async function verifierCode(){
       $('demande-devis').closest('.case-attestation').hidden = estSansDevisNiAttestations;
       if(estSansDevisNiAttestations) $('demande-devis').checked = false;
 
-      const sansStatutParticulier = !moyenImpose && !estSansDevisNiAttestations;
-      $('case-bilan-social').hidden = !sansStatutParticulier;
-      $('case-non-acquisition').hidden = !sansStatutParticulier;
-      if(!sansStatutParticulier){
-        $('attestation-bilan-social').checked = false;
-        $('attestation-non-acquisition').checked = false;
-      }
-
       $('retour-code').innerHTML =
         '<div class="plaque"><span class="puce">OK</span>' +
         '<div class="contenu"><b>' + echapper(verif.nom) + '</b><span>Code reconnu</span></div></div>';
@@ -793,13 +777,9 @@ $('btn-date-livraison-suivant').addEventListener('click', function(){
 
 /* La case de certification finale (juste avant l'envoi) gate le bouton d'envoi, façon signature */
 function majBoutonEnvoyer(){
-  const sansStatutParticulier = !moyenImpose && !estEsn;
-  const casesObligatoiresOk = !sansStatutParticulier || ($('attestation-bilan-social').checked && $('attestation-non-acquisition').checked);
-  $('btn-envoyer').disabled = !$('attestation-finale').checked || !casesObligatoiresOk;
+  $('btn-envoyer').disabled = !$('attestation-finale').checked;
 }
 $('attestation-finale').addEventListener('change', majBoutonEnvoyer);
-$('attestation-bilan-social').addEventListener('change', majBoutonEnvoyer);
-$('attestation-non-acquisition').addEventListener('change', majBoutonEnvoyer);
 
 /* Étape 4 : commentaire + envoi */
 function majRappelPrix(){

@@ -55,6 +55,7 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
     font-size:13px;font-weight:700;color:#fff;background:var(--primaire);text-decoration:none;
     padding:8px 16px;border-radius:8px;
   }
+  .rangee-boutons-paiement-cs{flex-basis:100%;display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
   .numeros-serie-cs{display:flex;align-items:center;flex-wrap:wrap;gap:7px;margin-top:12px}
   .libelle-numeros-serie-cs{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--gris);margin-right:2px}
   .pilule-numero-serie-cs{
@@ -231,12 +232,14 @@ function rendreCommandesSuivi(commandes){
       <div class="pied-cs">
         <div class="montant-cs">${formaterMontant(c.montantFacture != null ? c.montantFacture : c.montantEstime)}</div>
         ${c.statutPaiement ? `<div class="statut-paiement-cs ${c.statutPaiement === 'Payé' ? 'paye' : 'non-paye'}">${echapper(c.statutPaiement)}</div>` : ''}
-        ${c.lienPaiement && c.statutPaiement !== 'Payé' ? (
-          c.paiementSepare && c.personnes
-            ? c.personnes.split('\n').map(p => p.trim()).filter(Boolean).map((p, i) =>
-                `<a class="lien-paiement-cs" href="${echapper(API + '?action=clic-lien-paiement&ref=' + encodeURIComponent(c.reference) + '&index=' + i)}" target="_blank" rel="noopener">Régler pour ${echapper(p)}</a>`).join('')
+        ${c.lienPaiement && c.statutPaiement !== 'Payé' ? `
+        <div class="rangee-boutons-paiement-cs">
+          ${c.paiementSepare && c.personnesDetail && c.personnesDetail.length
+            ? c.personnesDetail.map((p, i) =>
+                `<a class="lien-paiement-cs" href="${echapper(API + '?action=clic-lien-paiement&ref=' + encodeURIComponent(c.reference) + '&index=' + i)}" target="_blank" rel="noopener">${p.prix != null ? echapper(formaterMontant(p.prix)) + ' — ' : ''}${echapper(p.nomComplet)}</a>`).join('')
             : `<a class="lien-paiement-cs" href="${echapper(API + '?action=clic-lien-paiement&ref=' + encodeURIComponent(c.reference))}" target="_blank" rel="noopener">Régler cette commande</a>`
-        ) : ''}
+          }
+        </div>` : ''}
       </div>` : ''}
     </div>`;
   }).join('');

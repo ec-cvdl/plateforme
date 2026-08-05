@@ -204,6 +204,7 @@ async function afficherPasseport(numeroSerie){
         ${r.caracteristiques ? `<div class="ligne-passeport"><span class="cle">Configuration</span><span class="valeur">${echapper(r.caracteristiques)}</span></div>` : ''}
         ${r.structure ? `<div class="ligne-passeport"><span class="cle">Remis par</span><span class="valeur">${echapper(r.structure)}</span></div>` : ''}
         ${r.dateLivraison ? `<div class="ligne-passeport"><span class="cle">Livré le</span><span class="valeur">${echapper(r.dateLivraison)}</span></div>` : ''}
+        ${r.nomPersonne ? `<div class="ligne-passeport"><span class="cle">Utilisé par</span><span class="valeur">${echapper(r.nomPersonne)}</span></div>` : ''}
         ${badgeGarantie ? `<div class="ligne-passeport"><span class="cle">Garantie</span><span class="valeur">${badgeGarantie}</span></div>` : ''}
         ${infosCompletes ? `<div class="ligne-passeport"><span class="cle">Reconditionneur</span><span class="valeur">${r.reconditionneurOriginal ? echapper(r.reconditionneurOriginal) : '—'}</span></div>` : ''}
         ${infosCompletes ? `<div class="ligne-passeport"><span class="cle">Donateur</span><span class="valeur">${r.donateur ? echapper(r.donateur) : '—'}</span></div>` : ''}

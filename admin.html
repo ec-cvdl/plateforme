@@ -753,6 +753,20 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
       </div>
 
       <div class="carte-reglage">
+        <h3>Délai de livraison visé</h3>
+        <p class="reglage-texte">
+          Nombre de jours visé entre la réception d'une commande (statut "Reçue") et sa livraison —
+          affiché dans le calendrier comme une date cible, pour repérer les commandes qui prennent du retard.
+        </p>
+        <div class="ligne-reglage">
+          <input type="number" id="delai-livraison-input" min="1" style="width:90px">
+          <span style="font-size:13px;color:var(--steel)">jours</span>
+          <button type="button" class="action claire" id="btn-delai-livraison-enregistrer">Enregistrer</button>
+        </div>
+        <div id="retour-delai-livraison"></div>
+      </div>
+
+      <div class="carte-reglage">
         <h3>Modèle flotte matériel (structures)</h3>
         <p class="reglage-texte">
           Modèle Google Sheets que chaque structure copie dans son propre Drive pour tenir l'inventaire
@@ -1089,6 +1103,9 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
     <label for="modale-paiement-lien" id="modale-paiement-lien-label">Lien de paiement</label>
     <p class="sous-titre" id="modale-paiement-lien-aide" style="margin:-8px 0 8px"></p>
     <textarea id="modale-paiement-lien" rows="2" placeholder="Sans objet" style="width:100%;box-sizing:border-box;font-family:inherit;resize:vertical"></textarea>
+    <button type="button" class="action claire" id="btn-associer-paiement" style="margin-top:8px" hidden>👥 Associer un lien par personne</button>
+    <button type="button" class="action claire" id="btn-envoyer-lien-paiement" style="margin-top:8px">✉️ Envoyer les liens de paiement par mail</button>
+    <div id="retour-envoyer-lien-paiement"></div>
     <div id="modale-paiement-devis-zone"></div>
     <div id="modale-paiement-facture-zone"></div>
     <div class="pied-modale">
@@ -1229,6 +1246,20 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
     <div class="pied-modale">
       <button class="action claire" id="colissimo-sav-annuler">Annuler</button>
       <button class="action" id="colissimo-sav-confirmer">Confirmer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modale : associer un lien de paiement par personne (paiement séparé) -->
+<div class="voile-modale" id="modale-associer-paiement" hidden>
+  <div class="modale">
+    <h2>Associer un lien par personne</h2>
+    <p class="sous-titre">Un champ par personne saisie dans le formulaire — plus fiable que de coller tous les liens dans l'ordre.</p>
+    <div id="associer-paiement-lignes"></div>
+    <div id="retour-associer-paiement"></div>
+    <div class="pied-modale">
+      <button class="action claire" id="associer-paiement-annuler">Annuler</button>
+      <button class="action" id="associer-paiement-confirmer">Enregistrer</button>
     </div>
   </div>
 </div>
