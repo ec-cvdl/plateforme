@@ -12,6 +12,7 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css?v=20260802-2">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
   .passeport{max-width:480px;margin:0 auto}
   .passeport h1{margin-top:0;font-size:21px}
@@ -99,8 +100,8 @@ function poster(data){
   return fetch(API, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(data) }).then(r => r.json());
 }
 
-/* ─── Identification : code structure (persisté, comme les autres pages) ou mot de passe
-   admin (en mémoire le temps de l'onglet seulement — jamais stocké). ─── */
+/* ─── Identification : code structure ou mot de passe admin, tous deux persistés en
+   sessionStorage — le temps de l'onglet, effacés par le bouton Déconnexion. ─── */
 let codeIdentifie = '';
 let motDePasseAdminIdentifie = '';
 
@@ -132,14 +133,16 @@ $('btn-identifier-admin').addEventListener('click', () => {
   const mdp = $('champ-mot-de-passe-admin').value;
   if(!mdp) return;
   motDePasseAdminIdentifie = mdp;
+  try{ sessionStorage.setItem('cvdl-passeport-admin', mdp); }catch(e){}
   passerAEtapeRecherche();
 });
 $('champ-mot-de-passe-admin').addEventListener('keydown', e => { if(e.key === 'Enter') $('btn-identifier-admin').click(); });
 
-// Déjà identifiée sur cet appareil (venant d'une autre page du portail structure) : on saute
-// directement l'étape d'identification. Priorité au code passé dans l'URL (lien "confort"
-// ouvert depuis une page déjà authentifiée) sur celui mémorisé en sessionStorage, au cas où
-// une autre structure vient de se connecter sur ce même onglet entre-temps.
+// Déjà identifiée sur cet appareil (venant d'une autre page du portail structure, ou d'un
+// précédent passage ici) : on saute directement l'étape d'identification. Priorité au code
+// passé dans l'URL (lien "confort" ouvert depuis une page déjà authentifiée) sur celui
+// mémorisé en sessionStorage, au cas où une autre structure vient de se connecter sur ce même
+// onglet entre-temps.
 const codeDepuisUrl = new URLSearchParams(location.search).get('code');
 if(codeDepuisUrl){
   codeIdentifie = codeDepuisUrl;
@@ -152,12 +155,14 @@ if(codeDepuisUrl){
 }else{
   try{
     const codeMemorise = sessionStorage.getItem('cvdl-code-structure');
+    const motDePasseMemorise = sessionStorage.getItem('cvdl-passeport-admin');
     if(codeMemorise){ codeIdentifie = codeMemorise; passerAEtapeRecherche(); }
+    else if(motDePasseMemorise){ motDePasseAdminIdentifie = motDePasseMemorise; passerAEtapeRecherche(); }
   }catch(e){}
 }
 
 $('btn-deconnexion-passeport').addEventListener('click', () => {
-  try{ sessionStorage.removeItem('cvdl-code-structure'); }catch(e){}
+  try{ sessionStorage.removeItem('cvdl-code-structure'); sessionStorage.removeItem('cvdl-passeport-admin'); }catch(e){}
   codeIdentifie = ''; motDePasseAdminIdentifie = '';
   $('champ-code-structure').value = ''; $('champ-mot-de-passe-admin').value = '';
   $('zone-passeport').innerHTML = ''; $('champ-numero-serie').value = '';
@@ -171,8 +176,9 @@ async function afficherPasseport(numeroSerie){
     const r = await poster({ action:'passeport-materiel', numeroSerie, code: codeIdentifie, password: motDePasseAdminIdentifie });
     if(!r.ok){
       if(r.identificationRequise){
-        // Le code s'est avéré invalide (ou a été révoqué depuis) : on revient à l'identification.
-        try{ sessionStorage.removeItem('cvdl-code-structure'); }catch(e){}
+        // Le code ou le mot de passe s'est avéré invalide (ou a été révoqué depuis) : on
+        // revient à l'identification.
+        try{ sessionStorage.removeItem('cvdl-code-structure'); sessionStorage.removeItem('cvdl-passeport-admin'); }catch(e){}
         codeIdentifie = ''; motDePasseAdminIdentifie = '';
         $('etape-recherche').hidden = true;
         $('etape-identification').hidden = false;
@@ -211,7 +217,29 @@ async function afficherPasseport(numeroSerie){
             <span style="color:var(--gris)">${echapper(h.date)}</span>
           </div>`).join('')}
       </div>` : ''}
+      ${infosCompletes ? `
+      <div class="carte-passeport" style="text-align:center">
+        <div id="qr-code-passeport-admin" style="display:flex;justify-content:center;margin-bottom:12px"></div>
+        <button type="button" class="bouton-principal" id="btn-imprimer-etiquette-admin" style="width:auto;padding:0 18px">🖨️ Imprimer l'étiquette</button>
+      </div>` : ''}
     `;
+
+    if(infosCompletes){
+      $('qr-code-passeport-admin').innerHTML = '';
+      try{ new QRCode($('qr-code-passeport-admin'), { text: location.href.split('?')[0] + '?sn=' + encodeURIComponent(r.numeroSerie), width: 180, height: 180, colorDark: '#161B22', colorLight: '#ffffff' }); }catch(e){}
+      $('btn-imprimer-etiquette-admin').addEventListener('click', () => {
+        const fenetre = window.open('', '_blank', 'width=400,height=500');
+        fenetre.document.write(`<!DOCTYPE html><html><head><title>Étiquette ${r.numeroSerie}</title><style>
+          body{font-family:sans-serif;text-align:center;padding:20px}
+          .num{font-family:monospace;font-size:13px;word-break:break-all}
+        </style></head><body>
+          <div>${$('qr-code-passeport-admin').innerHTML}</div>
+          <div class="num">${r.numeroSerie}</div>
+          <script>window.onload = () => { window.print(); }<\/script>
+        </body></html>`);
+        fenetre.document.close();
+      });
+    }
   }catch(e){
     $('zone-passeport').innerHTML = '<p class="etat-passeport">Impossible de récupérer les informations — réessayez.</p>';
   }

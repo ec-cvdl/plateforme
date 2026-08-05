@@ -355,6 +355,7 @@ body.carte-style-couleur .ccm-pastille{background:rgba(255,255,255,.22)}
 .ccm-date{font-size:11px;opacity:.75;flex-shrink:0}
 .ccm-nom{font-weight:700;font-size:15px;margin-top:10px;line-height:1.3}
 .ccm-materiel{font-size:12.5px;margin-top:4px;opacity:.85;line-height:1.4;display:flex;flex-wrap:wrap;align-items:center}
+.ccm-tarif{font-size:12.5px;font-weight:700;margin-top:4px;font-family:'IBM Plex Mono',monospace}
 .ccm-materiel-item{display:inline-flex;align-items:center;gap:5px}
 .ccm-materiel-item .icone-puce{width:14px;height:14px;flex-shrink:0;opacity:.75}
 .ccm-materiel-sep{margin:0 8px;opacity:.35}
@@ -392,8 +393,8 @@ body.carte-style-couleur .ccm-pastille{background:rgba(255,255,255,.22)}
 .ccm-pilule-mini.ccm-pilule-serie.pilule-remplie svg{color:var(--t-vert-t)}
 .ccm-pilule-commentaire{position:relative}
 .ccm-pilule-commentaire .point-notif-mini{
-  position:absolute;top:-5px;right:-5px;width:16px;height:16px;border-radius:50%;
-  background:var(--alert, #E62460);border:2.5px solid var(--card, #fff);box-sizing:border-box;
+  position:absolute;top:-2px;right:-2px;width:7px;height:7px;border-radius:50%;
+  background:var(--alert, #E62460);border:1.5px solid var(--card, #fff);box-sizing:border-box;
 }
 .ccm-pilule-badge{
   min-width:16px;height:16px;padding:0 4px;border-radius:999px;
@@ -421,6 +422,7 @@ body.carte-style-couleur .carte-cmd-mini.t-vert{background:var(--t-vert-t)}
 body.carte-style-couleur .carte-cmd-mini.t-gris{background:var(--steel)}
 body.carte-style-couleur .ccm-date{color:#fff}
 body.carte-style-couleur .ccm-materiel{color:#fff}
+body.carte-style-couleur .ccm-tarif{color:#fff}
 body.carte-style-couleur .ccm-statut{text-transform:uppercase;letter-spacing:.04em}
 body.carte-style-couleur .ccm-devis{color:#fff}
 body.carte-style-couleur .ccm-alerte{background:rgba(0,0,0,.22);color:#fff}
@@ -1217,6 +1219,8 @@ select.statut option{background:#fff;color:var(--ink);font-weight:500}
 }
 .puce-evenement-calendrier.puce-souhaitee{background:var(--t-ambre-f);color:var(--t-ambre-t)}
 .puce-evenement-calendrier.puce-reelle{background:var(--t-vert-f);color:var(--t-vert-t)}
+.puce-evenement-calendrier.puce-urgent{background:var(--t-rouge-f);color:var(--t-rouge-t)}
+.liste-urgentes-calendrier{display:flex;flex-direction:column;gap:8px;margin-top:10px}
 .puce-plus-calendrier{font-size:10px;font-weight:700;color:var(--steel);padding-left:4px}
 .ligne-jour-calendrier{
   display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--paper);border-radius:8px;font-size:13px;flex-wrap:wrap;

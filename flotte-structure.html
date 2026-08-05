@@ -139,6 +139,17 @@ try{
     <button type="button" class="lien-changer-code" id="qr-fermer" style="margin-top:12px">Fermer</button>
   </div>
 </div>
+<div class="voile-modale-qr" id="modale-attestation-flotte">
+  <div class="modale-qr">
+    <h3>Attestation de paiement</h3>
+    <p>La date de naissance n'est pas enregistrée dans la flotte — à indiquer à chaque génération.</p>
+    <input type="text" id="attestation-nom-input" class="champ-texte" style="margin-bottom:10px" placeholder="Nom complet">
+    <input type="date" id="attestation-naissance-input" class="champ-texte" style="margin-bottom:10px">
+    <div id="retour-attestation-flotte" style="margin-bottom:10px"></div>
+    <button type="button" class="bouton-principal" id="btn-generer-attestation-flotte">Générer l'attestation</button>
+    <button type="button" class="lien-changer-code" id="attestation-fermer" style="margin-top:12px">Annuler</button>
+  </div>
+</div>
 
 <div id="voile-verification-precoce"><div class="spinner-precoce"></div></div>
 <a href="#contenu-principal" class="lien-evitement">Aller au contenu</a>
@@ -309,6 +320,7 @@ function construireCartesAppareils(appareils){
       <div class="pied-appareil">
         <span>Livré le ${a.dateLivraison ? echapper(a.dateLivraison) : '—'}</span>
         <button type="button" class="lien-qr-passeport" data-qr-serie="${echapper(a.numeroSerie)}">🛂 Passeport</button>
+        ${a.personne ? `<button type="button" class="lien-qr-passeport" data-attestation-serie="${echapper(a.numeroSerie)}" data-attestation-personne="${echapper(a.personne)}">🧾 Attestation</button>` : ''}
         ${a.lienPaiement ? `<a href="${echapper(a.lienPaiement)}" target="_blank" rel="noopener">Lien de paiement ↗</a>` : ''}
       </div>
     </div>`).join('');
@@ -471,10 +483,46 @@ document.addEventListener('click', e => {
   }
   $('qr-url-affichee').textContent = urlQr;
   $('qr-ouvrir-passeport').href = urlOuvrir;
+  $('modale-qr-passeport').dataset.numeroSerie = numeroSerie;
   $('modale-qr-passeport').classList.add('visible');
 });
 $('qr-fermer').addEventListener('click', () => $('modale-qr-passeport').classList.remove('visible'));
 $('modale-qr-passeport').addEventListener('click', e => { if(e.target.id === 'modale-qr-passeport') $('modale-qr-passeport').classList.remove('visible'); });
+
+/* Attestation de paiement, appareil par appareil */
+let attestationSerieCourante = '';
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-attestation-serie]');
+  if(!b) return;
+  attestationSerieCourante = b.dataset.attestationSerie;
+  $('attestation-nom-input').value = b.dataset.attestationPersonne || '';
+  $('attestation-naissance-input').value = '';
+  $('retour-attestation-flotte').innerHTML = '';
+  $('modale-attestation-flotte').classList.add('visible');
+});
+$('attestation-fermer').addEventListener('click', () => $('modale-attestation-flotte').classList.remove('visible'));
+$('modale-attestation-flotte').addEventListener('click', e => { if(e.target.id === 'modale-attestation-flotte') $('modale-attestation-flotte').classList.remove('visible'); });
+
+$('btn-generer-attestation-flotte').addEventListener('click', async () => {
+  const nomComplet = $('attestation-nom-input').value.trim();
+  const dateNaissanceISO = $('attestation-naissance-input').value;
+  if(!nomComplet){ $('retour-attestation-flotte').innerHTML = '<div class="msg msg-erreur">Le nom est obligatoire.</div>'; return; }
+  const dateNaissance = dateNaissanceISO ? dateNaissanceISO.split('-').reverse().join('/') : '';
+
+  $('btn-generer-attestation-flotte').disabled = true;
+  $('retour-attestation-flotte').innerHTML = '<div class="msg msg-info">Génération en cours…</div>';
+  try{
+    const r = await poster({ action:'flotte-generer-attestation', code: codeValide, numeroSerie: attestationSerieCourante, nomComplet, dateNaissance });
+    if(r.ok){
+      $('retour-attestation-flotte').innerHTML = `<div class="msg msg-succes">Prête — <a href="${echapper(r.url)}" target="_blank" rel="noopener">l'ouvrir ↗</a></div>`;
+    }else{
+      $('retour-attestation-flotte').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur || 'Génération impossible.')}</div>`;
+    }
+  }catch(e){
+    $('retour-attestation-flotte').innerHTML = '<div class="msg msg-erreur">Génération impossible — réessaie.</div>';
+  }
+  $('btn-generer-attestation-flotte').disabled = false;
+});
 
 async function chargerFlotte(){
   try{
