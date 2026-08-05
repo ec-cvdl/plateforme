@@ -561,6 +561,13 @@ function ouvrirDetailSav(ligne){
   $('detail-sav-souscription').textContent = `${t.reference} — ${t.date}${t.email ? ' — ' + t.email : ''}`;
   $('detail-sav-nom').value = t.nom || '';
   $('detail-sav-numero-serie').value = t.numeroSerie || '';
+  const lienPasseport = $('detail-sav-lien-passeport');
+  if(t.numeroSerie){
+    lienPasseport.href = 'passeport.html?sn=' + encodeURIComponent(t.numeroSerie);
+    lienPasseport.style.display = '';
+  }else{
+    lienPasseport.style.display = 'none';
+  }
   $('detail-sav-structure-origine').value = t.structureOrigine || '';
   $('detail-sav-reference-facture').value = t.referenceFacture || '';
   $('detail-sav-marque').value = t.marque || '';

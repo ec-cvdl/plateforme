@@ -139,7 +139,7 @@ function rendreProduits(){
 }
 
 $('btn-nouveau-produit').addEventListener('click', () => {
-  ['p-nom','p-prix-standard','p-prix-rn','p-stock','p-message','p-disque','p-ram','p-systeme'].forEach(i => $(i).value = '');
+  ['p-nom','p-prix-standard','p-prix-rn','p-stock','p-message','p-disque','p-ram','p-systeme','p-sku-tectech'].forEach(i => $(i).value = '');
   $('p-icone').value = '';
   $('p-visible').checked = true;
   $('retour-produit').innerHTML = '';
@@ -160,7 +160,8 @@ $('btn-produit-ajouter').addEventListener('click', async () => {
     disque:         $('p-disque').value.trim(),
     ram:            $('p-ram').value.trim(),
     systeme:        $('p-systeme').value.trim(),
-    icone:          $('p-icone').value
+    icone:          $('p-icone').value,
+    skuTectech:     $('p-sku-tectech').value.trim()
   };
 
   if(!donnees.nom || donnees.prixStandard === '' || donnees.prixRN === '' || donnees.stock === ''){

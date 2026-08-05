@@ -234,6 +234,7 @@ function rendre(){
 function carteCommandeHtml(c){
     const structureCommande = structures.find(s => s.code === c.code);
     const estEsnCommande = !!(structureCommande && (structureCommande.esn || structureCommande.interne));
+    const estAutresCommande = !!(structureCommande && structureCommande.autres);
     const estAnnulee = c.statutCommande === 'Annulée';
     const teinte = estAnnulee ? 't-gris' : (TEINTES[c.statutCommande] || 't-gris');
     const materielResume = (c.lignes || []).map(l => {
@@ -242,7 +243,15 @@ function carteCommandeHtml(c){
       return `<span class="ccm-materiel-item">${icone}${echapper(l.quantite)}× ${echapper(l.produit)}</span>`;
     }).join('<span class="ccm-materiel-sep">│</span>');
 
-    const joursImpaye = (!estEsnCommande && c.statutCommande === 'Livrée' && c.statutPaiement !== 'Payé' && c.statutPaiement !== 'Remboursé')
+    // Structures "Autres" : pas de devis ni de facturation formelle sur ces commandes (comme
+    // Interne), donc pas de suivi comptable classique — une relance dédiée à 2 semaines plutôt
+    // que d'attendre le seuil général (pensé pour les RN, réglable, souvent bien plus long).
+    const joursDepuisLivraisonAutres = (estAutresCommande && c.statutCommande === 'Livrée' && c.statutPaiement !== 'Payé' && c.statutPaiement !== 'Remboursé')
+      ? joursDepuis(c.dateLivraison) : null;
+    const alerteRelancePaiementAutres = (joursDepuisLivraisonAutres !== null && joursDepuisLivraisonAutres >= 14)
+      ? `<div class="ccm-alerte">Relance paiement — livrée depuis ${joursDepuisLivraisonAutres} jour${joursDepuisLivraisonAutres > 1 ? 's' : ''} (structure Autres)</div>` : '';
+
+    const joursImpaye = (!estEsnCommande && !estAutresCommande && c.statutCommande === 'Livrée' && c.statutPaiement !== 'Payé' && c.statutPaiement !== 'Remboursé')
       ? joursDepuis(c.dateLivraison) : null;
     const alerteImpayee = (joursImpaye !== null && joursImpaye >= seuilAlerteImpayee)
       ? `<div class="ccm-alerte">Impayée depuis ${joursImpaye} jour${joursImpaye > 1 ? 's' : ''}</div>` : '';
@@ -303,7 +312,7 @@ function carteCommandeHtml(c){
           ${zoneEtapeSuivante}
         </div>
         ${estAnnulee ? '<div class="ruban-annule">Commande annulée</div>' : ''}
-        ${alerteImpayee}${alerteFactureManquante}${alerteDoublon}${alerteLienPaiementClique}
+        ${alerteImpayee}${alerteRelancePaiementAutres}${alerteFactureManquante}${alerteDoublon}${alerteLienPaiementClique}
         <div class="ccm-meteo">${iconeMeteo}</div>
         <div class="ccm-haut">
           <span class="ccm-ref">${echapper(c.reference)}</span>

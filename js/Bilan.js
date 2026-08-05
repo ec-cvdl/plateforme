@@ -131,9 +131,18 @@ function appliquerAffichageBilan(){
   $('bilan-contenu').hidden = (filtreBilanAffichage !== 'materiel' && filtreBilanAffichage !== 'tout');
   $('bilan-sav-contenu').hidden = (filtreBilanAffichage !== 'sav' && filtreBilanAffichage !== 'tout');
   $('bilan-analytique-contenu').hidden = (filtreBilanAffichage !== 'analytique');
+  $('bilan-carte-contenu').hidden = (filtreBilanAffichage !== 'carte');
+  // La plage de dates n'a pas de sens pour la carte (répartition géographique, pas temporelle).
+  document.querySelectorAll('#vue-bilan .outils > label, #vue-bilan .outils > #btn-bilan-annee-courante, #vue-bilan .outils > #btn-recharger-bilan').forEach(el => {
+    el.style.display = filtreBilanAffichage === 'carte' ? 'none' : '';
+  });
   if(filtreBilanAffichage === 'analytique' && !analytiqueChargeeUneFois){
     analytiqueChargeeUneFois = true;
     chargerAnalytique();
+  }
+  if(filtreBilanAffichage === 'carte' && !carteChargeeUneFois){
+    carteChargeeUneFois = true;
+    chargerCarteStructures();
   }
 }
 $('filtres-bilan-type').addEventListener('click', e => {

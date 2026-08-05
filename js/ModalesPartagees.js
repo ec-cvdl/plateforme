@@ -324,8 +324,12 @@ function listeSerieNettoyee(){
   return $('serie-texte').value.split('\n').map(s => s.trim()).filter(Boolean);
 }
 function majCompteurSerie(){
-  const n = listeSerieNettoyee().length;
+  const liste = listeSerieNettoyee();
+  const n = liste.length;
   $('serie-compte').textContent = n + (n > 1 ? ' numéros' : ' numéro');
+  $('serie-liste-passeports').innerHTML = liste.map(s =>
+    `<a href="passeport.html?sn=${encodeURIComponent(s)}" target="_blank" rel="noopener">🛂 ${echapper(s)}</a>`
+  ).join('');
 }
 $('serie-texte').addEventListener('input', majCompteurSerie);
 $('serie-annuler').addEventListener('click', () => $('modale-serie').hidden = true);

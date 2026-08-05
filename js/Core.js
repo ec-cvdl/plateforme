@@ -648,7 +648,6 @@ document.querySelector('.onglets').addEventListener('click', e => {
   $('vue-sav').hidden = b.dataset.vue !== 'sav';
   $('vue-comptabilite').hidden = b.dataset.vue !== 'comptabilite';
   $('vue-bilan').hidden = b.dataset.vue !== 'bilan';
-  $('vue-carte').hidden = b.dataset.vue !== 'carte';
   $('vue-calendrier').hidden = b.dataset.vue !== 'calendrier';
   if(b.dataset.vue === 'bilan'){ chargerDonneesBilan().then(() => { rendreBilan(); rendreBilanSav(); }); }
   // Rechargé depuis l'API à chaque ouverture (pas de cache) : une erreur de stock ici a un
@@ -657,7 +656,6 @@ document.querySelector('.onglets').addEventListener('click', e => {
   if(b.dataset.vue === 'devis' && !devisChargeUneFois) chargerDevis();
   if(b.dataset.vue === 'factures' && !facturesChargeesUneFois) chargerFactures();
   if(b.dataset.vue === 'comptabilite' && !comptaChargeUneFois) chargerComptabilite();
-  if(b.dataset.vue === 'carte' && !carteChargeeUneFois){ carteChargeeUneFois = true; chargerCarteStructures(); }
   if(b.dataset.vue === 'calendrier' && !calendrierChargeUneFois){ calendrierChargeUneFois = true; chargerCalendrier(); }
   $('vue-reglages').hidden = b.dataset.vue !== 'reglages';
   if(b.dataset.vue === 'reglages'){

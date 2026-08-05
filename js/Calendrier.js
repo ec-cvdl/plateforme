@@ -161,6 +161,7 @@ function afficherDetailJourCalendrier(cle){
       <span class="mono">${echapper(e.commande.reference)}</span>
       <span>${echapper(e.commande.nom)}</span>
       <span class="pastille-statut-mini">${echapper(e.commande.statutCommande)}</span>
+      <span class="materiel-jour-calendrier">${(e.commande.lignes || []).map(l => `${echapper(l.quantite)}× ${echapper(l.produit)}`).join(', ')}</span>
     </div>`).join('');
   $('modale-jour-calendrier').hidden = false;
 }

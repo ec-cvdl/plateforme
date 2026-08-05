@@ -106,6 +106,8 @@ async function chargerReglages(){
       $('modele-bon-livraison-input').value = r.modeleBonLivraison || '';
       $('modele-bon-orientation-input').value = r.modeleBonOrientation || '';
       $('modele-attestation-input').value = r.modeleAttestationPaiement || '';
+      $('api-key-affichee').value = r.apiKeyLecture || '';
+      $('btn-api-key-supprimer').hidden = !r.apiKeyLecture;
       $('modele-flotte-input').value = r.modeleFlotteMateriel || '';
       const typesDateSouhaitee = (r.structuresDateSouhaitee || '').split(',').map(s => s.trim()).filter(Boolean);
       ['rn', 'esn', 'interne', 'autres'].forEach(t => { $('date-souhaitee-' + t).checked = typesDateSouhaitee.includes(t); });
@@ -425,6 +427,43 @@ function creerHandlerReglageSimple(idBouton, idChamp, idRetour, cle){
 }
 creerHandlerReglageSimple('btn-modele-bon-orientation-enregistrer', 'modele-bon-orientation-input', 'retour-modele-bon-orientation', 'modeleBonOrientation');
 creerHandlerReglageSimple('btn-modele-attestation-enregistrer', 'modele-attestation-input', 'retour-modele-attestation', 'modeleAttestationPaiement');
+
+$('btn-api-key-generer').addEventListener('click', async () => {
+  if($('api-key-affichee').value && !confirm('Regénérer la clé invalide immédiatement l\'ancienne — l\'outil externe devra être mis à jour. Continuer ?')) return;
+  $('btn-api-key-generer').disabled = true;
+  $('retour-api-key').innerHTML = '';
+  try{
+    const r = await poster({ action:'api-key-generer', password:motDePasse });
+    if(r.ok){
+      $('api-key-affichee').value = r.apiKeyLecture;
+      $('btn-api-key-supprimer').hidden = false;
+      $('retour-api-key').innerHTML = '<div class="msg msg-succes">Nouvelle clé générée — copie-la maintenant, elle ne sera plus réaffichée en clair ailleurs que dans les Réglages.</div>';
+    }else{
+      $('retour-api-key').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur)}</div>`;
+    }
+  }catch(e){
+    $('retour-api-key').innerHTML = '<div class="msg msg-erreur">Génération impossible.</div>';
+  }
+  $('btn-api-key-generer').disabled = false;
+});
+
+$('btn-api-key-supprimer').addEventListener('click', async () => {
+  if(!confirm('Retirer la clé rend l\'API publique à nouveau accessible sans authentification. Continuer ?')) return;
+  $('btn-api-key-supprimer').disabled = true;
+  try{
+    const r = await poster({ action:'api-key-supprimer', password:motDePasse });
+    if(r.ok){
+      $('api-key-affichee').value = '';
+      $('btn-api-key-supprimer').hidden = true;
+      $('retour-api-key').innerHTML = '<div class="msg msg-succes">Clé retirée — l\'API est de nouveau ouverte.</div>';
+    }else{
+      $('retour-api-key').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur)}</div>`;
+    }
+  }catch(e){
+    $('retour-api-key').innerHTML = '<div class="msg msg-erreur">Suppression impossible.</div>';
+  }
+  $('btn-api-key-supprimer').disabled = false;
+});
 creerHandlerReglageSimple('btn-modele-flotte-enregistrer', 'modele-flotte-input', 'retour-modele-flotte', 'modeleFlotteMateriel');
 
 $('btn-date-souhaitee-enregistrer').addEventListener('click', async () => {
