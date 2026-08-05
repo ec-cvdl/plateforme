@@ -124,23 +124,26 @@ $('bilan-date-debut').addEventListener('change', () => { rendreBilan(); rendreBi
 $('bilan-date-fin').addEventListener('change', () => { rendreBilan(); rendreBilanSav(); });
 initialiserFiltreBilan();
 
-let filtreBilanAffichage = 'materiel';
+let filtresBilanActifs = new Set(['materiel']);
 let analytiqueChargeeUneFois = false;
 function appliquerAffichageBilan(){
-  $('bilan-bandeau').hidden = (filtreBilanAffichage !== 'materiel' && filtreBilanAffichage !== 'tout');
-  $('bilan-contenu').hidden = (filtreBilanAffichage !== 'materiel' && filtreBilanAffichage !== 'tout');
-  $('bilan-sav-contenu').hidden = (filtreBilanAffichage !== 'sav' && filtreBilanAffichage !== 'tout');
-  $('bilan-analytique-contenu').hidden = (filtreBilanAffichage !== 'analytique');
-  $('bilan-carte-contenu').hidden = (filtreBilanAffichage !== 'carte');
-  // La plage de dates n'a pas de sens pour la carte (répartition géographique, pas temporelle).
+  $('bilan-bandeau').hidden = !filtresBilanActifs.has('materiel');
+  $('bilan-contenu').hidden = !filtresBilanActifs.has('materiel');
+  $('bilan-sav-contenu').hidden = !filtresBilanActifs.has('sav');
+  $('bilan-analytique-contenu').hidden = !filtresBilanActifs.has('analytique');
+  $('bilan-carte-contenu').hidden = !filtresBilanActifs.has('carte');
+  // La plage de dates n'a pas de sens pour la carte (répartition géographique, pas temporelle)
+  // — masquée seulement si Carte est le SEUL filtre actif, pour ne pas gêner une combinaison
+  // Carte + Matériel par exemple.
+  const uniquementCarte = filtresBilanActifs.size === 1 && filtresBilanActifs.has('carte');
   document.querySelectorAll('#vue-bilan .outils > label, #vue-bilan .outils > #btn-bilan-annee-courante, #vue-bilan .outils > #btn-recharger-bilan').forEach(el => {
-    el.style.display = filtreBilanAffichage === 'carte' ? 'none' : '';
+    el.style.display = uniquementCarte ? 'none' : '';
   });
-  if(filtreBilanAffichage === 'analytique' && !analytiqueChargeeUneFois){
+  if(filtresBilanActifs.has('analytique') && !analytiqueChargeeUneFois){
     analytiqueChargeeUneFois = true;
     chargerAnalytique();
   }
-  if(filtreBilanAffichage === 'carte' && !carteChargeeUneFois){
+  if(filtresBilanActifs.has('carte') && !carteChargeeUneFois){
     carteChargeeUneFois = true;
     chargerCarteStructures();
   }
@@ -148,8 +151,13 @@ function appliquerAffichageBilan(){
 $('filtres-bilan-type').addEventListener('click', e => {
   const b = e.target.closest('button');
   if(!b) return;
-  document.querySelectorAll('#filtres-bilan-type button').forEach(x => x.classList.toggle('actif', x === b));
-  filtreBilanAffichage = b.dataset.bt;
+  if(filtresBilanActifs.has(b.dataset.bt)){
+    if(filtresBilanActifs.size === 1) return; // toujours au moins un filtre actif
+    filtresBilanActifs.delete(b.dataset.bt);
+  }else{
+    filtresBilanActifs.add(b.dataset.bt);
+  }
+  b.classList.toggle('actif', filtresBilanActifs.has(b.dataset.bt));
   appliquerAffichageBilan();
 });
 

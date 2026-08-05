@@ -530,6 +530,7 @@ async function connecter(){
               fichierNumerotationConfigure = !!rg.fichierNumerotation;
               dossierPrincipalConfigure = !!rg.dossierPrincipal;
               memePersonneLogistiqueDistribution = !!rg.memePersonneLogistiqueDistribution;
+              limiteCommandesActuelle = rg.commandesParPage || LIMITE_COMMANDES_DEFAUT;
               badgeNouvelleJours = rg.badgeNouvelleJours || 1.5;
               badgeNouvelleSavJours = rg.badgeNouvelleSavJours || 1.5;
               heureFinVendredi = rg.heureFinVendredi != null ? rg.heureFinVendredi : 17;

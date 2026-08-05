@@ -108,6 +108,8 @@ async function chargerReglages(){
       $('modele-attestation-input').value = r.modeleAttestationPaiement || '';
       $('api-key-affichee').value = r.apiKeyLecture || '';
       $('btn-api-key-supprimer').hidden = !r.apiKeyLecture;
+      $('commandes-par-page-input').value = String(r.commandesParPage || 20);
+      $('prioriser-urgentes-input').checked = !!r.prioriserCommandesUrgentes;
       $('modele-flotte-input').value = r.modeleFlotteMateriel || '';
       const typesDateSouhaitee = (r.structuresDateSouhaitee || '').split(',').map(s => s.trim()).filter(Boolean);
       ['rn', 'esn', 'interne', 'autres'].forEach(t => { $('date-souhaitee-' + t).checked = typesDateSouhaitee.includes(t); });
@@ -463,6 +465,43 @@ $('btn-api-key-supprimer').addEventListener('click', async () => {
     $('retour-api-key').innerHTML = '<div class="msg msg-erreur">Suppression impossible.</div>';
   }
   $('btn-api-key-supprimer').disabled = false;
+});
+
+$('btn-commandes-par-page-enregistrer').addEventListener('click', async () => {
+  const valeur = parseInt($('commandes-par-page-input').value, 10);
+  $('btn-commandes-par-page-enregistrer').disabled = true;
+  $('retour-commandes-par-page').innerHTML = '';
+  try{
+    const r = await poster({ action:'reglages-set', password:motDePasse, commandesParPage: valeur });
+    if(r.ok){
+      limiteCommandesActuelle = valeur;
+      $('retour-commandes-par-page').innerHTML = '<div class="msg msg-succes">Enregistré — s\'appliquera au prochain chargement de la liste.</div>';
+      etat('Réglages enregistrés', 'succes');
+    }else{
+      $('retour-commandes-par-page').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur)}</div>`;
+    }
+  }catch(e){
+    $('retour-commandes-par-page').innerHTML = '<div class="msg msg-erreur">Enregistrement impossible.</div>';
+  }
+  $('btn-commandes-par-page-enregistrer').disabled = false;
+});
+
+$('btn-prioriser-urgentes-enregistrer').addEventListener('click', async () => {
+  const valeur = $('prioriser-urgentes-input').checked;
+  $('btn-prioriser-urgentes-enregistrer').disabled = true;
+  $('retour-prioriser-urgentes').innerHTML = '';
+  try{
+    const r = await poster({ action:'reglages-set', password:motDePasse, prioriserCommandesUrgentes: valeur });
+    if(r.ok){
+      $('retour-prioriser-urgentes').innerHTML = '<div class="msg msg-succes">Enregistré.</div>';
+      etat('Réglages enregistrés', 'succes');
+    }else{
+      $('retour-prioriser-urgentes').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur)}</div>`;
+    }
+  }catch(e){
+    $('retour-prioriser-urgentes').innerHTML = '<div class="msg msg-erreur">Enregistrement impossible.</div>';
+  }
+  $('btn-prioriser-urgentes-enregistrer').disabled = false;
 });
 creerHandlerReglageSimple('btn-modele-flotte-enregistrer', 'modele-flotte-input', 'retour-modele-flotte', 'modeleFlotteMateriel');
 

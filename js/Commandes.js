@@ -40,7 +40,7 @@ try{
 async function recharger(){
   etat('Actualisation…', 'neutre');
   try{
-    const r = await jsonp({action:'list', password:motDePasse, limite:limiteCommandesActuelle, decalage:decalageCommandesActuel});
+    const r = await jsonp({action:'list', password:motDePasse, limite:limiteCommandesActuelle, decalage:decalageCommandesActuel, filtre});
     if(r.ok){ commandes = r.commandes; totalCommandes = r.total; appliquerAgregatsCommandes(r); rendre(); etat('À jour', 'succes'); }
   }catch(e){ etat('Actualisation impossible', 'erreur'); }
 }
@@ -49,7 +49,7 @@ $('btn-recharger').addEventListener('click', recharger);
 async function changerPageCommandes(nouveauDecalage){
   etat('Chargement…', 'chargement');
   try{
-    const r = await jsonp({action:'list', password:motDePasse, limite:limiteCommandesActuelle, decalage:nouveauDecalage});
+    const r = await jsonp({action:'list', password:motDePasse, limite:limiteCommandesActuelle, decalage:nouveauDecalage, filtre});
     if(r.ok){
       commandes = r.commandes; totalCommandes = r.total; decalageCommandesActuel = nouveauDecalage; appliquerAgregatsCommandes(r);
       rendre(); etat('À jour', 'succes');
@@ -62,13 +62,19 @@ $('btn-page-precedente').addEventListener('click', () => {
 $('btn-page-suivante').addEventListener('click', () => {
   changerPageCommandes(decalageCommandesActuel + limiteCommandesActuelle);
 });
+$('selecteur-limite-commandes').addEventListener('change', () => {
+  limiteCommandesActuelle = parseInt($('selecteur-limite-commandes').value, 10) || 20;
+  changerPageCommandes(0);
+});
 
 $('filtres').addEventListener('click', e => {
   const b = e.target.closest('button');
   if(!b) return;
   filtre = b.dataset.f;
   document.querySelectorAll('#filtres button').forEach(x => x.classList.toggle('actif', x === b));
-  rendre();
+  rechercheCommandesActive = false;
+  $('recherche').value = '';
+  changerPageCommandes(0);
 });
 let rechercheCommandesActive = false;
 let rechercheDansArchives = false;
@@ -85,7 +91,7 @@ $('recherche').addEventListener('input', () => {
     }
     etat('Recherche…', 'chargement');
     try{
-      const r = await jsonp({action:'list', password:motDePasse, recherche:terme});
+      const r = await jsonp({action:'list', password:motDePasse, recherche:terme, filtre});
       if(r.ok){
         commandes = r.commandes; totalCommandes = r.total; rechercheCommandesActive = true; appliquerAgregatsCommandes(r);
         rechercheDansArchives = !!r.archivesConsultees;
@@ -150,6 +156,7 @@ function rendre(){
     const pageActuelle = Math.floor(decalageCommandesActuel / limiteCommandesActuelle) + 1;
     const nbPages = Math.ceil(totalCommandes / limiteCommandesActuelle);
     $('texte-pagination').textContent = `Page ${pageActuelle} sur ${nbPages} (${totalCommandes} commandes au total)`;
+    $('selecteur-limite-commandes').value = String(limiteCommandesActuelle);
     $('btn-page-precedente').disabled = decalageCommandesActuel === 0;
     $('btn-page-suivante').disabled = decalageCommandesActuel + limiteCommandesActuelle >= totalCommandes;
     banniereHistorique.hidden = false;
