@@ -17,6 +17,7 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
 <link rel="stylesheet" href="admin.css?v=20260804-3">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -209,6 +210,7 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
       <nav class="onglets">
         <button data-vue="commandes" class="actif">Commandes</button>
         <button data-vue="calendrier">Calendrier</button>
+        <button data-vue="grande-distribution">Grande distribution</button>
         <button data-vue="produits">Stock</button>
         <button data-vue="structures">Structures</button>
         <span class="separateur-onglets"></span>
@@ -449,10 +451,24 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
           <button data-cal-dates="souhaitee" class="actif">📌 Souhaitées</button>
           <button data-cal-dates="cible" class="actif">🎯 Dates cibles</button>
           <button data-cal-dates="reelle" class="actif">✅ Livrées</button>
+          <button data-cal-dates="lot" class="actif">📦 Grande distribution</button>
         </div>
       </div>
       <div id="calendrier-bandeau-urgentes" hidden style="margin-top:16px"></div>
       <div id="calendrier-grille" style="margin-top:16px"></div>
+    </section>
+
+    <!-- Vue Grande distribution -->
+    <section id="vue-grande-distribution" hidden>
+      <div class="outils" style="justify-content:flex-end">
+        <button class="action claire" id="btn-recharger-grande-distribution">Actualiser</button>
+        <button class="action" id="btn-nouveau-projet-distribution">+ Nouveau projet</button>
+      </div>
+      <p class="sous-question" style="margin-top:10px">
+        Prévisionnel de grosses opérations (dons en nombre, appels d'offres...) — ne touche jamais le stock des Produits.
+        Chaque projet se livre en un ou plusieurs lots datés, visibles dans le Calendrier.
+      </p>
+      <div id="liste-grande-distribution" style="margin-top:16px"></div>
     </section>
 
     <!-- Vue réglages -->
@@ -661,7 +677,7 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
         <h3>Modèle de facturation (PDF)</h3>
         <p class="reglage-texte">
           Le Google Sheets utilisé comme modèle pour générer les factures PDF depuis l'onglet Factures.
-          Doit contenir des jetons du type <code>{{STRUCTURE}}</code>, <code>{{NUMERO_FACTURE}}</code>, etc.
+          Doit contenir des jetons du type <code class="jeton-copiable" data-jeton="{{STRUCTURE}}" title="Cliquer pour copier">{{STRUCTURE}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{NUMERO_FACTURE}}" title="Cliquer pour copier">{{NUMERO_FACTURE}} <span class="icone-copier">📋</span></code>, etc.
         </p>
         <div class="ligne-reglage">
           <input type="text" id="modele-facturation-input" placeholder="URL ou ID du Sheets modèle">
@@ -674,8 +690,8 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
         <h3>Modèle de bon de livraison (PDF)</h3>
         <p class="reglage-texte">
           Le Google Sheets utilisé comme modèle pour générer un bon de livraison depuis une commande.
-          Jetons disponibles : <code>{{STRUCTURE}}</code>, <code>{{ADRESSE}}</code>, <code>{{REFERENCE_COMMANDE}}</code>,
-          <code>{{NUMEROS_SERIE}}</code>, <code>{{PRODUIT_1}}</code>, <code>{{QUANTITE_1}}</code>, etc.
+          Jetons disponibles : <code class="jeton-copiable" data-jeton="{{STRUCTURE}}" title="Cliquer pour copier">{{STRUCTURE}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{ADRESSE}}" title="Cliquer pour copier">{{ADRESSE}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{REFERENCE_COMMANDE}}" title="Cliquer pour copier">{{REFERENCE_COMMANDE}} <span class="icone-copier">📋</span></code>,
+          <code class="jeton-copiable" data-jeton="{{NUMEROS_SERIE}}" title="Cliquer pour copier">{{NUMEROS_SERIE}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{PRODUIT_1}}" title="Cliquer pour copier">{{PRODUIT_1}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{QUANTITE_1}}" title="Cliquer pour copier">{{QUANTITE_1}} <span class="icone-copier">📋</span></code>, etc.
         </p>
         <div class="ligne-reglage">
           <input type="text" id="modele-bon-livraison-input" placeholder="URL ou ID du Sheets modèle">
@@ -689,8 +705,8 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
         <p class="reglage-texte">
           Depuis que les personnes ne joignent plus leur propre document mais saisissent juste leur
           nom à la commande, ce modèle sert à générer le bon d'orientation officiel à leur place.
-          Jetons disponibles : <code>{{STRUCTURE}}</code>, <code>{{REFERENCE_COMMANDE}}</code>,
-          <code>{{PERSONNES}}</code>, <code>{{NOMBRE_PERSONNES}}</code>, <code>{{PRODUIT_1}}</code>, etc.
+          Jetons disponibles : <code class="jeton-copiable" data-jeton="{{STRUCTURE}}" title="Cliquer pour copier">{{STRUCTURE}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{REFERENCE_COMMANDE}}" title="Cliquer pour copier">{{REFERENCE_COMMANDE}} <span class="icone-copier">📋</span></code>,
+          <code class="jeton-copiable" data-jeton="{{PERSONNES}}" title="Cliquer pour copier">{{PERSONNES}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{NOMBRE_PERSONNES}}" title="Cliquer pour copier">{{NOMBRE_PERSONNES}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{PRODUIT_1}}" title="Cliquer pour copier">{{PRODUIT_1}} <span class="icone-copier">📋</span></code>, etc.
         </p>
         <div class="ligne-reglage">
           <input type="text" id="modele-bon-orientation-input" placeholder="URL ou ID du Sheets modèle">
@@ -703,15 +719,29 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
         <h3>Modèle d'attestation de paiement (PDF)</h3>
         <p class="reglage-texte">
           Une attestation est générée par personne, avec le prix réel du produit qui lui est associé
-          (saisi à la commande). Jetons disponibles : <code>{{NOM_COMPLET}}</code>, <code>{{DATE_NAISSANCE}}</code>,
-          <code>{{STRUCTURE}}</code>, <code>{{PRIX}}</code>, <code>{{PRODUIT}}</code>, <code>{{MARQUE_MODELE}}</code>,
-          <code>{{DATE_VENTE}}</code>, <code>{{NUMERO_SERIE}}</code>.
+          (saisi à la commande). Jetons disponibles : <code class="jeton-copiable" data-jeton="{{NOM_COMPLET}}" title="Cliquer pour copier">{{NOM_COMPLET}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{DATE_NAISSANCE}}" title="Cliquer pour copier">{{DATE_NAISSANCE}} <span class="icone-copier">📋</span></code>,
+          <code class="jeton-copiable" data-jeton="{{STRUCTURE}}" title="Cliquer pour copier">{{STRUCTURE}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{PRIX}}" title="Cliquer pour copier">{{PRIX}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{PRODUIT}}" title="Cliquer pour copier">{{PRODUIT}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{MARQUE_MODELE}}" title="Cliquer pour copier">{{MARQUE_MODELE}} <span class="icone-copier">📋</span></code>,
+          <code class="jeton-copiable" data-jeton="{{DATE_VENTE}}" title="Cliquer pour copier">{{DATE_VENTE}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{NUMERO_SERIE}}" title="Cliquer pour copier">{{NUMERO_SERIE}} <span class="icone-copier">📋</span></code>.
         </p>
         <div class="ligne-reglage">
           <input type="text" id="modele-attestation-input" placeholder="URL ou ID du Sheets modèle">
           <button type="button" class="action claire" id="btn-modele-attestation-enregistrer">Enregistrer</button>
         </div>
         <div id="retour-modele-attestation"></div>
+      </div>
+
+      <div class="carte-reglage">
+        <h3>Modèle d'association Grande distribution</h3>
+        <p class="reglage-texte">
+          Fichier Excel (ou Google Sheets) à utiliser comme base pour le résultat téléchargé après une association
+          aléatoire — en-tête et mise en forme de la ligne 1 conservés, les données (Nom / Numéro de série)
+          viennent remplir à partir de la ligne 2. Laisser vide pour garder l'export simple par défaut.
+        </p>
+        <div class="ligne-reglage">
+          <input type="text" id="modele-association-distribution-input" placeholder="URL ou ID du fichier modèle">
+          <button type="button" class="action claire" id="btn-modele-association-distribution-enregistrer">Enregistrer</button>
+        </div>
+        <div id="retour-modele-association-distribution"></div>
       </div>
 
       <div class="carte-reglage">
@@ -882,6 +912,8 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
             <button type="button" class="action" id="btn-basculer-maintenant">Basculer maintenant</button>
           </div>
           <div id="retour-basculer"></div>
+          <button type="button" class="action claire" id="btn-reparer-onglets" style="margin-top:10px" title="Crée les onglets manquants (Commandes, SAV...) dans le classeur actif ACTUEL, sans rien basculer — utile si un classeur vierge a été activé sans être initialisé">🔧 Réparer les onglets du classeur actif</button>
+          <div id="retour-reparer-onglets"></div>
         </div>
 
         <div id="liste-archives" style="margin-top:14px"></div>
@@ -967,7 +999,7 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
         <h3>Modèle d'email — suivi Colissimo SAV</h3>
         <p class="reglage-texte">
           Utilisé quand tu envoies le suivi Colissimo par email depuis un ticket SAV. Jetons disponibles :
-          <code>{{NOM}}</code>, <code>{{REFERENCE}}</code>, <code>{{COLISSIMO}}</code>, <code>{{ORGANISATION}}</code>.
+          <code class="jeton-copiable" data-jeton="{{NOM}}" title="Cliquer pour copier">{{NOM}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{REFERENCE}}" title="Cliquer pour copier">{{REFERENCE}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{COLISSIMO}}" title="Cliquer pour copier">{{COLISSIMO}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{ORGANISATION}}" title="Cliquer pour copier">{{ORGANISATION}} <span class="icone-copier">📋</span></code>.
         </p>
         <textarea id="email-modele-sav-input" style="min-height:140px;font-family:inherit;width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px"></textarea>
         <div class="ligne-reglage" style="margin-top:8px">
@@ -1269,6 +1301,78 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
     <div class="pied-modale">
       <button class="action claire" id="associer-paiement-annuler">Annuler</button>
       <button class="action" id="associer-paiement-confirmer">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modale : nouveau projet de grande distribution -->
+<div class="voile-modale" id="modale-nouveau-projet-distribution" hidden>
+  <div class="modale">
+    <h2>Nouveau projet de grande distribution</h2>
+    <label for="gd-nom">Nom du projet</label>
+    <input type="text" id="gd-nom" placeholder="Ex : Programme Région Île-de-France 2026">
+    <label for="gd-produit">Produit concerné (informatif — aucun impact sur le stock)</label>
+    <select id="gd-produit"></select>
+    <label for="gd-quantite-totale">Quantité totale prévue</label>
+    <input type="number" id="gd-quantite-totale" min="1">
+    <label for="gd-commentaire">Commentaire</label>
+    <textarea id="gd-commentaire" rows="2"></textarea>
+    <p class="sous-titre" style="margin-top:14px">Premier lot (facultatif — ajoutable plus tard)</p>
+    <div style="display:flex;gap:10px">
+      <div style="flex:1">
+        <label for="gd-lot1-date">Date de livraison</label>
+        <input type="date" id="gd-lot1-date">
+      </div>
+      <div style="flex:1">
+        <label for="gd-lot1-quantite">Quantité du lot</label>
+        <input type="number" id="gd-lot1-quantite" min="1">
+      </div>
+    </div>
+    <div id="retour-nouveau-projet-distribution"></div>
+    <div class="pied-modale">
+      <button class="action claire" id="gd-nouveau-projet-annuler">Annuler</button>
+      <button class="action" id="gd-nouveau-projet-confirmer">Créer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modale : ajouter un lot à un projet existant -->
+<div class="voile-modale" id="modale-ajouter-lot-distribution" hidden>
+  <div class="modale">
+    <h2>Ajouter un lot</h2>
+    <p class="sous-titre" id="gd-ajouter-lot-projet"></p>
+    <label for="gd-nouveau-lot-date">Date de livraison</label>
+    <input type="date" id="gd-nouveau-lot-date">
+    <label for="gd-nouveau-lot-quantite">Quantité</label>
+    <input type="number" id="gd-nouveau-lot-quantite" min="1">
+    <div id="retour-ajouter-lot-distribution"></div>
+    <div class="pied-modale">
+      <button class="action claire" id="gd-ajouter-lot-annuler">Annuler</button>
+      <button class="action" id="gd-ajouter-lot-confirmer">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modale : association aléatoire personnes ↔ numéros de série, pour un lot -->
+<div class="voile-modale" id="modale-associer-lot-distribution" hidden>
+  <div class="modale" style="max-width:640px">
+    <h2>Associer les numéros de série</h2>
+    <p class="sous-titre" id="gd-associer-lot-titre"></p>
+
+    <label for="gd-fichier-noms">Liste des personnes (fichier Excel .xlsx ou OpenDocument .ods — une colonne avec un nom par ligne, en-tête inclus ou non)</label>
+    <input type="file" id="gd-fichier-noms" accept=".xlsx,.xls,.ods">
+    <div id="gd-apercu-noms" class="sous-question" style="margin-top:6px"></div>
+
+    <label for="gd-numeros-serie" style="margin-top:14px">Numéros de série (un par ligne)</label>
+    <textarea id="gd-numeros-serie" rows="6" placeholder="SN-00001&#10;SN-00002&#10;..." style="font-family:'IBM Plex Mono',monospace"></textarea>
+
+    <div id="retour-associer-lot-distribution" style="margin-top:10px"></div>
+    <div id="gd-apercu-association" style="margin-top:10px"></div>
+
+    <div class="pied-modale">
+      <button class="action claire" id="gd-associer-lot-fermer">Fermer</button>
+      <button class="action claire" id="gd-associer-lot-melanger">🎲 Associer aléatoirement</button>
+      <button class="action" id="gd-associer-lot-telecharger" hidden>⬇️ Télécharger le résultat (.xlsx)</button>
     </div>
   </div>
 </div>
@@ -1767,6 +1871,7 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
 <script src="js/Commandes.js?v=20260804-3"></script>
 <script src="js/Bilan.js?v=20260804-3"></script>
 <script src="js/Calendrier.js?v=20260804-3"></script>
+<script src="js/GrandeDistribution.js?v=20260805-1"></script>
 <script src="js/Structures.js?v=20260804-3"></script>
 <script src="js/Produits.js?v=20260804-3"></script>
 <script src="js/DevisEtReglages.js?v=20260804-3"></script>
