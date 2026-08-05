@@ -8,6 +8,7 @@ let calendrierChargeUneFois = false;
 let calendrierDateRef = new Date();
 let calendrierVueActuelle = localStorage.getItem('cvdl-calendrier-vue') || 'mois';
 let calendrierAfficherSouhaitee = localStorage.getItem('cvdl-calendrier-souhaitee') !== 'non';
+let calendrierAfficherCible = localStorage.getItem('cvdl-calendrier-cible') !== 'non';
 let calendrierAfficherReelle = localStorage.getItem('cvdl-calendrier-reelle') !== 'non';
 
 async function chargerCalendrier(){
@@ -68,8 +69,9 @@ function rendreCalendrier(){
       if(d) ajouter(cleJour(d), c, 'souhaitee');
     }
     // Date cible (réception + délai réglé dans Réglages) — seulement si la commande n'a pas
-    // déjà une vraie date souhaitée plus précise, pour ne pas doubler l'affichage.
-    if(calendrierAfficherSouhaitee && c.dateCible && !(c.dateLivraisonSouhaitee && c.dateLivraisonSouhaitee !== 'ASAP')){
+    // déjà une vraie date souhaitée plus précise, pour ne pas doubler l'affichage. Filtre
+    // indépendant de "Souhaitées", pour pouvoir masquer l'un sans l'autre.
+    if(calendrierAfficherCible && c.dateCible && !(c.dateLivraisonSouhaitee && c.dateLivraisonSouhaitee !== 'ASAP')){
       const d = parserDateCalendrier(c.dateCible);
       if(d) ajouter(cleJour(d), c, 'cible');
     }
@@ -181,7 +183,7 @@ function afficherDetailJourCalendrier(cle){
   $('modale-jour-calendrier-titre').textContent = `${jo}/${mo}/${an}`;
   $('modale-jour-calendrier-liste').innerHTML = evenements.map(e => `
     <div class="ligne-jour-calendrier">
-      <span class="puce-evenement-calendrier puce-${e.type}">${e.type === 'cible' ? '🎯 Date cible' : e.type === 'souhaitee' ? '📌 Souhaitée' : '✅ Réelle'}</span>
+      <span class="puce-evenement-calendrier puce-${e.type}">${e.type === 'cible' ? '🎯 Date cible' : e.type === 'souhaitee' ? '📌 Souhaitée' : '✅ Livrée'}</span>
       <span class="mono">${echapper(e.commande.reference)}</span>
       <span>${echapper(e.commande.nom)}${e.commande.dateLivraisonSouhaitee === 'ASAP' ? ' ⚡' : ''}</span>
       <span class="pastille-statut-mini">${echapper(e.commande.statutCommande)}</span>
@@ -194,6 +196,7 @@ $('btn-fermer-modale-jour-calendrier')?.addEventListener('click', () => $('modal
 /* ─── Navigation et filtres ─── */
 document.querySelectorAll('#filtres-calendrier-vue button').forEach(b => b.classList.toggle('actif', b.dataset.calVue === calendrierVueActuelle));
 document.querySelector('[data-cal-dates="souhaitee"]')?.classList.toggle('actif', calendrierAfficherSouhaitee);
+document.querySelector('[data-cal-dates="cible"]')?.classList.toggle('actif', calendrierAfficherCible);
 document.querySelector('[data-cal-dates="reelle"]')?.classList.toggle('actif', calendrierAfficherReelle);
 
 $('btn-calendrier-precedent').addEventListener('click', () => {
@@ -220,6 +223,7 @@ $('filtres-calendrier-dates').addEventListener('click', e => {
   b.classList.toggle('actif');
   const type = b.dataset.calDates;
   if(type === 'souhaitee'){ calendrierAfficherSouhaitee = b.classList.contains('actif'); localStorage.setItem('cvdl-calendrier-souhaitee', calendrierAfficherSouhaitee ? 'oui' : 'non'); }
+  else if(type === 'cible'){ calendrierAfficherCible = b.classList.contains('actif'); localStorage.setItem('cvdl-calendrier-cible', calendrierAfficherCible ? 'oui' : 'non'); }
   else { calendrierAfficherReelle = b.classList.contains('actif'); localStorage.setItem('cvdl-calendrier-reelle', calendrierAfficherReelle ? 'oui' : 'non'); }
   rendreCalendrier();
 });

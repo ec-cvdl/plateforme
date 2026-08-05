@@ -111,6 +111,7 @@ async function chargerReglages(){
       $('commandes-par-page-input').value = String(r.commandesParPage || 20);
       $('prioriser-urgentes-input').checked = !!r.prioriserCommandesUrgentes;
       $('delai-livraison-input').value = r.delaiLivraisonJours || 15;
+      $('delai-livraison-actif-input').checked = r.delaiLivraisonActif !== false;
       $('modele-flotte-input').value = r.modeleFlotteMateriel || '';
       const typesDateSouhaitee = (r.structuresDateSouhaitee || '').split(',').map(s => s.trim()).filter(Boolean);
       ['rn', 'esn', 'interne', 'autres'].forEach(t => { $('date-souhaitee-' + t).checked = typesDateSouhaitee.includes(t); });
@@ -522,6 +523,24 @@ $('btn-delai-livraison-enregistrer').addEventListener('click', async () => {
     $('retour-delai-livraison').innerHTML = '<div class="msg msg-erreur">Enregistrement impossible.</div>';
   }
   $('btn-delai-livraison-enregistrer').disabled = false;
+});
+
+$('btn-delai-livraison-actif-enregistrer').addEventListener('click', async () => {
+  const valeur = $('delai-livraison-actif-input').checked;
+  $('btn-delai-livraison-actif-enregistrer').disabled = true;
+  $('retour-delai-livraison-actif').innerHTML = '';
+  try{
+    const r = await poster({ action:'reglages-set', password:motDePasse, delaiLivraisonActif: valeur });
+    if(r.ok){
+      $('retour-delai-livraison-actif').innerHTML = '<div class="msg msg-succes">Enregistré.</div>';
+      etat('Réglages enregistrés', 'succes');
+    }else{
+      $('retour-delai-livraison-actif').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur)}</div>`;
+    }
+  }catch(e){
+    $('retour-delai-livraison-actif').innerHTML = '<div class="msg msg-erreur">Enregistrement impossible.</div>';
+  }
+  $('btn-delai-livraison-actif-enregistrer').disabled = false;
 });
 creerHandlerReglageSimple('btn-modele-flotte-enregistrer', 'modele-flotte-input', 'retour-modele-flotte', 'modeleFlotteMateriel');
 

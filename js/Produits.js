@@ -132,7 +132,7 @@ function rendreProduits(){
       <div class="produit-carte-pied">
         <label class="produit-carte-visible">
           <input type="checkbox" data-ligne="${p.ligne}" data-champ="visible" ${p.visible ? 'checked' : ''}>
-          Visible sur le formulaire
+          Visible dans le formulaire de commandes structures
         </label>
       </div>
     </div>`).join('');

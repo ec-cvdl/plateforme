@@ -154,6 +154,7 @@ function appliquerLienDossierFactures(dossierId){
 }
 
 function appliquerLienFichierNumerotation(fichierId){
+  fichierNumerotationId = fichierId || '';
   const bouton = $('btn-ouvrir-fichier-numerotation');
   if(!bouton) return;
   if(fichierId){
@@ -276,6 +277,7 @@ let seuilAlerteImpayee = 30; // valeur de repli tant que /reglages n'a pas encor
 let suppressionSimple = false; // idem
 let dossierFacturesPdfId = ''; // idem — sert au bouton "Ouvrir le dossier" de l'onglet Factures
 let fichierNumerotationConfigure = false; // idem — conditionne l'affichage de la recherche auto de numéro
+let fichierNumerotationId = ''; // idem — pour construire un lien "Ouvrir la numérotation" ailleurs qu'à l'endroit habituel
 let dossierPrincipalConfigure = false; // conditionne l'affichage de la modale bloquante à l'ouverture des Réglages
 let memePersonneLogistiqueDistribution = false; // conditionne le texte + le comportement avant validation logistique
 let structures = [];

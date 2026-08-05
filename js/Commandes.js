@@ -314,7 +314,7 @@ function carteCommandeHtml(c){
           <div class="ccm-statut-label">
             <div class="ccm-pastille ${teinte}">${iconeStatutPastille}</div>
             <span class="ccm-statut">${echapper(c.statutCommande)}</span>
-            ${c.dateLivraisonSouhaitee === 'ASAP' ? `<span class="ccm-badge-urgent" title="Livraison la plus rapide possible — cliquer pour modifier" data-modifier-date-souhaitee="${c.ligne}" style="cursor:pointer">⚡<button type="button" class="ccm-badge-urgent-retirer" data-retirer-urgent="${c.ligne}" title="Retirer le statut urgent" aria-label="Retirer le statut urgent">×</button></span>` : ''}
+            ${c.dateLivraisonSouhaitee === 'ASAP' ? `<span class="ccm-badge-urgent" title="Livraison la plus rapide possible — cliquer pour modifier" data-modifier-date-souhaitee="${c.ligne}">⚡ URGENT<button type="button" class="ccm-badge-urgent-retirer" data-retirer-urgent="${c.ligne}" title="Retirer le statut urgent" aria-label="Retirer le statut urgent">×</button></span>` : ''}
           </div>
           ${zoneEtapeSuivante}
         </div>
@@ -922,7 +922,8 @@ function ouvrirModalePaiement(ligne){
 
   $('modale-paiement-facture-zone').innerHTML = c.referenceFacture
     ? `<label for="modale-paiement-facture">Référence facture</label>
-       <input type="text" class="mono" id="modale-paiement-facture" data-ligne="${ligne}" data-champ="referenceFacture" value="${echapper(c.referenceFacture)}">`
+       <input type="text" class="mono" id="modale-paiement-facture" data-ligne="${ligne}" data-champ="referenceFacture" value="${echapper(c.referenceFacture)}">
+       ${fichierNumerotationId ? `<a href="https://docs.google.com/spreadsheets/d/${echapper(fichierNumerotationId)}/edit" target="_blank" rel="noopener" class="action claire" style="display:block;text-align:center;text-decoration:none;margin-top:8px">🔢 Ouvrir le fichier de numérotation</a>` : ''}`
     : `<button type="button" class="btn-facturer-direct" style="width:100%;margin-top:10px" data-facturer-ligne="${ligne}" data-facturer-ref="${echapper(c.reference)}">Facturer directement</button>`;
 
   // Structure ESN : ni devis, ni facture — la commande vit uniquement dans l'onglet Commandes
