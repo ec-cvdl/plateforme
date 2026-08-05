@@ -41,12 +41,25 @@ function rendreStructures(){
         <button type="button" class="btn-icone-fiche" data-structure-modifier="${s.ligne}" title="Modifier (les champs sont éditables directement)" aria-label="Modifier">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l11-11-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>
         </button>
+        <button type="button" class="btn-icone-fiche" data-structure-comptabilite="${echapper(s.nom)}" title="Voir la comptabilité de cette structure" aria-label="Comptabilité">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M8 15h4"/></svg>
+        </button>
         <button type="button" class="btn-icone-fiche danger" data-supprimer="${s.ligne}" data-nom="${echapper(s.nom)}" title="Supprimer la structure" aria-label="Supprimer">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7m2 0v13a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 7 20V7h10z"/><path d="M10 11v6M14 11v6"/></svg>
         </button>
       </div>
     </div>`).join('');
 }
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-structure-comptabilite]');
+  if(!b) return;
+  document.querySelector('[data-vue="comptabilite"]')?.click();
+  setTimeout(() => {
+    $('recherche-compta').value = b.dataset.structureComptabilite;
+    $('recherche-compta').dispatchEvent(new Event('input'));
+  }, 50);
+});
 
 $('btn-nouvelle-structure').addEventListener('click', () => {
   ['s-code','s-nom','s-email','s-email-facturation','s-tel','s-adresse'].forEach(i => $(i).value = '');

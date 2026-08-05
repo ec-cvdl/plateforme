@@ -6,9 +6,51 @@ let attestationsLigneCourante = null;
 let attestationsPersonnesCourantes = [];
 let attestationsNumerosParProduit = {};
 let attestationsUnSeulProduit = false;
+let attestationsSourceActuelle = 'commande';
+
+$('filtres-source-attestations').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if(!b) return;
+  document.querySelectorAll('#filtres-source-attestations button').forEach(x => x.classList.toggle('actif', x === b));
+  attestationsSourceActuelle = b.dataset.sourceAttestations;
+  $('recherche-attestations').hidden = attestationsSourceActuelle === 'lot';
+  $('attestations-liste-aide').textContent = attestationsSourceActuelle === 'lot'
+    ? "Seuls les lots déjà associés (numéros de série ↔ personnes, depuis l'onglet Grande distribution) apparaissent ici."
+    : 'Seules les commandes avec des personnes renseignées apparaissent ici.';
+  chargerListeAttestations();
+});
 
 async function chargerListeAttestations(terme){
   $('liste-commandes-attestations').innerHTML = '<p class="sous-question">Chargement…</p>';
+
+  if(attestationsSourceActuelle === 'lot'){
+    try{
+      const r = await jsonp({action:'attestations-lots-distribution-liste', password:motDePasse});
+      if(!r.ok){ $('liste-commandes-attestations').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur || 'Chargement impossible.')}</div>`; return; }
+      if(!r.lots.length){
+        $('liste-commandes-attestations').innerHTML = `<div class="vide">
+          <strong>Aucun lot associé pour le moment</strong>
+          Fais d'abord une association dans l'onglet Grande distribution (bouton 🎲 Associer sur un lot).
+        </div>`;
+        return;
+      }
+      $('liste-commandes-attestations').innerHTML = r.lots.map(l => `
+        <div class="carte-projet-distribution">
+          <div class="entete-projet-distribution">
+            <div>
+              <div class="mono" style="font-size:11.5px;color:var(--steel)">${echapper(l.referenceLot)} · ${echapper(l.dateLivraison)}</div>
+              <div style="font-weight:700;font-size:15px">${echapper(l.nomProjet)}</div>
+              <div class="sous-question" style="margin:2px 0 0">${echapper(l.produit || 'Produit non précisé')} · ${l.nombrePersonnes} personne${l.nombrePersonnes > 1 ? 's' : ''} associée${l.nombrePersonnes > 1 ? 's' : ''}</div>
+            </div>
+            <button type="button" class="action claire" data-attestations-ouvrir-lot="${l.ligne}" data-attestations-nom-lot="${echapper(l.nomProjet)} — ${echapper(l.referenceLot)}">Ouvrir →</button>
+          </div>
+        </div>`).join('');
+    }catch(e){
+      $('liste-commandes-attestations').innerHTML = '<div class="msg msg-erreur">Chargement impossible — réessaie.</div>';
+    }
+    return;
+  }
+
   try{
     const r = await jsonp({action:'attestations-commandes-liste', password:motDePasse, recherche: terme || ''});
     if(!r.ok){ $('liste-commandes-attestations').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur || 'Chargement impossible.')}</div>`; return; }
@@ -47,10 +89,26 @@ document.addEventListener('click', e => {
   ouvrirAssociationAttestations(parseInt(b.dataset.attestationsOuvrir, 10));
 });
 
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-attestations-ouvrir-lot]');
+  if(!b) return;
+  attestationsLigneCourante = parseInt(b.dataset.attestationsOuvrirLot, 10);
+  $('attestations-etape-liste').hidden = true;
+  $('attestations-etape-association').hidden = false;
+  $('attestations-titre-commande').textContent = b.dataset.attestationsNomLot;
+  // Pour un lot, l'association a déjà été faite dans l'onglet Grande distribution — on ne
+  // montre que la génération, pas de CSV ni de nouvelle association ici.
+  $('attestations-etape-association').querySelectorAll('.carte-reglage')[0].hidden = true;
+  $('attestations-etape-association').querySelectorAll('.carte-reglage')[1].hidden = true;
+  $('attestations-retour-generation').innerHTML = '';
+});
+
 async function ouvrirAssociationAttestations(ligne){
   attestationsLigneCourante = ligne;
   $('attestations-etape-liste').hidden = true;
   $('attestations-etape-association').hidden = false;
+  $('attestations-etape-association').querySelectorAll('.carte-reglage')[0].hidden = false;
+  $('attestations-etape-association').querySelectorAll('.carte-reglage')[1].hidden = false;
   $('attestations-lignes-association').innerHTML = '<p class="sous-question">Chargement…</p>';
   $('attestations-retour-csv').textContent = '';
   $('attestations-fichier-csv').value = '';
@@ -204,7 +262,8 @@ $('btn-attestations-generer-liens').addEventListener('click', async () => {
   $('btn-attestations-generer-liens').disabled = true;
   $('attestations-retour-generation').innerHTML = '<div class="msg msg-info">Génération en cours — patiente, une attestation par personne…</div>';
   try{
-    const r = await poster({ action:'attestations-generer', ligne: attestationsLigneCourante });
+    const action = attestationsSourceActuelle === 'lot' ? 'attestations-generer-lot' : 'attestations-generer';
+    const r = await poster({ action, ligne: attestationsLigneCourante });
     if(r.ok){
       $('attestations-retour-generation').innerHTML = `
         <div class="msg msg-succes">Prêt — ${r.attestations.length} attestation${r.attestations.length > 1 ? 's' : ''} :</div>
@@ -224,9 +283,10 @@ $('btn-attestations-generer-zip').addEventListener('click', async () => {
   $('btn-attestations-generer-zip').disabled = true;
   $('attestations-retour-generation').innerHTML = '<div class="msg msg-info">Génération en cours — ça peut prendre un moment selon le nombre de personnes…</div>';
   try{
+    const action = attestationsSourceActuelle === 'lot' ? 'attestations-generer-lot-zip' : 'attestations-generer-zip';
     const reponse = await fetch(urlApiActive(), {
       method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify({ action:'attestations-generer-zip', password:motDePasse, ligne: attestationsLigneCourante }),
+      body: JSON.stringify({ action, password:motDePasse, ligne: attestationsLigneCourante }),
     });
     if(!reponse.ok || reponse.headers.get('content-type')?.includes('application/json')){
       const r = await reponse.json();
