@@ -286,7 +286,7 @@ function carteCommandeHtml(c){
       ? `<div class="ccm-alerte">Impayée depuis ${joursImpaye} jour${joursImpaye > 1 ? 's' : ''}</div>` : '';
 
     const facturationOubliee = !estEsnCommande && c.statutCommande === 'Livrée' && c.statutPaiement === 'Payé' && !c.referenceFacture
-      && !facturesManquantesRejetees.has(c.reference);
+      && !c.pasDeFacture && !facturesManquantesRejetees.has(c.reference);
     const alerteFactureManquante = facturationOubliee
       ? `<div class="ccm-alerte">Livrée et payée, mais aucune facture liée</div>` : '';
 
@@ -336,7 +336,7 @@ function carteCommandeHtml(c){
           <div class="ccm-statut-label">
             <div class="ccm-pastille ${teinte}">${iconeStatutPastille}</div>
             <span class="ccm-statut">${echapper(c.statutCommande)}</span>
-            ${c.dateLivraisonSouhaitee === 'ASAP' ? `<span class="ccm-badge-urgent" title="Livraison la plus rapide possible — cliquer pour modifier" data-modifier-date-souhaitee="${c.ligne}">⚡ URGENT${c.statutCommande === 'Livrée' ? '<span class="ccm-badge-urgent-livre" title="Livrée">✓</span>' : ''}<button type="button" class="ccm-badge-urgent-retirer" data-retirer-urgent="${c.ligne}" title="Retirer le statut urgent" aria-label="Retirer le statut urgent">×</button></span>` : ''}
+            ${c.dateLivraisonSouhaitee === 'ASAP' ? `<span class="ccm-badge-urgent${c.statutCommande === 'Livrée' ? ' ccm-badge-urgent-ok' : ''}" title="${c.statutCommande === 'Livrée' ? 'Urgence traitée — commande livrée' : 'Livraison la plus rapide possible — cliquer pour modifier'}" ${c.statutCommande === 'Livrée' ? '' : `data-modifier-date-souhaitee="${c.ligne}"`}>⚡ URGENT${c.statutCommande === 'Livrée' ? ' <span class="ccm-badge-urgent-livre">✓</span>' : `<button type="button" class="ccm-badge-urgent-retirer" data-retirer-urgent="${c.ligne}" title="Retirer le statut urgent" aria-label="Retirer le statut urgent">×</button>`}</span>` : ''}
           </div>
           ${zoneEtapeSuivante}
         </div>
@@ -946,7 +946,11 @@ function ouvrirModalePaiement(ligne){
     ? `<label for="modale-paiement-facture">Référence facture</label>
        <input type="text" class="mono" id="modale-paiement-facture" data-ligne="${ligne}" data-champ="referenceFacture" value="${echapper(c.referenceFacture)}">
        ${fichierNumerotationId ? `<a href="https://docs.google.com/spreadsheets/d/${echapper(fichierNumerotationId)}/edit" target="_blank" rel="noopener" class="action claire" style="display:block;text-align:center;text-decoration:none;margin-top:8px">🔢 Ouvrir le fichier de numérotation</a>` : ''}`
-    : `<button type="button" class="btn-facturer-direct" style="width:100%;margin-top:10px" data-facturer-ligne="${ligne}" data-facturer-ref="${echapper(c.reference)}">Facturer directement</button>`;
+    : (c.pasDeFacture
+      ? `<p class="reglage-texte" style="margin-top:0">Marquée "pas de facture" — l'alerte de facturation manquante ne se déclenchera pas pour cette commande.</p>
+         <button type="button" class="action claire" style="width:100%;margin-top:8px" data-annuler-pas-de-facture="${ligne}">Annuler — je veux quand même facturer</button>`
+      : `<button type="button" class="btn-facturer-direct" style="width:100%;margin-top:10px" data-facturer-ligne="${ligne}" data-facturer-ref="${echapper(c.reference)}">Facturer directement</button>
+         <button type="button" class="action claire" style="width:100%;margin-top:8px" data-pas-de-facture="${ligne}">Ne pas générer de facture pour cette commande</button>`);
 
   // Structure ESN : ni devis, ni facture — la commande vit uniquement dans l'onglet Commandes
   const structureCommande = structures.find(s => s.code === c.code);
@@ -958,6 +962,27 @@ function ouvrirModalePaiement(ligne){
 
   $('modale-paiement').hidden = false;
 }
+
+document.addEventListener('click', async e => {
+  const bPas = e.target.closest('[data-pas-de-facture]');
+  const bAnnuler = e.target.closest('[data-annuler-pas-de-facture]');
+  if(!bPas && !bAnnuler) return;
+  const ligne = parseInt((bPas || bAnnuler).dataset.pasDeFacture || (bPas || bAnnuler).dataset.annulerPasDeFacture, 10);
+  const c = commandes.find(x => x.ligne === ligne);
+  if(!c) return;
+  const nouvelleValeur = bPas ? 'Oui' : '';
+  try{
+    const r = await poster({ action:'update', ligne, champ:'pasDeFacture', valeur: nouvelleValeur });
+    if(r.ok){
+      c.pasDeFacture = !!nouvelleValeur;
+      ouvrirModalePaiement(ligne);
+      rendre();
+      etat(bPas ? 'Commande marquée "pas de facture"' : 'Annulé', 'succes');
+    }else{
+      etat(r.erreur || 'Modification impossible', 'erreur');
+    }
+  }catch(err){ etat('Modification impossible', 'erreur'); }
+});
 
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-ouvrir-modale-paiement]');

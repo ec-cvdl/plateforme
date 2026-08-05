@@ -666,6 +666,7 @@ document.querySelector('.onglets').addEventListener('click', e => {
   $('vue-bilan').hidden = b.dataset.vue !== 'bilan';
   $('vue-calendrier').hidden = b.dataset.vue !== 'calendrier';
   $('vue-grande-distribution').hidden = b.dataset.vue !== 'grande-distribution';
+  $('vue-attestations').hidden = b.dataset.vue !== 'attestations';
   if(b.dataset.vue === 'bilan'){ chargerDonneesBilan().then(() => { rendreBilan(); rendreBilanSav(); }); }
   // Rechargé depuis l'API à chaque ouverture (pas de cache) : une erreur de stock ici a un
   // impact logistique direct, mieux vaut un aller-retour réseau de plus qu'un chiffre périmé.
@@ -675,6 +676,7 @@ document.querySelector('.onglets').addEventListener('click', e => {
   if(b.dataset.vue === 'comptabilite' && !comptaChargeUneFois) chargerComptabilite();
   if(b.dataset.vue === 'calendrier' && !calendrierChargeUneFois){ calendrierChargeUneFois = true; chargerCalendrier(); }
   if(b.dataset.vue === 'grande-distribution' && !grandeDistributionChargeeUneFois){ grandeDistributionChargeeUneFois = true; chargerGrandeDistribution(); }
+  if(b.dataset.vue === 'attestations' && !attestationsChargeesUneFois){ attestationsChargeesUneFois = true; chargerListeAttestations(); }
   $('vue-reglages').hidden = b.dataset.vue !== 'reglages';
   if(b.dataset.vue === 'reglages'){
     chargerReglages();
@@ -696,6 +698,19 @@ document.querySelectorAll('.voile-modale').forEach(modale => {
       modale.style.zIndex = zIndexModalePremierPlan;
     }
   }).observe(modale, { attributes: true, attributeFilter: ['hidden'] });
+});
+
+/* Menu burger mobile — ouvre/ferme la nav repliée, se referme automatiquement après le choix
+   d'un onglet (sinon elle resterait ouverte par-dessus le contenu fraîchement affiché). */
+$('btn-menu-burger')?.addEventListener('click', () => {
+  const ouvert = $('onglets-nav').classList.toggle('ouvert');
+  $('btn-menu-burger').setAttribute('aria-expanded', ouvert ? 'true' : 'false');
+});
+document.querySelector('.onglets')?.addEventListener('click', e => {
+  if(e.target.closest('button')){
+    $('onglets-nav').classList.remove('ouvert');
+    $('btn-menu-burger')?.setAttribute('aria-expanded', 'false');
+  }
 });
 
 /* Jetons {{...}} des Réglages : cliquer copie directement dans le presse-papiers, avec un
