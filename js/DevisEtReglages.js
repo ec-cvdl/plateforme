@@ -110,6 +110,7 @@ async function chargerReglages(){
       $('btn-api-key-supprimer').hidden = !r.apiKeyLecture;
       $('commandes-par-page-input').value = String(r.commandesParPage || 20);
       $('prioriser-urgentes-input').checked = !!r.prioriserCommandesUrgentes;
+      $('delai-livraison-input').value = r.delaiLivraisonJours || 15;
       $('modele-flotte-input').value = r.modeleFlotteMateriel || '';
       const typesDateSouhaitee = (r.structuresDateSouhaitee || '').split(',').map(s => s.trim()).filter(Boolean);
       ['rn', 'esn', 'interne', 'autres'].forEach(t => { $('date-souhaitee-' + t).checked = typesDateSouhaitee.includes(t); });
@@ -502,6 +503,25 @@ $('btn-prioriser-urgentes-enregistrer').addEventListener('click', async () => {
     $('retour-prioriser-urgentes').innerHTML = '<div class="msg msg-erreur">Enregistrement impossible.</div>';
   }
   $('btn-prioriser-urgentes-enregistrer').disabled = false;
+});
+
+$('btn-delai-livraison-enregistrer').addEventListener('click', async () => {
+  const valeur = parseInt($('delai-livraison-input').value, 10);
+  if(!valeur || valeur < 1){ $('retour-delai-livraison').innerHTML = '<div class="msg msg-erreur">Entre un nombre de jours valide.</div>'; return; }
+  $('btn-delai-livraison-enregistrer').disabled = true;
+  $('retour-delai-livraison').innerHTML = '';
+  try{
+    const r = await poster({ action:'reglages-set', password:motDePasse, delaiLivraisonJours: valeur });
+    if(r.ok){
+      $('retour-delai-livraison').innerHTML = '<div class="msg msg-succes">Enregistré.</div>';
+      etat('Réglages enregistrés', 'succes');
+    }else{
+      $('retour-delai-livraison').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur)}</div>`;
+    }
+  }catch(e){
+    $('retour-delai-livraison').innerHTML = '<div class="msg msg-erreur">Enregistrement impossible.</div>';
+  }
+  $('btn-delai-livraison-enregistrer').disabled = false;
 });
 creerHandlerReglageSimple('btn-modele-flotte-enregistrer', 'modele-flotte-input', 'retour-modele-flotte', 'modeleFlotteMateriel');
 

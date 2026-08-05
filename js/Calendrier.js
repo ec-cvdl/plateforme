@@ -33,12 +33,8 @@ function rendreBandeauUrgentesCalendrier(){
   conteneur.hidden = false;
   conteneur.innerHTML = `
     <div class="entete-zone-prioritaires">⚡ À traiter le plus rapidement possible (${urgentes.length})</div>
-    <div class="liste-urgentes-calendrier">
-      ${urgentes.map(c => `<div class="ligne-jour-calendrier">
-        <span class="mono">${echapper(c.reference)}</span>
-        <span>${echapper(c.nom)}</span>
-        <span class="pastille-statut-mini">${echapper(c.statutCommande)}</span>
-      </div>`).join('')}
+    <div class="grille-pilules-urgentes">
+      ${urgentes.map(c => `<span class="pilule-urgente-calendrier" title="${echapper(c.statutCommande)}"><span class="mono">${echapper(c.reference)}</span> · ${echapper(c.nom)}</span>`).join('')}
     </div>`;
 }
 
@@ -70,6 +66,12 @@ function rendreCalendrier(){
     if(calendrierAfficherSouhaitee && c.dateLivraisonSouhaitee && c.dateLivraisonSouhaitee !== 'ASAP'){
       const d = parserDateCalendrier(c.dateLivraisonSouhaitee);
       if(d) ajouter(cleJour(d), c, 'souhaitee');
+    }
+    // Date cible (réception + délai réglé dans Réglages) — seulement si la commande n'a pas
+    // déjà une vraie date souhaitée plus précise, pour ne pas doubler l'affichage.
+    if(calendrierAfficherSouhaitee && c.dateCible && !(c.dateLivraisonSouhaitee && c.dateLivraisonSouhaitee !== 'ASAP')){
+      const d = parserDateCalendrier(c.dateCible);
+      if(d) ajouter(cleJour(d), c, 'cible');
     }
     if(calendrierAfficherReelle && c.dateLivraison){
       const d = parserDateCalendrier(c.dateLivraison);
@@ -146,7 +148,7 @@ function construireCelluleCalendrier(jour, cle, evenements, estAujourdhui, detai
   const max = detaille ? 8 : 3;
   const puces = evenements.slice(0, max).map(e => `
     <div class="puce-evenement-calendrier puce-${e.type}" title="${echapper(e.commande.reference)} — ${echapper(e.commande.nom)}${e.commande.dateLivraisonSouhaitee === 'ASAP' ? ' — Urgent' : ''}">
-      ${e.type === 'souhaitee' ? '📌' : '✅'}${e.commande.dateLivraisonSouhaitee === 'ASAP' ? '⚡' : ''} ${echapper(e.commande.nom)}
+      ${e.type === 'cible' ? '🎯' : e.type === 'souhaitee' ? '📌' : '✅'}${e.commande.dateLivraisonSouhaitee === 'ASAP' ? '⚡' : ''} ${echapper(e.commande.nom)}
     </div>`).join('');
   const reste = evenements.length > max ? `<div class="puce-plus-calendrier">+${evenements.length - max}</div>` : '';
   return `<div class="cellule-calendrier${estAujourdhui ? ' cellule-aujourdhui' : ''}" data-jour="${cle}">
@@ -179,7 +181,7 @@ function afficherDetailJourCalendrier(cle){
   $('modale-jour-calendrier-titre').textContent = `${jo}/${mo}/${an}`;
   $('modale-jour-calendrier-liste').innerHTML = evenements.map(e => `
     <div class="ligne-jour-calendrier">
-      <span class="puce-evenement-calendrier puce-${e.type}">${e.type === 'souhaitee' ? '📌 Souhaitée' : '✅ Réelle'}</span>
+      <span class="puce-evenement-calendrier puce-${e.type}">${e.type === 'cible' ? '🎯 Date cible' : e.type === 'souhaitee' ? '📌 Souhaitée' : '✅ Réelle'}</span>
       <span class="mono">${echapper(e.commande.reference)}</span>
       <span>${echapper(e.commande.nom)}${e.commande.dateLivraisonSouhaitee === 'ASAP' ? ' ⚡' : ''}</span>
       <span class="pastille-statut-mini">${echapper(e.commande.statutCommande)}</span>

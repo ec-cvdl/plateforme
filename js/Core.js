@@ -607,14 +607,27 @@ $('mdp').addEventListener('keydown', e => { if(e.key === 'Enter') connecter(); }
 /** Recharge commandes + SAV en tâche de fond, sans écran de chargement ni interruption,
  *  tant qu'aucune modale n'est ouverte (pour ne jamais écraser une saisie en cours). */
 let intervalRafraichissementSilencieux = null;
+let dernierRafraichissementSilencieux = 0;
 function demarrerRafraichissementSilencieux(){
   if(intervalRafraichissementSilencieux) return;
-  intervalRafraichissementSilencieux = setInterval(rafraichirSilencieusement, 4 * 60 * 1000);
+  // Un peu de délai aléatoire au démarrage puis à chaque cycle : plusieurs onglets admin
+  // ouverts en même temps (typiquement lancés à quelques secondes d'écart) sinon se
+  // synchronisent et tapent le serveur pile au même moment à chaque fois.
+  const intervalleAvecAleatoire = () => (4 * 60 * 1000) + Math.random() * 90 * 1000;
+  function planifierProchainCycle(){
+    setTimeout(() => { rafraichirSilencieusement(); planifierProchainCycle(); }, intervalleAvecAleatoire());
+  }
+  intervalRafraichissementSilencieux = true;
+  planifierProchainCycle();
   document.addEventListener('visibilitychange', () => {
-    if(document.visibilityState === 'visible') rafraichirSilencieusement();
+    // Un changement d'onglet ne redéclenche pas un rafraîchissement si un vient d'avoir lieu
+    // il y a moins d'une minute — en alternant vite entre plusieurs onglets admin, sans ce
+    // garde-fou chaque retour sur un onglet relance un appel, ce qui peut vite s'accumuler.
+    if(document.visibilityState === 'visible' && Date.now() - dernierRafraichissementSilencieux > 60000) rafraichirSilencieusement();
   });
 }
 async function rafraichirSilencieusement(){
+  dernierRafraichissementSilencieux = Date.now();
   if(document.querySelector('.voile-modale:not([hidden])')) return; // une saisie est en cours dans une modale
   const champActif = document.activeElement;
   if(champActif && ['INPUT', 'TEXTAREA', 'SELECT'].includes(champActif.tagName)) return; // idem pour un champ édité directement sur une carte
@@ -624,7 +637,7 @@ async function rafraichirSilencieusement(){
   // toutes les 4 minutes si la personne regarde l'onglet Produits ou Structures à ce moment-là.
   if(ongletActif === 'commandes'){
     try{
-      const r = await jsonp({action:'list', password:motDePasse, limite:limiteCommandesActuelle, decalage:decalageCommandesActuel});
+      const r = await jsonp({action:'list', password:motDePasse, limite:limiteCommandesActuelle, decalage:decalageCommandesActuel, filtre, leger:1});
       if(r.ok){ commandes = r.commandes; totalCommandes = r.total; appliquerAgregatsCommandes(r); rendre(); }
       etat('Données actualisées', 'succes');
     }catch(e){ /* silencieux — nouvelle tentative au prochain cycle */ }

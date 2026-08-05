@@ -314,7 +314,7 @@ function carteCommandeHtml(c){
           <div class="ccm-statut-label">
             <div class="ccm-pastille ${teinte}">${iconeStatutPastille}</div>
             <span class="ccm-statut">${echapper(c.statutCommande)}</span>
-            ${c.dateLivraisonSouhaitee === 'ASAP' ? '<span class="ccm-badge-urgent" title="Livraison la plus rapide possible">⚡</span>' : ''}
+            ${c.dateLivraisonSouhaitee === 'ASAP' ? `<span class="ccm-badge-urgent" title="Livraison la plus rapide possible — cliquer pour modifier" data-modifier-date-souhaitee="${c.ligne}" style="cursor:pointer">⚡<button type="button" class="ccm-badge-urgent-retirer" data-retirer-urgent="${c.ligne}" title="Retirer le statut urgent" aria-label="Retirer le statut urgent">×</button></span>` : ''}
           </div>
           ${zoneEtapeSuivante}
         </div>
@@ -912,6 +912,9 @@ function ouvrirModalePaiement(ligne){
   $('modale-paiement-lien').dataset.champ = 'lienPaiement';
   lienPaiementValeurPrecedente = (c.lienPaiement || '').trim();
 
+  const personnesListePaiement = personnesListe;
+  $('btn-associer-paiement').hidden = !(c.paiementSepare && personnesListePaiement.length > 1);
+
   $('modale-paiement-devis-zone').innerHTML = c.referenceDevis
     ? `<label for="modale-paiement-devis">Référence devis</label>
        <input type="text" class="mono" id="modale-paiement-devis" data-ligne="${ligne}" data-champ="referenceDevis" value="${echapper(c.referenceDevis)}">`
@@ -964,6 +967,94 @@ $('modale-paiement-lien').addEventListener('change', async e => {
     }
   }
   lienPaiementValeurPrecedente = nouvelleValeur;
+});
+
+/* Badge urgent (⚡) sur la carte : cliquer dessus rouvre la modale date souhaitée pour la
+   modifier, la croix retire directement le statut urgent (avec confirmation). */
+document.addEventListener('click', async e => {
+  const retirer = e.target.closest('[data-retirer-urgent]');
+  if(retirer){
+    e.stopPropagation();
+    const ligne = parseInt(retirer.dataset.retirerUrgent, 10);
+    const c = commandes.find(x => x.ligne === ligne);
+    if(!c) return;
+    if(!confirm(`Retirer le statut urgent de la commande ${c.reference} ?`)) return;
+    try{
+      const r = await poster({ action:'update', ligne, champ:'dateLivraisonSouhaitee', valeur:'' });
+      if(r.ok){ c.dateLivraisonSouhaitee = ''; rendre(); etat('Statut urgent retiré', 'succes'); }
+      else etat(r.erreur || 'Modification impossible', 'erreur');
+    }catch(err){ etat('Modification impossible', 'erreur'); }
+    return;
+  }
+  const modifier = e.target.closest('[data-modifier-date-souhaitee]');
+  if(modifier) ouvrirModaleDateSouhaitee(parseInt(modifier.dataset.modifierDateSouhaitee, 10), false);
+});
+
+/* ══════════════ MODALE : ASSOCIER UN LIEN DE PAIEMENT PAR PERSONNE ══════════════ */
+
+let associerPaiementLigneCourante = null;
+
+$('btn-associer-paiement').addEventListener('click', () => {
+  const ligne = parseInt($('modale-paiement-lien').dataset.ligne, 10);
+  const c = commandes.find(x => x.ligne === ligne);
+  if(!c) return;
+  associerPaiementLigneCourante = ligne;
+
+  const noms = (c.personnes || '').split('\n').map(p => p.trim()).filter(Boolean).map(p => (p.split('|')[0] || p).trim());
+  const liensExistants = (c.lienPaiement || '').split('\n').map(s => s.trim());
+
+  $('associer-paiement-lignes').innerHTML = noms.map((nom, i) => `
+    <div class="ligne-reglage" style="margin-top:8px;align-items:center">
+      <span style="flex:1;font-size:13.5px">${echapper(nom)}</span>
+      <input type="text" data-associer-paiement-index="${i}" placeholder="Lien de paiement" value="${echapper(liensExistants[i] || '')}" style="flex:2">
+    </div>`).join('');
+  $('retour-associer-paiement').innerHTML = '';
+  $('modale-associer-paiement').hidden = false;
+});
+
+$('associer-paiement-annuler').addEventListener('click', () => $('modale-associer-paiement').hidden = true);
+
+$('associer-paiement-confirmer').addEventListener('click', async () => {
+  const valeurs = Array.from(document.querySelectorAll('#associer-paiement-lignes input')).map(i => i.value.trim());
+  const nouvelleValeur = valeurs.join('\n');
+
+  $('associer-paiement-confirmer').disabled = true;
+  $('retour-associer-paiement').innerHTML = '';
+  try{
+    const r = await poster({ action:'update', ligne: associerPaiementLigneCourante, champ:'lienPaiement', valeur: nouvelleValeur });
+    if(r.ok){
+      const c = commandes.find(x => x.ligne === associerPaiementLigneCourante);
+      if(c) c.lienPaiement = nouvelleValeur;
+      $('modale-paiement-lien').value = nouvelleValeur;
+      lienPaiementValeurPrecedente = nouvelleValeur;
+      $('modale-associer-paiement').hidden = true;
+      etat('Liens de paiement enregistrés', 'succes');
+    }else{
+      $('retour-associer-paiement').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur || 'Enregistrement impossible')}</div>`;
+    }
+  }catch(e){
+    $('retour-associer-paiement').innerHTML = '<div class="msg msg-erreur">Enregistrement impossible.</div>';
+  }
+  $('associer-paiement-confirmer').disabled = false;
+});
+
+$('btn-envoyer-lien-paiement').addEventListener('click', async () => {
+  const ligne = parseInt($('modale-paiement-lien').dataset.ligne, 10);
+  const c = commandes.find(x => x.ligne === ligne);
+  if(!c || !c.lienPaiement){ $('retour-envoyer-lien-paiement').innerHTML = '<div class="msg msg-erreur">Aucun lien de paiement enregistré pour cette commande.</div>'; return; }
+  if(!confirm(`Envoyer un mail à ${c.nom} pour l'informer que le paiement en ligne est disponible ?`)) return;
+
+  $('btn-envoyer-lien-paiement').disabled = true;
+  $('retour-envoyer-lien-paiement').innerHTML = '<div class="msg msg-info">Envoi en cours…</div>';
+  try{
+    const r = await poster({ action:'notifier-lien-paiement', ligne });
+    $('retour-envoyer-lien-paiement').innerHTML = r.ok
+      ? '<div class="msg msg-succes">Mail envoyé à la structure.</div>'
+      : `<div class="msg msg-erreur">${echapper(r.erreur || 'Envoi impossible.')}</div>`;
+  }catch(e){
+    $('retour-envoyer-lien-paiement').innerHTML = '<div class="msg msg-erreur">Envoi impossible.</div>';
+  }
+  $('btn-envoyer-lien-paiement').disabled = false;
 });
 
 // Le bouton "Facturer directement"/"Faire un devis" et les champs de référence sont injectés
