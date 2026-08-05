@@ -44,6 +44,9 @@ function rendreStructures(){
         <button type="button" class="btn-icone-fiche" data-structure-comptabilite="${echapper(s.nom)}" title="Voir la comptabilité de cette structure" aria-label="Comptabilité">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M8 15h4"/></svg>
         </button>
+        ${s.interne ? `<button type="button" class="btn-icone-fiche" data-structure-flotte="${echapper(s.code)}" data-structure-flotte-nom="${echapper(s.nom)}" title="Gérer la flotte de cette structure Interne" aria-label="Flotte">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="7" height="7" rx="1.2"/><rect x="14" y="6" width="7" height="7" rx="1.2"/><rect x="3" y="17" width="7" height="4" rx="1"/><rect x="14" y="17" width="7" height="4" rx="1"/></svg>
+        </button>` : ''}
         <button type="button" class="btn-icone-fiche danger" data-supprimer="${s.ligne}" data-nom="${echapper(s.nom)}" title="Supprimer la structure" aria-label="Supprimer">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7m2 0v13a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 7 20V7h10z"/><path d="M10 11v6M14 11v6"/></svg>
         </button>
@@ -59,6 +62,74 @@ document.addEventListener('click', e => {
     $('recherche-compta').value = b.dataset.structureComptabilite;
     $('recherche-compta').dispatchEvent(new Event('input'));
   }, 50);
+});
+
+/* ── Flotte centralisée (structures Internes) — gérée directement depuis l'admin ── */
+let flotteInterneCodeCourant = '';
+const STATUTS_FLOTTE_INTERNE = ['En stock', 'Vendu', 'En SAV'];
+
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-structure-flotte]');
+  if(!b) return;
+  flotteInterneCodeCourant = b.dataset.structureFlotte;
+  $('flotte-interne-nom-structure').textContent = b.dataset.structureFlotteNom;
+  $('flotte-interne-contenu').innerHTML = '<p class="sous-question">Chargement…</p>';
+  $('modale-flotte-interne').hidden = false;
+  await chargerFlotteInterneAdmin();
+});
+$('flotte-interne-fermer').addEventListener('click', () => $('modale-flotte-interne').hidden = true);
+
+async function chargerFlotteInterneAdmin(){
+  try{
+    const r = await jsonp({action:'flotte-lister-admin', password:motDePasse, code:flotteInterneCodeCourant});
+    if(!r.ok){ $('flotte-interne-contenu').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur)}</div>`; return; }
+    if(!r.appareils.length){
+      $('flotte-interne-contenu').innerHTML = '<p class="sous-question">Aucun appareil pour le moment — ils apparaîtront automatiquement dès qu\'une commande de cette structure sera livrée.</p>';
+      return;
+    }
+    $('flotte-interne-contenu').innerHTML = `
+      <div class="scroll-tableau-flotte">
+        <table class="tableau-appareils">
+          <thead><tr><th>N° série</th><th>Marque</th><th>Modèle</th><th>Personne</th><th>Statut</th><th>Livré le</th><th>Date de vente</th><th>Payé</th></tr></thead>
+          <tbody>${r.appareils.map(a => `
+            <tr>
+              <td class="mono">${echapper(a.numeroSerie)}</td>
+              <td><input data-flotte-interne-ligne="${a.ligne}" data-flotte-interne-champ="marque" value="${echapper(a.marque)}" style="width:90px"></td>
+              <td><input data-flotte-interne-ligne="${a.ligne}" data-flotte-interne-champ="modele" value="${echapper(a.modele)}" style="width:100px"></td>
+              <td><input data-flotte-interne-ligne="${a.ligne}" data-flotte-interne-champ="personne" value="${echapper(a.personne)}" style="width:110px"></td>
+              <td>
+                <select data-flotte-interne-ligne="${a.ligne}" data-flotte-interne-champ="statut">
+                  ${STATUTS_FLOTTE_INTERNE.map(s => `<option ${a.statut === s ? 'selected' : ''}>${s}</option>`).join('')}
+                </select>
+              </td>
+              <td>${echapper(a.dateLivraison)}</td>
+              <td><input type="text" data-flotte-interne-ligne="${a.ligne}" data-flotte-interne-champ="dateVente" value="${echapper(a.dateVente)}" style="width:90px" placeholder="jj/mm/aaaa"></td>
+              <td>
+                <select data-flotte-interne-ligne="${a.ligne}" data-flotte-interne-champ="paye">
+                  <option value="Non" ${a.paye !== 'Oui' ? 'selected' : ''}>Non</option>
+                  <option value="Oui" ${a.paye === 'Oui' ? 'selected' : ''}>Oui</option>
+                </select>
+              </td>
+            </tr>`).join('')}</tbody>
+        </table>
+      </div>`;
+  }catch(e){
+    $('flotte-interne-contenu').innerHTML = '<div class="msg msg-erreur">Chargement impossible.</div>';
+  }
+}
+
+$('flotte-interne-contenu').addEventListener('change', async e => {
+  const el = e.target.closest('[data-flotte-interne-ligne]');
+  if(!el) return;
+  el.disabled = true;
+  try{
+    const r = await poster({
+      action:'flotte-modifier-admin', code:flotteInterneCodeCourant,
+      ligne: parseInt(el.dataset.flotteInterneLigne, 10), champ: el.dataset.flotteInterneChamp, valeur: el.value,
+    });
+    etat(r.ok ? 'Enregistré' : (r.erreur || 'Enregistrement impossible'), r.ok ? 'succes' : 'erreur');
+  }catch(err){ etat('Enregistrement impossible', 'erreur'); }
+  el.disabled = false;
 });
 
 $('btn-nouvelle-structure').addEventListener('click', () => {
