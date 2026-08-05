@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<script>
+// 👉 C'EST ICI, LA LIGNE JUSTE EN DESSOUS ↓↓↓ — remplace UNIQUEMENT le texte entre guillemets
+const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
+</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C'est quoi Linux ? — CVDL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css?v=20260802-2">
+<style>
+  .article-linux{max-width:640px;margin:0 auto}
+  .article-linux h1{margin-top:0;margin-bottom:6px}
+  .article-linux .chapo{color:var(--gris);font-size:15.5px;line-height:1.6;margin-bottom:28px}
+  .article-linux h2{font-size:17px;margin:32px 0 10px}
+  .article-linux p{font-size:14.5px;line-height:1.7;color:var(--encre);margin:0 0 14px}
+  .article-linux ul{margin:0 0 14px;padding-left:20px;font-size:14.5px;line-height:1.7;color:var(--encre)}
+  .illustration-linux{
+    width:100%;max-width:420px;display:block;margin:24px auto;border-radius:14px;
+    background:var(--carte);border:1px solid var(--trait);padding:20px;box-sizing:border-box;
+  }
+  .bloc-demo{
+    background:var(--carte);border:1px solid var(--trait);border-radius:14px;
+    padding:22px;margin:28px 0;text-align:center;
+  }
+  .bloc-demo p{margin-bottom:16px}
+  .bouton-demo{
+    display:inline-flex;align-items:center;gap:8px;background:var(--primaire);color:#fff;
+    font-family:inherit;font-weight:600;font-size:14.5px;text-decoration:none;
+    padding:12px 22px;border-radius:10px;transition:opacity .15s;
+  }
+  .bouton-demo:hover{opacity:.88}
+  .note-demo{font-size:12.5px;color:var(--gris);margin-top:12px}
+</style>
+</head>
+<body>
+<a href="#contenu-principal" class="lien-evitement">Aller au contenu</a>
+
+<header class="marque-barre">
+  <div class="marque">
+    <img src="logo.png" alt="" onerror="this.style.display='none'">
+    <span class="nom-org">CVDL</span>
+  </div>
+  <div class="bascule-mode" role="group" aria-label="Apparence de la page">
+    <button type="button" data-mode="clair" class="actif">Clair</button>
+    <button type="button" data-mode="accessible">Accessible</button>
+  </div>
+</header>
+
+<div class="barre-retour-portail">
+  <a href="javascript:history.back()" class="lien-retour-portail">← Retour</a>
+</div>
+
+<div class="scene-wrap" id="contenu-principal">
+  <div class="scene article-linux">
+
+    <h1>C'est quoi, Linux ?</h1>
+    <p class="chapo">
+      Si votre ordinateur reconditionné tourne sous Linux plutôt que sous Windows, voici de quoi
+      comprendre rapidement ce que ça change — et pourquoi ce n'est pas un problème.
+    </p>
+
+    <svg class="illustration-linux" viewBox="0 0 400 220" xmlns="http://www.w3.org/2000/svg">
+      <rect x="40" y="20" width="320" height="150" rx="10" fill="none" stroke="var(--primaire)" stroke-width="3"/>
+      <rect x="55" y="35" width="290" height="105" rx="4" fill="var(--primaire)" opacity="0.08"/>
+      <rect x="70" y="50" width="80" height="10" rx="2" fill="var(--primaire)" opacity="0.5"/>
+      <rect x="70" y="68" width="140" height="8" rx="2" fill="var(--primaire)" opacity="0.3"/>
+      <rect x="70" y="84" width="110" height="8" rx="2" fill="var(--primaire)" opacity="0.3"/>
+      <circle cx="290" cy="95" r="28" fill="none" stroke="var(--primaire)" stroke-width="3"/>
+      <path d="M280 95l7 7 14-14" fill="none" stroke="var(--primaire)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="150" y="170" width="100" height="10" rx="3" fill="var(--primaire)" opacity="0.25"/>
+      <rect x="180" y="180" width="40" height="8" rx="3" fill="var(--primaire)" opacity="0.15"/>
+    </svg>
+
+    <h2>Un autre système, tout aussi capable</h2>
+    <p>
+      Windows et Linux sont deux systèmes d'exploitation — le logiciel de base qui fait fonctionner
+      l'ordinateur. Linux existe depuis plus de 30 ans, fait tourner l'immense majorité des serveurs
+      d'internet, et équipe aujourd'hui des millions d'ordinateurs de bureau dans le monde. Ce n'est
+      pas une version dégradée de Windows : c'est un système à part entière, gratuit, et souvent plus
+      léger — ce qui le rend particulièrement adapté aux ordinateurs reconditionnés.
+    </p>
+
+    <h2>Ce qui change, concrètement</h2>
+    <ul>
+      <li>Le bureau, les icônes et les menus ont une apparence un peu différente, mais le principe reste le même : cliquer, ouvrir des fenêtres, lancer des programmes.</li>
+      <li>Un navigateur web (souvent Firefox ou Chrome), une suite bureautique compatible avec Word/Excel, une messagerie et un lecteur de fichiers sont déjà installés.</li>
+      <li>Les logiciels s'installent depuis un "magasin d'applications" intégré, gratuitement, sans code d'activation à chercher.</li>
+      <li>Antivirus : Linux est beaucoup moins ciblé par les virus que Windows, il n'y a généralement rien de spécial à installer.</li>
+    </ul>
+
+    <h2>Et si j'ai l'habitude de Windows ?</h2>
+    <p>
+      La prise en main demande quelques minutes d'adaptation, pas plus. Les gestes de base (ouvrir un
+      document, se connecter à internet, imprimer) fonctionnent de la même façon. En cas de blocage,
+      l'équipe reste joignable via le SAV du portail.
+    </p>
+
+    <div class="bloc-demo">
+      <p><strong>Le plus simple : l'essayer directement, sans rien installer.</strong></p>
+      <a class="bouton-demo" href="https://distrotest.net/" target="_blank" rel="noopener">
+        🖥️ Tester une démo dans le navigateur
+      </a>
+      <p class="note-demo">Un vrai bureau Linux s'ouvre dans un nouvel onglet — aucune installation, aucune inscription.</p>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const $$ = sel => document.querySelectorAll(sel);
+
+function appliquerMode(mode){
+  document.body.classList.remove('mode-sombre','mode-accessible');
+  if(mode === 'accessible') document.body.classList.add('mode-accessible');
+  $$('.bascule-mode button').forEach(b => b.classList.toggle('actif', b.dataset.mode === mode));
+  try{ localStorage.setItem('cvdl-mode', mode); }catch(e){}
+}
+$$('.bascule-mode button').forEach(b => b.addEventListener('click', () => appliquerMode(b.dataset.mode)));
+try{
+  const memorise = localStorage.getItem('cvdl-mode');
+  if(memorise) appliquerMode(memorise === 'sombre' ? 'clair' : memorise);
+}catch(e){}
+</script>
+</body>
+</html>

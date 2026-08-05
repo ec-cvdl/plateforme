@@ -15,6 +15,7 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css?v=20260802-2">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
   .tuto-flotte{counter-reset:etape-tuto;margin:22px 0}
   .tuto-flotte li{
@@ -106,9 +107,39 @@ try{
     animation:tourner-spinner-precoce .8s linear infinite;
   }
   @keyframes tourner-spinner-precoce{to{transform:rotate(360deg)}}
+  .lien-qr-passeport{
+    background:none;border:1px solid var(--trait);border-radius:8px;padding:4px 10px;
+    font-family:inherit;font-size:12.5px;cursor:pointer;color:var(--encre);
+  }
+  .lien-qr-passeport:hover{border-color:var(--primaire);color:var(--primaire)}
+  .voile-modale-qr{
+    display:none;position:fixed;inset:0;z-index:500;background:rgba(20,24,30,.5);
+    align-items:center;justify-content:center;padding:20px;
+  }
+  .voile-modale-qr.visible{display:flex}
+  .modale-qr{
+    background:var(--carte);border-radius:16px;padding:28px;max-width:300px;width:100%;
+    text-align:center;
+  }
+  .modale-qr h3{margin:0 0 4px;font-size:16px}
+  .modale-qr p{margin:0 0 16px;font-size:12.5px;color:var(--gris)}
+  #qr-code-conteneur{display:flex;justify-content:center;margin-bottom:16px}
+  .modale-qr .mono{font-size:12px;word-break:break-all;color:var(--gris);margin-bottom:16px;display:block}
+  .modale-qr a.bouton-principal{display:block;text-decoration:none;text-align:center;box-sizing:border-box}
 </style>
 </head>
 <body>
+<div class="voile-modale-qr" id="modale-qr-passeport">
+  <div class="modale-qr">
+    <h3>Passeport de l'appareil</h3>
+    <p>Scannez pour ouvrir la fiche, ou imprimez ce QR pour le coller sur l'appareil.</p>
+    <div id="qr-code-conteneur"></div>
+    <span class="mono" id="qr-url-affichee"></span>
+    <a class="bouton-principal" id="qr-ouvrir-passeport" href="#" target="_blank" rel="noopener">Ouvrir le passeport ↗</a>
+    <button type="button" class="lien-changer-code" id="qr-fermer" style="margin-top:12px">Fermer</button>
+  </div>
+</div>
+
 <div id="voile-verification-precoce"><div class="spinner-precoce"></div></div>
 <a href="#contenu-principal" class="lien-evitement">Aller au contenu</a>
 
@@ -226,11 +257,15 @@ async function chargerAppareils(lienFlotte){
   try{
     const r = await jsonp({action:'flotte-lister', code: codeValide});
     if(!r.ok){ $('zone-flotte').innerHTML = `<p class="msg msg-erreur">${echapper(r.erreur || 'Chargement impossible.')}</p>`; return; }
-    rendreAppareils(r.appareils);
+    appareilsCourants = r.appareils;
+    rendreAppareils(appareilsCourants);
   }catch(e){
     $('zone-flotte').innerHTML = '<p class="msg msg-erreur">Chargement impossible — réessaie.</p>';
   }
 }
+
+let appareilsCourants = [];
+let rechercheFlotte = '';
 
 let vueFlotteActuelle = 'cartes';
 try{ vueFlotteActuelle = localStorage.getItem('cvdl-flotte-vue') || 'cartes'; }catch(e){}
@@ -273,6 +308,7 @@ function construireCartesAppareils(appareils){
       </div>
       <div class="pied-appareil">
         <span>Livré le ${a.dateLivraison ? echapper(a.dateLivraison) : '—'}</span>
+        <button type="button" class="lien-qr-passeport" data-qr-serie="${echapper(a.numeroSerie)}">🛂 Passeport</button>
         ${a.lienPaiement ? `<a href="${echapper(a.lienPaiement)}" target="_blank" rel="noopener">Lien de paiement ↗</a>` : ''}
       </div>
     </div>`).join('');
@@ -304,6 +340,7 @@ function construireTableauAppareils(appareils){
         </select>
       </td>
       <td>${a.lienPaiement ? `<a href="${echapper(a.lienPaiement)}" target="_blank" rel="noopener">Voir ↗</a>` : '—'}</td>
+      <td><button type="button" class="lien-qr-passeport" data-qr-serie="${echapper(a.numeroSerie)}">🛂</button></td>
     </tr>`).join('');
   return `
     <div class="scroll-tableau-flotte">
@@ -311,7 +348,7 @@ function construireTableauAppareils(appareils){
         <thead>
           <tr>
             <th>N° série</th><th>Marque</th><th>Modèle</th><th>Prix d'achat</th><th>Personne</th>
-            <th>Statut</th><th>Livré le</th><th>Date de vente</th><th>Payé</th><th>Paiement</th>
+            <th>Statut</th><th>Livré le</th><th>Date de vente</th><th>Payé</th><th>Paiement</th><th>Passeport</th>
           </tr>
         </thead>
         <tbody>${lignesHtml}</tbody>
@@ -330,6 +367,7 @@ function rendreAppareils(appareils){
       </div>
       <a href="${echapper(lienFlotteActuel)}" target="_blank" rel="noopener">Ouvrir dans Google Sheets ↗</a>
     </div>
+    <input type="text" id="recherche-flotte" class="champ-texte" style="margin-top:10px" placeholder="Rechercher par n° de série ou personne…" value="${echapper(rechercheFlotte)}">
     ${nbAlertes ? `<div class="msg msg-info" style="margin-top:10px">⏳ ${nbAlertes} appareil${nbAlertes > 1 ? 's' : ''} en stock depuis plus de 3 mois — la garantie court sur ${nbAlertes > 1 ? 'eux' : 'lui'}.</div>` : ''}
     <div id="retour-actualiser-flotte" class="compteur-ajouts"></div>`;
 
@@ -339,10 +377,27 @@ function rendreAppareils(appareils){
     return;
   }
 
-  const contenu = vueFlotteActuelle === 'tableau' ? construireTableauAppareils(appareils) : construireCartesAppareils(appareils);
+  const terme = rechercheFlotte.trim().toLowerCase();
+  const appareilsFiltres = terme
+    ? appareils.filter(a => (a.numeroSerie || '').toLowerCase().includes(terme) || (a.personne || '').toLowerCase().includes(terme))
+    : appareils;
+
+  const contenu = appareilsFiltres.length
+    ? (vueFlotteActuelle === 'tableau' ? construireTableauAppareils(appareilsFiltres) : construireCartesAppareils(appareilsFiltres))
+    : '<p class="sous-question" style="margin-top:14px">Aucun appareil ne correspond à cette recherche.</p>';
   document.body.classList.toggle('mode-tableau-flotte', vueFlotteActuelle === 'tableau');
   $('zone-flotte').innerHTML = barreOutils + contenu;
   cablerBarreOutils();
+
+  $('recherche-flotte').addEventListener('input', () => {
+    rechercheFlotte = $('recherche-flotte').value;
+    rendreAppareils(appareilsCourants);
+    // Le focus est perdu à chaque re-rendu (innerHTML régénéré) — on le restaure et on
+    // replace le curseur à la fin plutôt qu'au début, sinon taper devient impossible.
+    const champ = $('recherche-flotte');
+    champ.focus();
+    champ.setSelectionRange(champ.value.length, champ.value.length);
+  });
 
   document.querySelectorAll('#zone-flotte [data-champ]').forEach(champ => {
     champ.addEventListener('change', async () => {
@@ -397,6 +452,27 @@ function dateVersISO(dateStr){
   if(!j || !m || !a) return '';
   return `${a}-${m}-${j}`;
 }
+
+/* Passeport numérique / QR code — le lien pointe vers passeport.html, servi à côté de cette
+   page (même hébergement), avec le numéro de série en paramètre d'URL. */
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-qr-serie]');
+  if(!b) return;
+  const numeroSerie = b.dataset.qrSerie;
+  const url = location.origin + location.pathname.replace(/flotte-structure\.html$/, '') + 'passeport.html?sn=' + encodeURIComponent(numeroSerie);
+
+  $('qr-code-conteneur').innerHTML = '';
+  try{
+    new QRCode($('qr-code-conteneur'), { text: url, width: 200, height: 200, colorDark: '#161B22', colorLight: '#ffffff' });
+  }catch(err){
+    $('qr-code-conteneur').innerHTML = '<p class="sous-question">QR indisponible — le lien reste utilisable ci-dessous.</p>';
+  }
+  $('qr-url-affichee').textContent = url;
+  $('qr-ouvrir-passeport').href = url;
+  $('modale-qr-passeport').classList.add('visible');
+});
+$('qr-fermer').addEventListener('click', () => $('modale-qr-passeport').classList.remove('visible'));
+$('modale-qr-passeport').addEventListener('click', e => { if(e.target.id === 'modale-qr-passeport') $('modale-qr-passeport').classList.remove('visible'); });
 
 async function chargerFlotte(){
   try{

@@ -392,8 +392,8 @@ body.carte-style-couleur .ccm-pastille{background:rgba(255,255,255,.22)}
 .ccm-pilule-mini.ccm-pilule-serie.pilule-remplie svg{color:var(--t-vert-t)}
 .ccm-pilule-commentaire{position:relative}
 .ccm-pilule-commentaire .point-notif-mini{
-  position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;
-  background:var(--alert, #E62460);border:3px solid var(--card, #fff);box-sizing:border-box;
+  position:absolute;top:-5px;right:-5px;width:16px;height:16px;border-radius:50%;
+  background:var(--alert, #E62460);border:2.5px solid var(--card, #fff);box-sizing:border-box;
 }
 .ccm-pilule-badge{
   min-width:16px;height:16px;padding:0 4px;border-radius:999px;

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<script>
+// 👉 C'EST ICI, LA LIGNE JUSTE EN DESSOUS ↓↓↓ — remplace UNIQUEMENT le texte entre guillemets
+const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
+</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Passeport de l'appareil — CVDL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css?v=20260802-2">
+<style>
+  .passeport{max-width:480px;margin:0 auto}
+  .passeport h1{margin-top:0;font-size:21px}
+  .carte-passeport{
+    background:var(--carte);border:1px solid var(--trait);border-radius:16px;padding:24px;margin-top:18px;
+  }
+  .ligne-passeport{display:flex;justify-content:space-between;gap:14px;padding:11px 0;border-bottom:1px solid var(--trait)}
+  .ligne-passeport:last-child{border-bottom:none}
+  .ligne-passeport .cle{font-size:12.5px;color:var(--gris);text-transform:uppercase;letter-spacing:.04em;flex-shrink:0}
+  .ligne-passeport .valeur{font-size:14.5px;color:var(--encre);font-weight:600;text-align:right}
+  .badge-garantie{
+    display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:999px;
+    font-size:12.5px;font-weight:600;
+  }
+  .badge-garantie.sous{background:rgba(46,160,90,.12);color:#2EA05A}
+  .badge-garantie.hors{background:rgba(230,36,96,.12);color:var(--rose,#E62460)}
+  .bloc-sav{margin-top:10px}
+  .ticket-sav-mini{
+    display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--trait);font-size:13px;
+  }
+  .ticket-sav-mini:last-child{border-bottom:none}
+  .recherche-passeport{display:flex;gap:8px;margin-bottom:8px}
+  .recherche-passeport input{flex:1}
+  .etat-passeport{text-align:center;padding:40px 20px;color:var(--gris)}
+</style>
+</head>
+<body>
+<a href="#contenu-principal" class="lien-evitement">Aller au contenu</a>
+
+<header class="marque-barre">
+  <div class="marque">
+    <img src="logo.png" alt="" onerror="this.style.display='none'">
+    <span class="nom-org">CVDL</span>
+  </div>
+  <div class="bascule-mode" role="group" aria-label="Apparence de la page">
+    <button type="button" data-mode="clair" class="actif">Clair</button>
+    <button type="button" data-mode="accessible">Accessible</button>
+  </div>
+</header>
+
+<div class="scene-wrap" id="contenu-principal">
+  <div class="scene passeport">
+
+    <h1>🛂 Passeport de l'appareil</h1>
+    <p class="sous-question" id="intro-passeport">Numéro de série collé sur l'étiquette de l'appareil, ou scanné depuis le QR code.</p>
+
+    <div class="recherche-passeport">
+      <input type="text" id="champ-numero-serie" class="champ-texte" placeholder="Numéro de série" autocomplete="off" spellcheck="false">
+      <button type="button" class="bouton-principal" id="btn-chercher-passeport" style="width:auto;padding:0 18px">Voir</button>
+    </div>
+
+    <div id="zone-passeport"></div>
+
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const $$ = sel => document.querySelectorAll(sel);
+function echapper(s){
+  const d = document.createElement('div');
+  d.textContent = s == null ? '' : String(s);
+  return d.innerHTML;
+}
+function jsonp(params){
+  return fetch(API + '?' + new URLSearchParams(params)).then(r => r.json());
+}
+
+async function afficherPasseport(numeroSerie){
+  $('zone-passeport').innerHTML = '<p class="etat-passeport">Recherche en cours…</p>';
+  try{
+    const r = await jsonp({action:'passeport-materiel', numeroSerie});
+    if(!r.ok){
+      $('zone-passeport').innerHTML = `<p class="etat-passeport">${echapper(r.erreur || "Numéro de série introuvable.")}<br>Vérifiez la saisie, ou contactez la structure qui vous a remis l'appareil.</p>`;
+      return;
+    }
+
+    const badgeGarantie = r.sousGarantie === null ? ''
+      : r.sousGarantie
+        ? `<span class="badge-garantie sous">✓ Sous garantie jusqu'au ${echapper(r.dateFinGarantie)}</span>`
+        : `<span class="badge-garantie hors">Hors garantie depuis le ${echapper(r.dateFinGarantie)}</span>`;
+
+    const historiqueSav = r.ticketsSav.length ? `
+      <div class="bloc-sav">
+        <div class="ligne-passeport"><span class="cle">Historique SAV</span></div>
+        ${r.ticketsSav.map(t => `
+          <div class="ticket-sav-mini">
+            <span>${echapper(t.reference)} — ${echapper(t.statut)}${t.reconditionneur ? ` (${echapper(t.reconditionneur)})` : ''}</span>
+            <span style="color:var(--gris)">${echapper(t.date)}</span>
+          </div>`).join('')}
+      </div>` : '';
+
+    $('zone-passeport').innerHTML = `
+      <div class="carte-passeport">
+        <div class="ligne-passeport"><span class="cle">N° de série</span><span class="valeur">${echapper(r.numeroSerie)}</span></div>
+        ${r.caracteristiques ? `<div class="ligne-passeport"><span class="cle">Configuration</span><span class="valeur">${echapper(r.caracteristiques)}</span></div>` : ''}
+        ${r.structure ? `<div class="ligne-passeport"><span class="cle">Remis par</span><span class="valeur">${echapper(r.structure)}</span></div>` : ''}
+        ${r.dateLivraison ? `<div class="ligne-passeport"><span class="cle">Livré le</span><span class="valeur">${echapper(r.dateLivraison)}</span></div>` : ''}
+        ${badgeGarantie ? `<div class="ligne-passeport"><span class="cle">Garantie</span><span class="valeur">${badgeGarantie}</span></div>` : ''}
+      </div>
+      ${historiqueSav ? `<div class="carte-passeport">${historiqueSav}</div>` : ''}
+    `;
+  }catch(e){
+    $('zone-passeport').innerHTML = '<p class="etat-passeport">Impossible de récupérer les informations — réessayez.</p>';
+  }
+}
+
+$('btn-chercher-passeport').addEventListener('click', () => {
+  const v = $('champ-numero-serie').value.trim();
+  if(v){ history.replaceState(null, '', '?sn=' + encodeURIComponent(v)); afficherPasseport(v); }
+});
+$('champ-numero-serie').addEventListener('keydown', e => { if(e.key === 'Enter') $('btn-chercher-passeport').click(); });
+
+const depuisUrl = new URLSearchParams(location.search).get('sn');
+if(depuisUrl){
+  $('champ-numero-serie').value = depuisUrl;
+  afficherPasseport(depuisUrl);
+}
+
+/* Bascule de mode (clair / accessible) */
+function appliquerMode(mode){
+  document.body.classList.remove('mode-sombre','mode-accessible');
+  if(mode === 'accessible') document.body.classList.add('mode-accessible');
+  $$('.bascule-mode button').forEach(b => b.classList.toggle('actif', b.dataset.mode === mode));
+  try{ localStorage.setItem('cvdl-mode', mode); }catch(e){}
+}
+$$('.bascule-mode button').forEach(b => b.addEventListener('click', () => appliquerMode(b.dataset.mode)));
+try{
+  const memorise = localStorage.getItem('cvdl-mode');
+  if(memorise) appliquerMode(memorise === 'sombre' ? 'clair' : memorise);
+}catch(e){}
+</script>
+</body>
+</html>

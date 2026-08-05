@@ -1187,6 +1187,25 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
   </div>
 </div>
 
+<!-- Modale : associer les numéros de série aux personnes, avant génération des attestations
+     de paiement — manuel ou aléatoire. Le rapprochement par type de produit n'est qu'indicatif
+     ici (le nom du produit de chaque personne s'affiche à titre de repère) : les numéros de
+     série ne sont pas structurellement rattachés à un produit précis dans la commande, donc
+     l'assignation — même aléatoire — reste à vérifier avant envoi. -->
+<div class="voile-modale" id="modale-associer-serie" hidden>
+  <div class="modale">
+    <h2>Associer les numéros de série</h2>
+    <p class="sous-titre">Une ligne par personne — le produit affiché est indicatif, à vérifier avant de valider.</p>
+    <div id="associer-serie-lignes"></div>
+    <div id="retour-associer-serie"></div>
+    <div class="pied-modale">
+      <button class="action claire" id="associer-serie-aleatoire">🎲 Assigner aléatoirement</button>
+      <button class="action claire" id="associer-serie-annuler">Annuler</button>
+      <button class="action" id="associer-serie-confirmer">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modale : facturer directement, sans passer par un devis -->
 <div class="voile-modale" id="modale-facturer-direct" hidden>
   <div class="modale">
