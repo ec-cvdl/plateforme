@@ -148,11 +148,16 @@ try{
     <!-- Étape : pièce jointe (PDF + attestation + upload adaptatif) — sautée pour les structures RN -->
     <section class="etape" data-etape="piece-jointe" hidden>
       <div class="compte">ÉTAPE <span class="num-actuel">4</span> SUR <span class="num-total">–</span></div>
-      <div class="question">Qui va <em>recevoir</em> ce matériel ?</div>
+      <div class="question" id="titre-etape-personnes">Qui va <em>recevoir</em> ce matériel ?</div>
       <p class="sous-question">Un nom complet par appareil commandé — ça nous sert à préparer le bon d'orientation et l'attestation de chaque personne, vous n'avez plus de document à remplir vous-même.</p>
 
       <div id="zone-personnes"></div>
       <div id="retour-personnes" aria-live="polite"></div>
+
+      <label class="case-attestation" id="case-bon-orientation-bo" hidden style="margin-top:18px">
+        <input type="checkbox" id="attestation-bon-orientation-bo">
+        <span>Ce formulaire faisant office de bon d'orientation, j'atteste avoir réalisé toutes les démarches nécessaires auprès du ou des bénéficiaire(s) orienté(es).</span>
+      </label>
 
       <div class="suite">
         <button type="button" class="bouton-retour" data-retour>← Retour</button>
@@ -422,6 +427,7 @@ let indexEtape = 0;
 let moyenImpose = null;
 let estEsn = false;
 let estInterne = false;
+let estAutres = false;
 let autoriseDateSouhaitee = false;
 let estSansDevisNiAttestations = false; // ESN + Interne + Autres : pas de demande de devis, pas d'attestations obligatoires
 
@@ -519,6 +525,9 @@ async function verifierCode(){
       estEsn = !!verif.esn || !!verif.interne;
       estSansDevisNiAttestations = !!verif.esn || !!verif.interne || !!verif.autres;
       estInterne = !!verif.interne;
+      estAutres = !!verif.autres;
+      $('titre-etape-personnes').innerHTML = estAutres ? 'Remplissez le ou les bon(s) <em>d\'orientation</em>' : 'Qui va <em>recevoir</em> ce matériel ?';
+      $('case-bon-orientation-bo').hidden = !estAutres;
       autoriseDateSouhaitee = !!verif.dateSouhaitee;
       $('demande-devis').closest('.case-attestation').hidden = estSansDevisNiAttestations;
       if(estSansDevisNiAttestations) $('demande-devis').checked = false;
@@ -766,9 +775,11 @@ function verifierEtatPersonnes(){
   const tousRemplis = personnes.length > 0 && personnes.every(function(p){
     return p.nomComplet.length > 1 && !!p.dateNaissance;
   });
-  $('btn-personnes-suivant').disabled = !tousRemplis;
+  const caseBoOk = !estAutres || $('attestation-bon-orientation-bo').checked;
+  $('btn-personnes-suivant').disabled = !tousRemplis || !caseBoOk;
   afficherMsg('retour-personnes', tousRemplis ? '' : 'Merci d\'indiquer le nom complet et la date de naissance de chaque personne avant de continuer.', 'erreur');
 }
+$('attestation-bon-orientation-bo').addEventListener('change', verifierEtatPersonnes);
 $('btn-personnes-suivant').addEventListener('click', suivant);
 $('btn-date-livraison-suivant').addEventListener('click', function(){
   etat.dateLivraisonSouhaitee = $('date-livraison-souhaitee').value;

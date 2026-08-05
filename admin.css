@@ -926,8 +926,9 @@ select.statut option{background:#fff;color:var(--ink);font-weight:500}
 .grille-cases-structure{display:grid;grid-template-columns:1fr 1fr;gap:2px 16px;margin-top:4px}
 @media(max-width:600px){.grille-cases-structure{grid-template-columns:1fr}}
 .info-colonne{
-  color:var(--steel);font-size:13px;font-weight:700;cursor:help;margin-left:2px;
+  display:block;color:var(--steel);font-size:11px;font-weight:700;cursor:help;margin-top:2px;
 }
+.entete-structure span{display:flex;flex-direction:column;line-height:1.3}
 .ligne-avec-lien{display:flex;gap:8px;align-items:center}
 .ligne-avec-lien input{flex:1}
 .lien-passeport-inline{

@@ -286,7 +286,7 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
       </div>
 
       <div class="entete-liste entete-structure">
-        <span>Code</span><span>Nom</span><span>Email</span><span>Email facturation</span><span>Téléphone</span><span>Adresse</span><span>RN <span class="info-colonne" title="Tarif préférentiel + paiement par virement imposé">?</span></span><span>ESN <span class="info-colonne" title="Aucun prix affiché, aucune facturation générée">?</span></span><span>Interne <span class="info-colonne" title="Commandes passées en interne — mêmes effets que ESN, juste le nom qui change">?</span></span><span>Autres <span class="info-colonne" title="Catégorie à part — pas de demande de devis ni d'attestations à la commande, comme Interne">?</span></span><span></span>
+        <span>Code</span><span>Nom</span><span>Email</span><span>Email facturation</span><span>Téléphone</span><span>Adresse</span><span>RN<span class="info-colonne" title="Tarif préférentiel + paiement par virement imposé">?</span></span><span>ESN<span class="info-colonne" title="Aucun prix affiché, aucune facturation générée">?</span></span><span>Interne<span class="info-colonne" title="Mêmes principes que ESN, destinés à des commandes pour les territoires (exemple : le Loiret commande 10 PC pour une vente itinérante à venir)">?</span></span><span>BO<span class="info-colonne" title="Catégorie à part — pas de demande de devis ni d'attestations à la commande, comme Interne. Dédiés aux structures qui doivent remplir un bon d'orientation uniquement">?</span></span><span></span>
       </div>
       <div id="liste-structures"></div>
     </section>
@@ -1499,11 +1499,11 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
       </label>
       <label class="case-rn">
         <input type="checkbox" id="s-interne">
-        <span>Structure Interne <em>(commandes passées en interne — mêmes effets que ESN, juste le nom qui change)</em></span>
+        <span>Structure Interne <em>(mêmes principes que ESN, destinés à des commandes pour les territoires — ex : le Loiret commande 10 PC pour une vente itinérante à venir)</em></span>
       </label>
       <label class="case-rn">
         <input type="checkbox" id="s-autres">
-        <span>Structure Autres <em>(catégorie à part — pas de demande de devis ni d'attestations à la commande, comme Interne)</em></span>
+        <span>Structure BO <em>(catégorie à part — pas de demande de devis ni d'attestations à la commande, comme Interne. Dédiée aux structures qui doivent remplir un bon d'orientation uniquement)</em></span>
       </label>
     </div>
     <div id="retour-ajout"></div>
