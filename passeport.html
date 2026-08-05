@@ -94,16 +94,6 @@ async function afficherPasseport(numeroSerie){
         ? `<span class="badge-garantie sous">✓ Sous garantie jusqu'au ${echapper(r.dateFinGarantie)}</span>`
         : `<span class="badge-garantie hors">Hors garantie depuis le ${echapper(r.dateFinGarantie)}</span>`;
 
-    const historiqueSav = r.ticketsSav.length ? `
-      <div class="bloc-sav">
-        <div class="ligne-passeport"><span class="cle">Historique SAV</span></div>
-        ${r.ticketsSav.map(t => `
-          <div class="ticket-sav-mini">
-            <span>${echapper(t.reference)} — ${echapper(t.statut)}${t.reconditionneur ? ` (${echapper(t.reconditionneur)})` : ''}</span>
-            <span style="color:var(--gris)">${echapper(t.date)}</span>
-          </div>`).join('')}
-      </div>` : '';
-
     $('zone-passeport').innerHTML = `
       <div class="carte-passeport">
         <div class="ligne-passeport"><span class="cle">N° de série</span><span class="valeur">${echapper(r.numeroSerie)}</span></div>
@@ -111,8 +101,18 @@ async function afficherPasseport(numeroSerie){
         ${r.structure ? `<div class="ligne-passeport"><span class="cle">Remis par</span><span class="valeur">${echapper(r.structure)}</span></div>` : ''}
         ${r.dateLivraison ? `<div class="ligne-passeport"><span class="cle">Livré le</span><span class="valeur">${echapper(r.dateLivraison)}</span></div>` : ''}
         ${badgeGarantie ? `<div class="ligne-passeport"><span class="cle">Garantie</span><span class="valeur">${badgeGarantie}</span></div>` : ''}
+        <div class="ligne-passeport"><span class="cle">Reconditionneur</span><span class="valeur">${r.reconditionneurOriginal ? echapper(r.reconditionneurOriginal) : '—'}</span></div>
+        <div class="ligne-passeport"><span class="cle">Donateur</span><span class="valeur">${r.donateur ? echapper(r.donateur) : '—'}</span></div>
       </div>
-      ${historiqueSav ? `<div class="carte-passeport">${historiqueSav}</div>` : ''}
+      ${r.historique && r.historique.length ? `
+      <div class="carte-passeport">
+        <div class="ligne-passeport"><span class="cle">Historique de l'appareil</span></div>
+        ${r.historique.map(h => `
+          <div class="ticket-sav-mini">
+            <span>${echapper(h.label)}</span>
+            <span style="color:var(--gris)">${echapper(h.date)}</span>
+          </div>`).join('')}
+      </div>` : ''}
     `;
   }catch(e){
     $('zone-passeport').innerHTML = '<p class="etat-passeport">Impossible de récupérer les informations — réessayez.</p>';

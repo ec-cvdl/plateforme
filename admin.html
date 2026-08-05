@@ -208,6 +208,7 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
       </div>
       <nav class="onglets">
         <button data-vue="commandes" class="actif">Commandes</button>
+        <button data-vue="calendrier">Calendrier</button>
         <button data-vue="produits">Stock</button>
         <button data-vue="structures">Structures</button>
         <span class="separateur-onglets"></span>
@@ -218,8 +219,6 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
         <button data-vue="sav">SAV</button>
         <span class="separateur-onglets"></span>
         <button data-vue="bilan">Statistiques</button>
-        <button data-vue="carte">🗺️ Carte</button>
-        <button data-vue="calendrier">📅 Calendrier</button>
         <span class="separateur-onglets"></span>
         <button data-vue="reglages">Réglages</button>
       </nav>
@@ -272,7 +271,7 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
       </div>
 
       <div class="entete-liste entete-structure">
-        <span>Code</span><span>Nom</span><span>Email</span><span>Email facturation</span><span>Téléphone</span><span>Adresse</span><span>RN</span><span>ESN</span><span>Interne</span><span>Autres</span><span></span>
+        <span>Code</span><span>Nom</span><span>Email</span><span>Email facturation</span><span>Téléphone</span><span>Adresse</span><span>RN <span class="info-colonne" title="Tarif préférentiel + paiement par virement imposé">?</span></span><span>ESN <span class="info-colonne" title="Aucun prix affiché, aucune facturation générée">?</span></span><span>Interne <span class="info-colonne" title="Commandes passées en interne — mêmes effets que ESN, juste le nom qui change">?</span></span><span>Autres <span class="info-colonne" title="Catégorie à part — pas de demande de devis ni d'attestations à la commande, comme Interne">?</span></span><span></span>
       </div>
       <div id="liste-structures"></div>
     </section>
@@ -394,6 +393,7 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
           <button data-bt="sav">🎫 SAV</button>
           <button data-bt="tout">Les deux</button>
           <button data-bt="analytique">📊 Formulaire</button>
+          <button data-bt="carte">🗺️ Carte</button>
         </div>
         <label style="font-size:13px;font-weight:600;color:var(--steel);display:flex;align-items:center;gap:8px">
           Du
@@ -416,15 +416,13 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
         </div>
         <div id="bilan-analytique-details"></div>
       </div>
-    </section>
-
-    <!-- Vue carte -->
-    <section id="vue-carte" hidden>
-      <div class="outils">
-        <span id="carte-info" class="sous-question" style="margin:0"></span>
-        <button class="action claire" id="btn-actualiser-carte">🔄 Actualiser</button>
+      <div id="bilan-carte-contenu" hidden>
+        <div class="outils">
+          <span id="carte-info" class="sous-question" style="margin:0"></span>
+          <button class="action claire" id="btn-actualiser-carte">🔄 Actualiser</button>
+        </div>
+        <div id="carte-structures" style="height:600px;border-radius:14px;overflow:hidden;border:1px solid var(--line);margin-top:14px"></div>
       </div>
-      <div id="carte-structures" style="height:600px;border-radius:14px;overflow:hidden;border:1px solid var(--line);margin-top:14px"></div>
     </section>
 
     <!-- Vue calendrier -->
@@ -708,6 +706,21 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
       </div>
 
       <div class="carte-reglage">
+        <h3>API publique en lecture seule</h3>
+        <p class="reglage-texte">
+          Pour connecter un script ou un outil externe à vos commandes, SAV et flotte, en lecture seule.
+          Tant qu'aucune clé n'est générée, l'API reste ouverte à qui connaît son adresse — générez une
+          clé pour la rendre exigible (en-tête <code>Authorization: Bearer &lt;clé&gt;</code>).
+        </p>
+        <div class="ligne-reglage">
+          <input type="text" id="api-key-affichee" readonly placeholder="Aucune clé générée — API ouverte">
+          <button type="button" class="action claire" id="btn-api-key-generer">🔑 Générer une nouvelle clé</button>
+        </div>
+        <div id="retour-api-key"></div>
+        <button type="button" class="action claire" id="btn-api-key-supprimer" style="margin-top:8px;color:var(--t-rouge-t, #c0364a)" hidden>Retirer la clé (rendre l'API à nouveau ouverte)</button>
+      </div>
+
+      <div class="carte-reglage">
         <h3>Modèle flotte matériel (structures)</h3>
         <p class="reglage-texte">
           Modèle Google Sheets que chaque structure copie dans son propre Drive pour tenir l'inventaire
@@ -939,6 +952,7 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
     <label for="serie-texte">Numéros</label>
     <textarea id="serie-texte" placeholder="SN-00123&#10;SN-00124&#10;SN-00125"></textarea>
     <div class="compteur-lignes" id="serie-compte">0 numéro</div>
+    <div id="serie-liste-passeports" class="liste-passeports-serie"></div>
 
     <div class="zone-import-csv">
       <label for="serie-fichier-csv">Importer un CSV tec.tech</label>
@@ -1298,6 +1312,8 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
       <option value="generique">Générique</option>
     </select>
     <input type="text" id="p-message" placeholder="Message si épuisé (ex: Nous n'avons jamais de tablettes en stock)" style="width:100%;margin-bottom:11px">
+    <label for="p-sku-tectech" style="display:block;font-size:12.5px;font-weight:600;color:var(--steel);margin-bottom:5px" title="La référence utilisée côté Tech.tec pour ce produit, pour que la synchronisation de stock sache à qui l'attribuer">Correspondance Tech.tec</label>
+    <input type="text" id="p-sku-tectech" placeholder="SKU / référence Tech.tec (facultatif)" style="width:100%;margin-bottom:11px">
     <label class="case-rn">
       <input type="checkbox" id="p-visible" checked>
       <span>Visible dans le formulaire public</span>
@@ -1505,7 +1521,10 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
       </div>
       <div>
         <label for="detail-sav-numero-serie">Numéro de série</label>
-        <input type="text" id="detail-sav-numero-serie">
+        <div class="ligne-avec-lien">
+          <input type="text" id="detail-sav-numero-serie">
+          <a href="#" id="detail-sav-lien-passeport" target="_blank" rel="noopener" class="lien-passeport-inline">🛂 Passeport</a>
+        </div>
       </div>
     </div>
     <div class="grille-modale">

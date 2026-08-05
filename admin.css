@@ -883,6 +883,24 @@ select.statut option{background:#fff;color:var(--ink);font-weight:500}
 .case-rn em{color:var(--steel);font-style:normal;font-size:12.5px}
 .grille-cases-structure{display:grid;grid-template-columns:1fr 1fr;gap:2px 16px;margin-top:4px}
 @media(max-width:600px){.grille-cases-structure{grid-template-columns:1fr}}
+.info-colonne{
+  display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;
+  border-radius:50%;background:var(--line);color:var(--steel);font-size:9px;font-weight:700;
+  cursor:help;vertical-align:middle;margin-left:2px;
+}
+.ligne-avec-lien{display:flex;gap:8px;align-items:center}
+.ligne-avec-lien input{flex:1}
+.lien-passeport-inline{
+  flex-shrink:0;font-size:12px;font-weight:600;color:var(--steel);text-decoration:none;
+  white-space:nowrap;padding:6px 10px;border:1px solid var(--line);border-radius:8px;
+}
+.lien-passeport-inline:hover{color:var(--ink);border-color:var(--steel)}
+.liste-passeports-serie{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.liste-passeports-serie a{
+  font-size:11.5px;font-weight:600;color:var(--steel);text-decoration:none;
+  padding:4px 9px;border:1px solid var(--line);border-radius:999px;
+}
+.liste-passeports-serie a:hover{color:var(--ink);border-color:var(--steel)}
 
 .tarif{
   background:var(--card);border:1px solid var(--line);border-radius:var(--r);
@@ -1207,6 +1225,7 @@ select.statut option{background:#fff;color:var(--ink);font-weight:500}
 }
 .ligne-jour-calendrier .mono{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600}
 .pastille-statut-mini{font-size:11px;font-weight:600;color:var(--steel);margin-left:auto}
+.materiel-jour-calendrier{flex-basis:100%;font-size:11.5px;color:var(--steel)}
 @media(max-width:720px){
   .cellule-calendrier{min-height:60px;padding:5px}
   .puce-evenement-calendrier{font-size:9px}
