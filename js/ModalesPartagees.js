@@ -151,6 +151,147 @@ document.addEventListener('click', async e => {
   }
 });
 
+/* ══════════════ MODALE : ASSOCIER LES NUMÉROS DE SÉRIE AUX PERSONNES ══════════════ */
+
+let associerSerieLigneCourante = null;
+let associerSerieGroupes = null; // null = un seul produit (libre) ; sinon {produit: [numeros...]}
+
+function parserPersonnesCommande(c){
+  return (c.personnes || '').split('\n').map(l => l.trim()).filter(Boolean).map(l => {
+    const p = l.split('|');
+    return { nomComplet: (p[0]||'').trim(), dateNaissance: (p[1]||'').trim(), produit: (p[2]||'').trim(), numeroSerie: (p[3]||'').trim() };
+  });
+}
+
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-associer-serie-ligne]');
+  if(!b) return;
+  const ligne = parseInt(b.dataset.associerSerieLigne, 10);
+  const c = commandes.find(x => x.ligne === ligne);
+  if(!c) return;
+  associerSerieLigneCourante = ligne;
+
+  const personnes = parserPersonnesCommande(c);
+  const numeros = (c.numerosSerie || '').split('\n').map(s => s.trim()).filter(Boolean);
+
+  $('associer-serie-lignes').innerHTML = '<p class="sous-question">Chargement…</p>';
+  $('retour-associer-serie').innerHTML = '';
+  $('modale-associer-serie').hidden = false;
+
+  let lignesProduits = [{ produit: c.produit, quantite: numeros.length }];
+  try{
+    const r = await jsonp({action:'commandes-lignes', password:motDePasse, ligne});
+    if(r.ok && r.lignes.length) lignesProduits = r.lignes;
+  }catch(e){ /* repli sur un seul groupe si l'appel échoue */ }
+
+  const typesDistincts = [...new Set(lignesProduits.map(l => l.produit))];
+  associerSerieGroupes = null;
+
+  if(typesDistincts.length <= 1){
+    // Un seul type de produit dans la commande : aucune contrainte, tous les numéros sont
+    // interchangeables entre toutes les personnes.
+    $('associer-serie-lignes').innerHTML =
+      `<p class="sous-question" style="margin-bottom:10px">Un seul type de produit dans cette commande — les numéros sont libres pour tout le monde.</p>` +
+      personnes.map((p, i) => construireLigneAssociation(p, i, numeros)).join('');
+  }else{
+    // Plusieurs produits : on découpe la liste de numéros dans l'ordre des lignes de la
+    // commande (Nème groupe de quantité = Nème produit) pour rattacher chaque numéro à son
+    // produit, puis on ne propose à chaque personne que les numéros de SON produit déclaré.
+    associerSerieGroupes = {};
+    let curseur = 0;
+    lignesProduits.forEach(l => {
+      const groupe = numeros.slice(curseur, curseur + (parseInt(l.quantite, 10) || 0));
+      associerSerieGroupes[l.produit] = (associerSerieGroupes[l.produit] || []).concat(groupe);
+      curseur += (parseInt(l.quantite, 10) || 0);
+    });
+    $('associer-serie-lignes').innerHTML =
+      `<p class="sous-question" style="margin-bottom:10px">Plusieurs produits dans cette commande — numéros groupés par produit déclaré pour chaque personne (à vérifier, le regroupement suppose que les numéros ont été saisis dans l'ordre des lignes de la commande).</p>` +
+      personnes.map((p, i) => construireLigneAssociation(p, i, associerSerieGroupes[p.produit] || numeros)).join('');
+  }
+});
+
+function construireLigneAssociation(p, i, numerosDisponibles){
+  return `
+    <div class="ligne-reglage" style="margin-top:8px;align-items:center">
+      <span style="flex:1;font-size:13.5px">${echapper(p.nomComplet)}${p.produit ? ` <span style="color:var(--steel)">— ${echapper(p.produit)}</span>` : ''}</span>
+      <select data-associer-index="${i}" data-associer-produit="${echapper(p.produit)}" style="flex:1">
+        <option value="">— Aucun —</option>
+        ${numerosDisponibles.map(n => `<option value="${echapper(n)}" ${p.numeroSerie === n ? 'selected' : ''}>${echapper(n)}</option>`).join('')}
+      </select>
+    </div>`;
+}
+
+$('associer-serie-aleatoire').addEventListener('click', () => {
+  const c = commandes.find(x => x.ligne === associerSerieLigneCourante);
+  if(!c) return;
+
+  function melanger(liste){
+    const m = [...liste];
+    for(let i = m.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      [m[i], m[j]] = [m[j], m[i]];
+    }
+    return m;
+  }
+
+  if(!associerSerieGroupes){
+    // Un seul produit : tous les numéros sont interchangeables.
+    const numeros = (c.numerosSerie || '').split('\n').map(s => s.trim()).filter(Boolean);
+    const melanges = melanger(numeros);
+    document.querySelectorAll('#associer-serie-lignes select').forEach((sel, i) => { sel.value = melanges[i] || ''; });
+    return;
+  }
+
+  // Plusieurs produits : on mélange indépendamment chaque groupe, et on ne distribue les
+  // numéros d'un produit qu'aux personnes ayant déclaré CE produit — une personne sans
+  // produit déclaré (ou dont le produit ne correspond à aucun groupe) reste à associer
+  // manuellement plutôt que de recevoir un numéro au hasard qui ne lui correspond pas.
+  const melangesParProduit = {};
+  Object.keys(associerSerieGroupes).forEach(produit => { melangesParProduit[produit] = melanger(associerSerieGroupes[produit]); });
+  const curseurs = {};
+  document.querySelectorAll('#associer-serie-lignes select').forEach(sel => {
+    const produit = sel.dataset.associerProduit;
+    const dispo = melangesParProduit[produit];
+    if(!dispo) return; // aucun groupe ne correspond à ce produit — laissé vide
+    curseurs[produit] = curseurs[produit] || 0;
+    sel.value = dispo[curseurs[produit]] || '';
+    curseurs[produit]++;
+  });
+});
+
+$('associer-serie-annuler').addEventListener('click', () => $('modale-associer-serie').hidden = true);
+
+$('associer-serie-confirmer').addEventListener('click', async () => {
+  const c = commandes.find(x => x.ligne === associerSerieLigneCourante);
+  if(!c) return;
+  const personnes = parserPersonnesCommande(c);
+  const selections = document.querySelectorAll('#associer-serie-lignes select');
+  // Un même numéro ne peut pas être assigné à deux personnes à la fois.
+  const valeurs = Array.from(selections).map(s => s.value);
+  const doublons = valeurs.filter(v => v && valeurs.indexOf(v) !== valeurs.lastIndexOf(v));
+  if(doublons.length){
+    $('retour-associer-serie').innerHTML = '<div class="msg msg-erreur">Un même numéro de série ne peut pas être assigné à deux personnes.</div>';
+    return;
+  }
+
+  const nouvelleValeur = personnes.map((p, i) => [p.nomComplet, p.dateNaissance, p.produit, valeurs[i] || ''].join('|')).join('\n');
+  $('associer-serie-confirmer').disabled = true;
+  $('retour-associer-serie').innerHTML = '';
+  try{
+    const r = await poster({ action:'update', ligne: associerSerieLigneCourante, champ:'personnes', valeur: nouvelleValeur });
+    if(r.ok){
+      c.personnes = nouvelleValeur;
+      $('modale-associer-serie').hidden = true;
+      etat('Association enregistrée', 'succes');
+    }else{
+      $('retour-associer-serie').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur || 'Enregistrement impossible')}</div>`;
+    }
+  }catch(e){
+    $('retour-associer-serie').innerHTML = '<div class="msg msg-erreur">Enregistrement impossible.</div>';
+  }
+  $('associer-serie-confirmer').disabled = false;
+});
+
 document.addEventListener('click', async e => {
   const b = e.target.closest('[data-attestations-ligne]');
   if(!b) return;

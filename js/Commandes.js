@@ -391,6 +391,10 @@ function construireDetailsCommande(ligne){
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V7l8-4 8 4v14"/><path d="M9 21v-6h6v6"/></svg>
               <span>Générer le bon d'orientation</span>
             </button>`) : ''}
+        ${c.personnes ? `<button type="button" class="pilule-action pilule-associer-serie" data-associer-serie-ligne="${c.ligne}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h13l3 3.5-3 3.5H4z"/><circle cx="8" cy="10.5" r="0.9" fill="currentColor" stroke="none"/></svg>
+              <span>Associer les n° de série</span>
+            </button>` : ''}
         ${c.personnes ? `<button type="button" class="pilule-action pilule-attestations" data-attestations-ligne="${c.ligne}">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
               <span>Générer les attestations</span>
