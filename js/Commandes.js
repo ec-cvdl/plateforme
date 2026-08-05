@@ -327,6 +327,8 @@ function carteCommandeHtml(c){
         </div>
         <div class="ccm-nom">${echapper(c.nom)}</div>
         <div class="ccm-materiel">${materielResume}</div>
+        ${(!estEsnCommande && (parseFloat(c.montantFacture != null ? c.montantFacture : c.montantEstime) || 0) > 0)
+          ? `<div class="ccm-tarif">${formaterMontant(c.montantFacture != null ? c.montantFacture : c.montantEstime)}${c.montantFacture == null ? ' (estimé)' : ''}</div>` : ''}
         ${c.devisDemande === 'Oui' ? '<div class="ccm-devis">Devis demandé</div>' : ''}
         ${!estAnnulee ? construireBarreProgressionCommande(c.statutCommande) : ''}
         ${pilulesBas}

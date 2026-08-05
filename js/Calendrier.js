@@ -22,6 +22,26 @@ async function chargerCalendrier(){
   }
 }
 
+/** Commandes "le plus rapidement possible" pas encore livrées — "ASAP" n'étant pas une date,
+ *  elles ne peuvent pas être placées sur la grille elle-même, donc un bandeau à part plutôt
+ *  que de les perdre ou de les caser arbitrairement sur une case. */
+function rendreBandeauUrgentesCalendrier(){
+  const conteneur = $('calendrier-bandeau-urgentes');
+  if(!conteneur) return;
+  const urgentes = (calendrierCommandes || []).filter(c => c.dateLivraisonSouhaitee === 'ASAP' && !c.dateLivraison);
+  if(!urgentes.length){ conteneur.hidden = true; conteneur.innerHTML = ''; return; }
+  conteneur.hidden = false;
+  conteneur.innerHTML = `
+    <div class="entete-zone-prioritaires">⚡ À traiter le plus rapidement possible (${urgentes.length})</div>
+    <div class="liste-urgentes-calendrier">
+      ${urgentes.map(c => `<div class="ligne-jour-calendrier">
+        <span class="mono">${echapper(c.reference)}</span>
+        <span>${echapper(c.nom)}</span>
+        <span class="pastille-statut-mini">${echapper(c.statutCommande)}</span>
+      </div>`).join('')}
+    </div>`;
+}
+
 /** Accepte aussi bien un format ISO (2026-08-04...) qu'un format français (04/08/2026) —
  *  les deux peuvent se croiser selon l'origine de la donnée. */
 function parserDateCalendrier(valeur){
@@ -56,6 +76,8 @@ function rendreCalendrier(){
       if(d) ajouter(cleJour(d), c, 'reelle');
     }
   });
+
+  rendreBandeauUrgentesCalendrier();
 
   if(calendrierVueActuelle === 'semaine') rendreCalendrierSemaine(parJour);
   else rendreCalendrierMois(parJour);
