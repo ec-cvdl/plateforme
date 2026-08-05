@@ -459,16 +459,18 @@ document.addEventListener('click', e => {
   const b = e.target.closest('[data-qr-serie]');
   if(!b) return;
   const numeroSerie = b.dataset.qrSerie;
-  const url = location.origin + location.pathname.replace(/flotte-structure\.html$/, '') + 'passeport.html?sn=' + encodeURIComponent(numeroSerie);
+  const base = location.origin + location.pathname.replace(/flotte-structure\.html$/, '') + 'passeport.html?sn=' + encodeURIComponent(numeroSerie);
+  const urlQr = base; // JAMAIS le code ici — ce lien est destiné à être imprimé/scanné par n'importe qui
+  const urlOuvrir = base + '&code=' + encodeURIComponent(codeValide); // confort pour la structure déjà identifiée dans cet onglet
 
   $('qr-code-conteneur').innerHTML = '';
   try{
-    new QRCode($('qr-code-conteneur'), { text: url, width: 200, height: 200, colorDark: '#161B22', colorLight: '#ffffff' });
+    new QRCode($('qr-code-conteneur'), { text: urlQr, width: 200, height: 200, colorDark: '#161B22', colorLight: '#ffffff' });
   }catch(err){
     $('qr-code-conteneur').innerHTML = '<p class="sous-question">QR indisponible — le lien reste utilisable ci-dessous.</p>';
   }
-  $('qr-url-affichee').textContent = url;
-  $('qr-ouvrir-passeport').href = url;
+  $('qr-url-affichee').textContent = urlQr;
+  $('qr-ouvrir-passeport').href = urlOuvrir;
   $('modale-qr-passeport').classList.add('visible');
 });
 $('qr-fermer').addEventListener('click', () => $('modale-qr-passeport').classList.remove('visible'));

@@ -884,9 +884,7 @@ select.statut option{background:#fff;color:var(--ink);font-weight:500}
 .grille-cases-structure{display:grid;grid-template-columns:1fr 1fr;gap:2px 16px;margin-top:4px}
 @media(max-width:600px){.grille-cases-structure{grid-template-columns:1fr}}
 .info-colonne{
-  display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;
-  border-radius:50%;background:var(--line);color:var(--steel);font-size:9px;font-weight:700;
-  cursor:help;vertical-align:middle;margin-left:2px;
+  color:var(--steel);font-size:13px;font-weight:700;cursor:help;margin-left:2px;
 }
 .ligne-avec-lien{display:flex;gap:8px;align-items:center}
 .ligne-avec-lien input{flex:1}

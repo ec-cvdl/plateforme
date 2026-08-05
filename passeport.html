@@ -81,6 +81,7 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
         <button type="button" class="bouton-principal" id="btn-chercher-passeport" style="width:auto;padding:0 18px">Voir</button>
       </div>
       <div id="zone-passeport"></div>
+      <button type="button" class="lien-mode-admin" id="btn-deconnexion-passeport">Déconnexion</button>
     </div>
 
   </div>
@@ -136,11 +137,33 @@ $('btn-identifier-admin').addEventListener('click', () => {
 $('champ-mot-de-passe-admin').addEventListener('keydown', e => { if(e.key === 'Enter') $('btn-identifier-admin').click(); });
 
 // Déjà identifiée sur cet appareil (venant d'une autre page du portail structure) : on saute
-// directement l'étape d'identification.
-try{
-  const codeMemorise = sessionStorage.getItem('cvdl-code-structure');
-  if(codeMemorise){ codeIdentifie = codeMemorise; passerAEtapeRecherche(); }
-}catch(e){}
+// directement l'étape d'identification. Priorité au code passé dans l'URL (lien "confort"
+// ouvert depuis une page déjà authentifiée) sur celui mémorisé en sessionStorage, au cas où
+// une autre structure vient de se connecter sur ce même onglet entre-temps.
+const codeDepuisUrl = new URLSearchParams(location.search).get('code');
+if(codeDepuisUrl){
+  codeIdentifie = codeDepuisUrl;
+  try{ sessionStorage.setItem('cvdl-code-structure', codeDepuisUrl); }catch(e){}
+  // Le code ne doit pas traîner visible dans la barre d'adresse une fois consommé.
+  const urlNettoyee = new URL(location.href);
+  urlNettoyee.searchParams.delete('code');
+  history.replaceState(null, '', urlNettoyee.pathname + urlNettoyee.search);
+  passerAEtapeRecherche();
+}else{
+  try{
+    const codeMemorise = sessionStorage.getItem('cvdl-code-structure');
+    if(codeMemorise){ codeIdentifie = codeMemorise; passerAEtapeRecherche(); }
+  }catch(e){}
+}
+
+$('btn-deconnexion-passeport').addEventListener('click', () => {
+  try{ sessionStorage.removeItem('cvdl-code-structure'); }catch(e){}
+  codeIdentifie = ''; motDePasseAdminIdentifie = '';
+  $('champ-code-structure').value = ''; $('champ-mot-de-passe-admin').value = '';
+  $('zone-passeport').innerHTML = ''; $('champ-numero-serie').value = '';
+  $('etape-recherche').hidden = true;
+  $('etape-identification').hidden = false;
+});
 
 async function afficherPasseport(numeroSerie){
   $('zone-passeport').innerHTML = '<p class="etat-passeport">Recherche en cours…</p>';
