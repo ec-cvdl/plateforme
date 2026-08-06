@@ -366,8 +366,13 @@ function extraireColonneGCsv(texteCsv){
   const lignes = texteCsv.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
   if(!lignes.length) return [];
   const delimiteur = (lignes[0].split(';').length > lignes[0].split(',').length) ? ';' : ',';
+  // Le CSV tec.tech a le numéro de série en colonne G (index 6) — mais un CSV plus simple,
+  // juste une liste de numéros (une seule colonne, ou quelques-unes), n'a pas cette colonne :
+  // dans ce cas on repart sur la première colonne plutôt que de ne rien trouver du tout.
+  const nombreColonnes = lignes[0].split(delimiteur).length;
+  const indexColonne = nombreColonnes > 6 ? 6 : 0;
   return lignes
-    .map(l => (l.split(delimiteur)[6] || '').trim().replace(/^"|"$/g, ''))
+    .map(l => (l.split(delimiteur)[indexColonne] || '').trim().replace(/^"|"$/g, ''))
     .filter(Boolean)
     .filter(v => v.toLowerCase() !== 'numéro de série' && v.toLowerCase() !== 'numero de serie'); // écarte un éventuel en-tête
 }
@@ -847,20 +852,20 @@ $('nc-enregistrer').addEventListener('click', async () => {
 
 let suppressionEnAttente = null; // { action, ligne, apres }
 
-function demanderSuppression(label, action, ligne, apres){
+function demanderSuppression(label, action, ligne, apres, donneesSupp){
   if(!confirm(`Supprimer définitivement ${label} ?`)) return;
   if(suppressionSimple){
-    executerSuppression(action, ligne, apres);
+    executerSuppression(action, ligne, apres, donneesSupp);
     return;
   }
-  suppressionEnAttente = { action, ligne, apres };
+  suppressionEnAttente = { action, ligne, apres, donneesSupp };
   $('suppr-ref').textContent = label;
   $('modale-suppression').hidden = false;
 }
 
-async function executerSuppression(action, ligne, apres){
+async function executerSuppression(action, ligne, apres, donneesSupp){
   try{
-    const r = await poster({ action, ligne });
+    const r = await poster(Object.assign({ action, ligne }, donneesSupp || {}));
     if(r.ok){
       if(apres) await apres();
       etat('Supprimé', 'succes');
@@ -874,7 +879,10 @@ async function executerSuppression(action, ligne, apres){
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-commande-supprimer]');
   if(!b) return;
-  demanderSuppression('la commande ' + b.dataset.ref, 'commande-delete', parseInt(b.dataset.commandeSupprimer, 10), recharger);
+  const raison = prompt(`Raison de la suppression de la commande ${b.dataset.ref} ?`);
+  if(raison === null) return; // annulé
+  if(!raison.trim()){ etat('Une raison est obligatoire pour supprimer une commande', 'erreur'); return; }
+  demanderSuppression('la commande ' + b.dataset.ref, 'commande-delete', parseInt(b.dataset.commandeSupprimer, 10), recharger, { raison: raison.trim() });
 });
 
 $('suppr-annuler').addEventListener('click', () => $('modale-suppression').hidden = true);
@@ -882,8 +890,8 @@ $('suppr-annuler').addEventListener('click', () => $('modale-suppression').hidde
 $('suppr-confirmer').addEventListener('click', async () => {
   if(!suppressionEnAttente) return;
   $('suppr-confirmer').disabled = true;
-  const { action, ligne, apres } = suppressionEnAttente;
-  const succes = await executerSuppression(action, ligne, apres);
+  const { action, ligne, apres, donneesSupp } = suppressionEnAttente;
+  const succes = await executerSuppression(action, ligne, apres, donneesSupp);
   if(succes){
     $('modale-suppression').hidden = true;
     suppressionEnAttente = null;

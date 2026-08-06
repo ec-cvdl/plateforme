@@ -666,6 +666,37 @@ $('detail-sav-envoyer-email').addEventListener('click', async () => {
     `Envoyer le suivi Colissimo à ${t.email} pour le ticket ${t.reference} ?`);
 });
 
+$('btn-envoyer-pdf-sav').addEventListener('click', async () => {
+  const t = sav.find(x => x.ligne === detailSavLigneCourante);
+  if(!t) return;
+  const fichier = $('detail-sav-fichier-pdf').files[0];
+  if(!fichier){ $('retour-envoyer-pdf-sav').innerHTML = '<div class="msg msg-erreur">Choisis d\'abord un fichier PDF.</div>'; return; }
+  if(!t.email){ $('retour-envoyer-pdf-sav').innerHTML = '<div class="msg msg-erreur">Aucune adresse email connue pour ce ticket.</div>'; return; }
+  if(!confirm(`Envoyer ce PDF à ${t.email} pour le ticket ${t.reference} ?`)) return;
+
+  $('btn-envoyer-pdf-sav').disabled = true;
+  $('retour-envoyer-pdf-sav').innerHTML = '<div class="msg msg-info">Envoi en cours…</div>';
+  try{
+    const contenuBase64 = await new Promise((resolve, reject) => {
+      const lecteur = new FileReader();
+      lecteur.onload = () => resolve(String(lecteur.result || ''));
+      lecteur.onerror = () => reject(lecteur.error);
+      lecteur.readAsDataURL(fichier);
+    });
+    const r = await poster({
+      action:'sav-envoyer-pdf', ligne: detailSavLigneCourante, nomFichier: fichier.name,
+      contenuBase64, message: $('detail-sav-message-pdf').value.trim(),
+    });
+    $('retour-envoyer-pdf-sav').innerHTML = r.ok
+      ? '<div class="msg msg-succes">Envoyé.</div>'
+      : `<div class="msg msg-erreur">${echapper(r.erreur || 'Envoi impossible.')}</div>`;
+    if(r.ok){ $('detail-sav-fichier-pdf').value = ''; $('detail-sav-message-pdf').value = ''; }
+  }catch(e){
+    $('retour-envoyer-pdf-sav').innerHTML = '<div class="msg msg-erreur">Envoi impossible — réessaie.</div>';
+  }
+  $('btn-envoyer-pdf-sav').disabled = false;
+});
+
 $('detail-sav-enregistrer').addEventListener('click', async () => {
   if(!detailSavLigneCourante) return;
   const ligne = detailSavLigneCourante;
