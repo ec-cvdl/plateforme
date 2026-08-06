@@ -146,17 +146,20 @@ try{
     <h3 style="text-align:center">Créer une structure BO</h3>
     <p>Mêmes informations qu'un admin renseignerait — la structure créée apparaît directement dans le tableau global, avec le statut BO.</p>
     <label for="bo-code" style="display:block;font-size:13px;font-weight:600;margin:10px 0 4px">Code</label>
-    <input type="text" class="champ-texte" id="bo-code" autocomplete="off">
+    <div style="display:flex;gap:6px">
+      <input type="text" class="champ-texte" id="bo-code" autocomplete="off" placeholder="Ex : XY9K-2FQR-8TZL-A4MD" style="flex:1">
+      <button type="button" class="bouton-retour" id="bo-generer-code" style="width:auto;padding:0 12px;white-space:nowrap">🎲 Générer</button>
+    </div>
     <label for="bo-nom" style="display:block;font-size:13px;font-weight:600;margin:10px 0 4px">Nom</label>
-    <input type="text" class="champ-texte" id="bo-nom" autocomplete="off">
+    <input type="text" class="champ-texte" id="bo-nom" autocomplete="off" placeholder="Ex : Épicerie solidaire du Loiret">
     <label for="bo-adresse" style="display:block;font-size:13px;font-weight:600;margin:10px 0 4px">Adresse</label>
-    <input type="text" class="champ-texte" id="bo-adresse" autocomplete="off">
+    <input type="text" class="champ-texte" id="bo-adresse" autocomplete="off" placeholder="Ex : 12 rue des Lilas, 45500 Gien">
     <label for="bo-email" style="display:block;font-size:13px;font-weight:600;margin:10px 0 4px">Email</label>
-    <input type="email" class="champ-texte" id="bo-email" autocomplete="off">
+    <input type="email" class="champ-texte" id="bo-email" autocomplete="off" placeholder="Ex : contact@structure.fr">
     <label for="bo-telephone" style="display:block;font-size:13px;font-weight:600;margin:10px 0 4px">Téléphone</label>
-    <input type="text" class="champ-texte" id="bo-telephone" autocomplete="off">
+    <input type="text" class="champ-texte" id="bo-telephone" autocomplete="off" placeholder="Ex : 02 38 00 00 00">
     <label for="bo-email-facturation" style="display:block;font-size:13px;font-weight:600;margin:10px 0 4px">Email de facturation <em style="font-weight:400">(facultatif)</em></label>
-    <input type="email" class="champ-texte" id="bo-email-facturation" autocomplete="off">
+    <input type="email" class="champ-texte" id="bo-email-facturation" autocomplete="off" placeholder="Si différent de l'email ci-dessus">
     <div id="retour-creer-structure-bo" style="margin-top:10px"></div>
     <button type="button" class="bouton-principal" id="btn-valider-creer-structure-bo" style="margin-top:12px">Créer la structure</button>
     <button type="button" class="lien-changer-code" id="bo-fermer" style="margin-top:12px">Annuler</button>
@@ -604,6 +607,13 @@ function cablerBarreOutils(){
 }
 
 $('bo-fermer')?.addEventListener('click', () => $('modale-creer-structure-bo').classList.remove('visible'));
+
+$('bo-generer-code')?.addEventListener('click', () => {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sans I, O, 0, 1
+  const tirage = n => Array.from(crypto.getRandomValues(new Uint8Array(n)))
+    .map(o => alphabet[o % alphabet.length]).join('');
+  $('bo-code').value = tirage(4) + '-' + tirage(4) + '-' + tirage(4) + '-' + tirage(4);
+});
 
 $('btn-valider-creer-structure-bo')?.addEventListener('click', async () => {
   const code = $('bo-code').value.trim();
