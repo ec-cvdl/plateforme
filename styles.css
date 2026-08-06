@@ -248,6 +248,13 @@ body.mode-accessible .carte-choix .prix-produit{font-size:14px}
 }
 .bouton-principal:hover:not(:disabled){background:var(--nuit)}
 .bouton-principal:disabled{background:#B4BCC4;cursor:not-allowed}
+.bouton-danger{
+  background:#C0364A;color:#fff;border:none;border-radius:9px;
+  font-family:'Space Grotesk', sans-serif;font-weight:700;font-size:15px;
+  padding:14px 28px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;
+}
+.bouton-danger:hover:not(:disabled){background:#A32F1C}
+.bouton-danger:disabled{background:#B4BCC4;cursor:not-allowed}
 .bouton-retour{
   background:none;border:none;color:var(--gris);font-family:'Space Grotesk', sans-serif;
   font-size:14px;font-weight:500;cursor:pointer;padding:14px 6px;

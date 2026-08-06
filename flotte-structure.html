@@ -184,8 +184,8 @@ try{
     <label for="bo-email-facturation" style="display:block;font-size:13px;font-weight:600;margin:10px 0 4px">Email de facturation <em style="font-weight:400">(facultatif)</em></label>
     <input type="email" class="champ-texte" id="bo-email-facturation" autocomplete="off" placeholder="Si différent de l'email ci-dessus">
     <div id="retour-creer-structure-bo" style="margin-top:10px"></div>
-    <button type="button" class="bouton-principal" id="btn-valider-creer-structure-bo" style="margin-top:12px">Créer la structure</button>
-    <button type="button" class="lien-changer-code" id="bo-fermer" style="margin-top:12px">Annuler</button>
+    <button type="button" class="bouton-danger" id="bo-fermer" style="margin-top:12px;width:100%;justify-content:center">Annuler</button>
+    <button type="button" class="bouton-principal" id="btn-valider-creer-structure-bo" style="margin-top:8px;width:100%;justify-content:center">Créer la structure</button>
   </div>
 </div>
 <div class="voile-modale-qr" id="modale-personne-portail">
@@ -508,6 +508,7 @@ function construireTableauAppareils(appareils){
   const lignesHtml = appareils.map(a => `
     <tr class="${a.alerteGarantie ? 'ligne-alerte-garantie' : ''}">
       <td class="mono">${echapper(a.numeroSerie)}${a.alerteGarantie ? ' <span title="En stock depuis plus de 3 mois — la garantie court">⏳</span>' : ''}</td>
+      <td class="col-date">${a.dateLivraison ? echapper(a.dateLivraison) : '—'}</td>
       <td><input type="text" data-ligne="${a.ligne}" data-champ="marque" value="${echapper(a.marque)}" placeholder="—"></td>
       <td><input type="text" data-ligne="${a.ligne}" data-champ="modele" value="${echapper(a.modele)}" placeholder="—"></td>
       <td class="col-prix">${a.prixAchat !== '' && a.prixAchat != null ? Math.round(a.prixAchat) + ' €' : '—'}</td>
@@ -519,7 +520,6 @@ function construireTableauAppareils(appareils){
           <option value="En SAV"${a.statut === 'En SAV' ? ' selected' : ''}>En SAV</option>
         </select>
       </td>
-      <td class="col-date">${a.dateLivraison ? echapper(a.dateLivraison) : '—'}</td>
       <td><input type="date" data-ligne="${a.ligne}" data-champ="dateVente" value="${dateVersISO(a.dateVente)}"></td>
       <td>
         <select data-ligne="${a.ligne}" data-champ="paye">
@@ -536,8 +536,8 @@ function construireTableauAppareils(appareils){
       <table class="tableau-appareils">
         <thead>
           <tr>
-            <th>N° série</th><th>Marque</th><th>Modèle</th><th>Prix d'achat</th><th>Personne</th>
-            <th>Statut</th><th>Livré le</th><th>Date de vente</th><th>Payé</th><th>Lien paiement</th><th>Passeport</th>
+            <th>N° série</th><th>Livré le</th><th>Marque</th><th>Modèle</th><th>Prix d'achat</th><th>Personne</th>
+            <th>Statut</th><th>Date de vente</th><th>Payé</th><th>Lien paiement</th><th>Passeport</th>
           </tr>
         </thead>
         <tbody>${lignesHtml}</tbody>

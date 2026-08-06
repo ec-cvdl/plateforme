@@ -13,7 +13,7 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
 <title>Suivi des commandes — CVDL</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Quicksand:wght@500;600;700&family=Nunito+Sans:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="admin.css?v=20260804-3">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -753,7 +753,7 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
         <p class="reglage-texte">Le Google Sheets utilisé comme modèle pour générer le bon de livraison.</p>
         <details class="accordeon-jetons">
           <summary>Jetons disponibles</summary>
-          <div class="accordeon-jetons-contenu"><code class="jeton-copiable" data-jeton="{{STRUCTURE}}" title="Cliquer pour copier">{{STRUCTURE}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{ADRESSE}}" title="Cliquer pour copier">{{ADRESSE}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{EMAIL}}" title="Cliquer pour copier">{{EMAIL}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{TELEPHONE}}" title="Cliquer pour copier">{{TELEPHONE}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{REFERENCE_COMMANDE}}" title="Cliquer pour copier">{{REFERENCE_COMMANDE}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{DATE}}" title="Cliquer pour copier">{{DATE}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{NUMEROS_SERIE}}" title="Cliquer pour copier">{{NUMEROS_SERIE}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{RESPONSABLE_NOM}}" title="Cliquer pour copier">{{RESPONSABLE_NOM}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{RESPONSABLE_TELEPHONE}}" title="Cliquer pour copier">{{RESPONSABLE_TELEPHONE}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{RESPONSABLE_EMAIL}}" title="Cliquer pour copier">{{RESPONSABLE_EMAIL}} <span class="icone-copier">📋</span></code>. Répétés pour chaque ligne de la commande (jusqu'à 10) : <code class="jeton-copiable" data-jeton="{{PRODUIT_1}}" title="Cliquer pour copier">{{PRODUIT_1}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{QUANTITE_1}}" title="Cliquer pour copier">{{QUANTITE_1}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{PRIX_UNITAIRE_1}}" title="Cliquer pour copier">{{PRIX_UNITAIRE_1}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{TOTAL_LIGNE_1}}" title="Cliquer pour copier">{{TOTAL_LIGNE_1}} <span class="icone-copier">📋</span></code> — puis _2, _3… jusqu'à _10.</div>
+          <div class="accordeon-jetons-contenu"><code class="jeton-copiable" data-jeton="{{STRUCTURE}}" title="Cliquer pour copier">{{STRUCTURE}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{ADRESSE}}" title="Cliquer pour copier">{{ADRESSE}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{EMAIL}}" title="Cliquer pour copier">{{EMAIL}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{TELEPHONE}}" title="Cliquer pour copier">{{TELEPHONE}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{REFERENCE_COMMANDE}}" title="Cliquer pour copier">{{REFERENCE_COMMANDE}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{DATE}}" title="Cliquer pour copier">{{DATE}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{NUMEROS_SERIE}}" title="Cliquer pour copier">{{NUMEROS_SERIE}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{RESPONSABLE_NOM}}" title="Cliquer pour copier">{{RESPONSABLE_NOM}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{RESPONSABLE_TELEPHONE}}" title="Cliquer pour copier">{{RESPONSABLE_TELEPHONE}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{RESPONSABLE_EMAIL}}" title="Cliquer pour copier">{{RESPONSABLE_EMAIL}} <span class="icone-copier">📋</span></code>. Répétés pour chaque ligne de la commande (jusqu'à 10) : <code class="jeton-copiable" data-jeton="{{PRODUIT_1}}" title="Cliquer pour copier">{{PRODUIT_1}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{QUANTITE_1}}" title="Cliquer pour copier">{{QUANTITE_1}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{PRIX_UNITAIRE_1}}" title="Cliquer pour copier">{{PRIX_UNITAIRE_1}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{TOTAL_LIGNE_1}}" title="Cliquer pour copier">{{TOTAL_LIGNE_1}} <span class="icone-copier">📋</span></code> — puis _2, _3… jusqu'à _10. Et un jeu par appareil (jusqu'à 15), avec marque/modèle si importés depuis un CSV tec.tech : <code class="jeton-copiable" data-jeton="{{NUMERO_SERIE_1}}" title="Cliquer pour copier">{{NUMERO_SERIE_1}} <span class="icone-copier">📋</span></code>, <code class="jeton-copiable" data-jeton="{{MARQUE_MODELE_1}}" title="Cliquer pour copier">{{MARQUE_MODELE_1}} <span class="icone-copier">📋</span></code> — puis _2, _3… jusqu'à _15.</div>
         </details>
         <div class="ligne-reglage">
           <input type="text" id="modele-bon-livraison-input" placeholder="URL ou ID du Sheets modèle">
@@ -1082,6 +1082,19 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
           <button type="button" class="action claire" id="btn-onglets-visibles-enregistrer">Enregistrer</button>
         </div>
         <div id="retour-onglets-visibles"></div>
+      </div>
+
+      <div class="carte-reglage">
+        <h3>Thème visuel</h3>
+        <p class="reglage-texte">Change la palette de couleurs et la typographie de tout l'admin — appliqué immédiatement, pour toi comme pour les autres personnes connectées.</p>
+        <div class="ligne-reglage">
+          <select id="theme-visuel-input">
+            <option value="classique">Classique</option>
+            <option value="meteo">Météo — palette ciel, plus arrondie</option>
+          </select>
+          <button type="button" class="action claire" id="btn-theme-visuel-enregistrer">Enregistrer</button>
+        </div>
+        <div id="retour-theme-visuel"></div>
       </div>
 
       </div>
