@@ -416,17 +416,27 @@ $('btn-serie-importer-csv').addEventListener('click', async () => {
     });
 
     if(r.ok){
+      const c = commandes.find(x => x.ligne === serieLigneCourante);
+      const quantiteAttendue = c ? c.quantiteTotale : null;
+      let messageQuantite = '';
       if(numerosExtraits.length){
         const existants = listeSerieNettoyee();
-        const fusion = existants.concat(numerosExtraits.filter(n => !existants.includes(n)));
+        let fusion = existants.concat(numerosExtraits.filter(n => !existants.includes(n)));
+        // Jamais plus que la quantité exacte commandée — un CSV plus fourni que prévu ne doit
+        // pas gonfler la liste au-delà de ce qui a vraiment été livré sur CETTE commande.
+        if(quantiteAttendue && fusion.length > quantiteAttendue){
+          fusion = fusion.slice(0, quantiteAttendue);
+          messageQuantite = ` (limité à ${quantiteAttendue}, quantité exacte de la commande — le CSV en contenait plus)`;
+        }else if(quantiteAttendue && fusion.length < quantiteAttendue){
+          messageQuantite = ` — attention, il en manque ${quantiteAttendue - fusion.length} pour atteindre les ${quantiteAttendue} attendus`;
+        }
         $('serie-texte').value = fusion.join('\n');
         majCompteurSerie();
       }
       $('retour-import-csv').innerHTML = `<div class="msg msg-succes">
-        Fichier importé${numerosExtraits.length ? ' — ' + numerosExtraits.length + ' numéro' + (numerosExtraits.length > 1 ? 's' : '') + ' ajouté' + (numerosExtraits.length > 1 ? 's' : '') : ''}.
+        Fichier importé${numerosExtraits.length ? ' — ' + numerosExtraits.length + ' numéro' + (numerosExtraits.length > 1 ? 's' : '') + ' trouvé' + (numerosExtraits.length > 1 ? 's' : '') + messageQuantite : ''}.
       </div>`;
       $('serie-lien-csv-existant').innerHTML = `<a href="${echapper(r.url)}" target="_blank" rel="noopener">📄 Ouvrir le fichier CSV importé</a>`;
-      const c = commandes.find(x => x.ligne === serieLigneCourante);
       if(c){ c.csvTectech = r.url; c.caracteristiquesMateriel = caracteristiques; }
     }else{
       $('retour-import-csv').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur)}</div>`;

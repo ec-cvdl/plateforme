@@ -64,9 +64,19 @@ document.addEventListener('click', e => {
   }, 50);
 });
 
-/* ── Flotte centralisée (structures Internes) — gérée directement depuis l'admin ── */
+/* ── Flotte centralisée (structures Internes) — gérée directement depuis l'admin ──
+   Vue Saisie : ce qui se remplit au jour le jour (statut, stockage, vente, personne).
+   Vue Comptabilité : ce qui sert au rapprochement bancaire. Matériel et prix viennent
+   toujours de la commande d'origine — jamais modifiables ici. */
 let flotteInterneCodeCourant = '';
-const STATUTS_FLOTTE_INTERNE = ['En stock', 'Vendu', 'En SAV'];
+let flotteInterneAppareilsCourants = [];
+let flotteInterneFiltreRapprochement = 'tout';
+let flotteInterneVue = 'saisie';
+const STATUTS_FLOTTE_INTERNE = ['En stock', 'Remis', 'SAV', 'D3E'];
+const STATUTS_RAPPROCHEMENT = ['À traiter', 'Rapproché', 'Clôturé'];
+const GENRES_FLOTTE = ['', 'Homme', 'Femme'];
+const TYPES_PAIEMENT_FLOTTE = ['', 'Chèque x1', 'Chèque x2', 'CB', 'Monétaire', 'Mixte'];
+let listesPersoFlotte = { lieux: [], vendeurs: [] };
 
 document.addEventListener('click', async e => {
   const b = e.target.closest('[data-structure-flotte]');
@@ -75,6 +85,10 @@ document.addEventListener('click', async e => {
   $('flotte-interne-nom-structure').textContent = b.dataset.structureFlotteNom;
   $('flotte-interne-contenu').innerHTML = '<p class="sous-question">Chargement…</p>';
   $('modale-flotte-interne').hidden = false;
+  const rListes = await jsonp({action:'flotte-listes-perso', password:motDePasse}).catch(() => null);
+  if(rListes && rListes.ok) listesPersoFlotte = rListes;
+  flotteInterneFiltreRapprochement = 'tout';
+  flotteInterneVue = 'saisie';
   await chargerFlotteInterneAdmin();
 });
 $('flotte-interne-fermer').addEventListener('click', () => $('modale-flotte-interne').hidden = true);
@@ -83,51 +97,267 @@ async function chargerFlotteInterneAdmin(){
   try{
     const r = await jsonp({action:'flotte-lister-admin', password:motDePasse, code:flotteInterneCodeCourant});
     if(!r.ok){ $('flotte-interne-contenu').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur)}</div>`; return; }
-    if(!r.appareils.length){
-      $('flotte-interne-contenu').innerHTML = '<p class="sous-question">Aucun appareil pour le moment — ils apparaîtront automatiquement dès qu\'une commande de cette structure sera livrée.</p>';
-      return;
-    }
-    $('flotte-interne-contenu').innerHTML = `
-      <div class="scroll-tableau-flotte">
-        <table class="tableau-appareils">
-          <thead><tr><th>N° série</th><th>Marque</th><th>Modèle</th><th>Personne</th><th>Statut</th><th>Livré le</th><th>Date de vente</th><th>Payé</th></tr></thead>
-          <tbody>${r.appareils.map(a => `
-            <tr>
-              <td class="mono">${echapper(a.numeroSerie)}</td>
-              <td><input data-flotte-interne-ligne="${a.ligne}" data-flotte-interne-champ="marque" value="${echapper(a.marque)}" style="width:90px"></td>
-              <td><input data-flotte-interne-ligne="${a.ligne}" data-flotte-interne-champ="modele" value="${echapper(a.modele)}" style="width:100px"></td>
-              <td><input data-flotte-interne-ligne="${a.ligne}" data-flotte-interne-champ="personne" value="${echapper(a.personne)}" style="width:110px"></td>
-              <td>
-                <select data-flotte-interne-ligne="${a.ligne}" data-flotte-interne-champ="statut">
-                  ${STATUTS_FLOTTE_INTERNE.map(s => `<option ${a.statut === s ? 'selected' : ''}>${s}</option>`).join('')}
-                </select>
-              </td>
-              <td>${echapper(a.dateLivraison)}</td>
-              <td><input type="text" data-flotte-interne-ligne="${a.ligne}" data-flotte-interne-champ="dateVente" value="${echapper(a.dateVente)}" style="width:90px" placeholder="jj/mm/aaaa"></td>
-              <td>
-                <select data-flotte-interne-ligne="${a.ligne}" data-flotte-interne-champ="paye">
-                  <option value="Non" ${a.paye !== 'Oui' ? 'selected' : ''}>Non</option>
-                  <option value="Oui" ${a.paye === 'Oui' ? 'selected' : ''}>Oui</option>
-                </select>
-              </td>
-            </tr>`).join('')}</tbody>
-        </table>
-      </div>`;
+    flotteInterneAppareilsCourants = r.appareils;
+    rendreFlotteInterneAdmin();
   }catch(e){
     $('flotte-interne-contenu').innerHTML = '<div class="msg msg-erreur">Chargement impossible.</div>';
   }
 }
 
+function classeLigneFlotte(a){
+  if(a.statut === 'D3E') return 'ligne-flotte-d3e';
+  if(a.statut === 'Remis') return 'ligne-flotte-remis';
+  if(a.statut === 'En stock' && a.alerte2Mois) return 'ligne-flotte-alerte';
+  return '';
+}
+
+function classeLigneFlotteCompta(a){
+  if(a.statutRapprochement === 'Clôturé') return 'ligne-flotte-cloture';
+  if(a.statutRapprochement === 'Rapproché') return 'ligne-flotte-remis';
+  return 'ligne-flotte-alerte'; // "À traiter"
+}
+
+function rendreFlotteInterneAdmin(){
+  if(!flotteInterneAppareilsCourants.length){
+    $('flotte-interne-contenu').innerHTML = '<p class="sous-question">Aucun appareil pour le moment — ils apparaîtront automatiquement dès qu\'une commande de cette structure sera livrée.</p>';
+    return;
+  }
+
+  const vendus = flotteInterneAppareilsCourants.filter(a => a.statut === 'Remis' || a.dateVente);
+  const montantNonEncaisse = vendus.filter(a => a.statutRapprochement === 'À traiter').reduce((s, a) => s + (parseFloat(a.prix) || 0), 0);
+
+  const appareilsAffiches = flotteInterneAppareilsCourants.filter(a => {
+    if(flotteInterneFiltreRapprochement === 'tout') return true;
+    return a.statutRapprochement === flotteInterneFiltreRapprochement;
+  });
+
+  $('flotte-interne-contenu').innerHTML = `
+    <div class="bandeau-flotte-interne" style="grid-template-columns:repeat(2,1fr)">
+      <div class="stat-flotte"><div class="n">${vendus.length}</div><div class="l">Appareils remis</div></div>
+      <div class="stat-flotte"><div class="n" style="color:var(--t-rouge-t,#c0364a)">${formaterMontant(montantNonEncaisse)}</div><div class="l">Non encaissé</div></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+      <div class="filtres" id="flotte-interne-vue-toggle">
+        <button data-flotte-vue="saisie" class="${flotteInterneVue === 'saisie' ? 'actif' : ''}">📝 Saisie</button>
+        <button data-flotte-vue="compta" class="${flotteInterneVue === 'compta' ? 'actif' : ''}">💶 Comptabilité</button>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button type="button" class="action claire" id="btn-export-csv-salesforce" style="font-size:12px;padding:6px 12px">⬇️ Export CSV Salesforce</button>
+        ${flotteInterneVue === 'compta' ? `
+        <div class="filtres">
+          <button data-flotte-filtre-rapprochement="tout" class="${flotteInterneFiltreRapprochement === 'tout' ? 'actif' : ''}">Tout</button>
+          ${STATUTS_RAPPROCHEMENT.map(s => `<button data-flotte-filtre-rapprochement="${s}" class="${flotteInterneFiltreRapprochement === s ? 'actif' : ''}">${s}</button>`).join('')}
+        </div>` : ''}
+      </div>
+    </div>
+    <div class="scroll-tableau-flotte">
+      <table class="tableau-appareils tableau-pleine-largeur">
+        <thead><tr>${flotteInterneVue === 'compta'
+          ? '<th>N° série</th><th>Personne</th><th>Prix</th><th>Paiement</th><th>Vendeur</th><th>Attestation</th><th>Commentaire</th><th>Rapprochement</th><th>Statut rapprochement</th>'
+          : '<th>N° série</th><th></th><th>Matériel</th><th>Prix</th><th>Statut</th><th>Stockage</th><th>Vente</th><th>Personne</th><th>SF</th>'}</tr></thead>
+        <tbody>${appareilsAffiches.map(a => flotteInterneVue === 'compta' ? ligneFlotteInterneComptaHtml(a) : ligneFlotteInterneHtml(a)).join('')}</tbody>
+      </table>
+    </div>`;
+}
+
+function ligneFlotteInterneHtml(a){
+  const optionsLieu = ['', ...listesPersoFlotte.lieux].map(v => `<option value="${echapper(v)}" ${a.lieuStockage === v ? 'selected' : ''}>${v || '—'}</option>`).join('') + '<option value="__nouveau__">+ Nouveau lieu…</option>';
+  return `
+    <tr class="${classeLigneFlotte(a)}" data-ligne-flotte="${a.ligne}">
+      <td class="mono">${echapper(a.numeroSerie)}</td>
+      <td><a href="passeport.html?sn=${encodeURIComponent(a.numeroSerie)}" target="_blank" rel="noopener" class="btn-icone-mini-tableau" title="Ouvrir le passeport de cet appareil">🛂</a></td>
+      <td style="font-weight:700;font-size:13.5px">${echapper(a.produit || '—')}</td>
+      <td class="mono">${a.prix !== '' && a.prix != null ? formaterMontant(a.prix) : '—'}</td>
+      <td>
+        <select data-flotte-interne-ligne="${a.ligne}" data-flotte-interne-champ="statut" class="${a.statut === 'D3E' ? 'select-d3e' : ''}">
+          ${STATUTS_FLOTTE_INTERNE.map(s => `<option ${a.statut === s ? 'selected' : ''}>${s}</option>`).join('')}
+        </select>
+      </td>
+      <td><select data-flotte-interne-ligne="${a.ligne}" data-flotte-interne-champ="lieuStockage">${optionsLieu}</select></td>
+      <td><input type="text" data-flotte-interne-ligne="${a.ligne}" data-flotte-interne-champ="dateVente" value="${echapper(a.dateVente)}" style="width:90px" placeholder="jj/mm/aaaa"></td>
+      <td><button type="button" class="btn-icone-mini-tableau${a.personne ? ' rempli' : ''}" data-flotte-personne-ligne="${a.ligne}" title="Voir/modifier les infos de la personne">👤 ${a.personne ? echapper(a.personne) : '+'}</button></td>
+      <td style="text-align:center"><input type="checkbox" data-flotte-interne-ligne="${a.ligne}" data-flotte-interne-champ="saisieSalesforce" data-flotte-interne-checkbox="1" ${a.saisieSalesforce === 'Oui' ? 'checked' : ''} title="Saisie Salesforce faite"></td>
+    </tr>`;
+}
+
+function ligneFlotteInterneComptaHtml(a){
+  const optionsVendeur = ['', ...listesPersoFlotte.vendeurs].map(v => `<option value="${echapper(v)}" ${a.vendeur === v ? 'selected' : ''}>${v || '—'}</option>`).join('') + '<option value="__nouveau__">+ Nouveau vendeur…</option>';
+  return `
+    <tr class="${classeLigneFlotteCompta(a)}" data-ligne-flotte="${a.ligne}">
+      <td class="mono">${echapper(a.numeroSerie)}</td>
+      <td>${echapper(a.personne || '—')}</td>
+      <td class="mono">${a.prix !== '' && a.prix != null ? formaterMontant(a.prix) : '—'}</td>
+      <td>
+        <select data-flotte-interne-ligne="${a.ligne}" data-flotte-interne-champ="typePaiement">
+          ${TYPES_PAIEMENT_FLOTTE.map(t => `<option value="${t}" ${a.typePaiement === t ? 'selected' : ''}>${t || '—'}</option>`).join('')}
+        </select>
+      </td>
+      <td><select data-flotte-interne-ligne="${a.ligne}" data-flotte-interne-champ="vendeur">${optionsVendeur}</select></td>
+      <td><input data-flotte-interne-ligne="${a.ligne}" data-flotte-interne-champ="numeroAttestation" value="${echapper(a.numeroAttestation)}" style="width:90px"></td>
+      <td><input data-flotte-interne-ligne="${a.ligne}" data-flotte-interne-champ="commentaire" value="${echapper(a.commentaire)}" style="width:130px"></td>
+      <td><input data-flotte-interne-ligne="${a.ligne}" data-flotte-interne-champ="numeroRapprochement" value="${echapper(a.numeroRapprochement)}" style="width:110px" placeholder="Zettle / dépôt"></td>
+      <td>
+        <select data-flotte-interne-ligne="${a.ligne}" data-flotte-interne-champ="statutRapprochement">
+          ${STATUTS_RAPPROCHEMENT.map(s => `<option ${a.statutRapprochement === s ? 'selected' : ''}>${s}</option>`).join('')}
+        </select>
+      </td>
+    </tr>`;
+}
+
+$('flotte-interne-contenu').addEventListener('click', e => {
+  const bVue = e.target.closest('[data-flotte-vue]');
+  if(bVue){ flotteInterneVue = bVue.dataset.flotteVue; rendreFlotteInterneAdmin(); return; }
+  if(e.target.closest('#btn-export-csv-salesforce')){ exporterCsvSalesforce(); return; }
+  const bPersonne = e.target.closest('[data-flotte-personne-ligne]');
+  if(bPersonne){ ouvrirModalePersonneFlotte(parseInt(bPersonne.dataset.flottePersonneLigne, 10)); return; }
+  const b = e.target.closest('[data-flotte-filtre-rapprochement]');
+  if(!b) return;
+  flotteInterneFiltreRapprochement = b.dataset.flotteFiltreRapprochement;
+  rendreFlotteInterneAdmin();
+});
+
+function exporterCsvSalesforce(){
+  const entetes = ['Numero_Serie__c','Materiel__c','Prenom_Nom__c','Genre__c','Date_Naissance__c','Type_Paiement__c','Prix__c','Date_Vente__c','Vendeur__c','Numero_Attestation__c'];
+  const lignesCsv = flotteInterneAppareilsCourants
+    .filter(a => a.personne)
+    .map(a => [a.numeroSerie, a.produit, a.personne, a.genre, a.dateNaissance, a.typePaiement, a.prix, a.dateVente, a.vendeur, a.numeroAttestation]
+      .map(v => `"${String(v || '').replace(/"/g, '""')}"`).join(','));
+  const csv = [entetes.join(','), ...lignesCsv].join('\r\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const lien = document.createElement('a');
+  lien.href = url; lien.download = `export-salesforce-${flotteInterneCodeCourant}-${Date.now()}.csv`;
+  document.body.appendChild(lien); lien.click(); lien.remove();
+  URL.revokeObjectURL(url);
+}
+
 $('flotte-interne-contenu').addEventListener('change', async e => {
   const el = e.target.closest('[data-flotte-interne-ligne]');
   if(!el) return;
+  const ligne = parseInt(el.dataset.flotteInterneLigne, 10);
+  const champ = el.dataset.flotteInterneChamp;
+  let valeur = el.dataset.flotteInterneCheckbox ? (el.checked ? 'Oui' : 'Non') : el.value;
+
+  if(valeur === '__nouveau__' && (champ === 'lieuStockage' || champ === 'vendeur')){
+    const label = champ === 'lieuStockage' ? 'lieu de stockage' : 'vendeur';
+    const nouvelle = prompt(`Nom du nouveau ${label} :`);
+    if(!nouvelle || !nouvelle.trim()){ rendreFlotteInterneAdmin(); return; }
+    const r = await poster({ action:'flotte-liste-perso-ajouter', liste: champ === 'lieuStockage' ? 'lieu' : 'vendeur', valeur: nouvelle.trim() });
+    if(r.ok){
+      if(champ === 'lieuStockage') listesPersoFlotte.lieux = r.liste; else listesPersoFlotte.vendeurs = r.liste;
+      valeur = nouvelle.trim();
+    }else{
+      etat(r.erreur || 'Ajout impossible', 'erreur');
+      rendreFlotteInterneAdmin();
+      return;
+    }
+  }
+
+  if(champ === 'statut' && valeur === 'D3E'){
+    if(!confirm('Confirmer le passage de cet appareil en D3E (déchet électronique) ? Cette action est à valider consciemment.')){
+      rendreFlotteInterneAdmin();
+      return;
+    }
+  }
+
   el.disabled = true;
   try{
+    const r = await poster({ action:'flotte-modifier-admin', code:flotteInterneCodeCourant, ligne, champ, valeur });
+    if(r.ok){
+      const a = flotteInterneAppareilsCourants.find(x => x.ligne === ligne);
+      if(a) a[champ] = valeur;
+      etat('Enregistré', 'succes');
+      if(['statut','lieuStockage','vendeur','statutRapprochement'].includes(champ)) rendreFlotteInterneAdmin();
+    }else{
+      etat(r.erreur || 'Enregistrement impossible', 'erreur');
+    }
+  }catch(err){ etat('Enregistrement impossible', 'erreur'); }
+  el.disabled = false;
+});
+
+/* ── Modale "Personne" — tout ce qui concerne le bénéficiaire d'un appareil, à part pour
+   ne pas surcharger le tableau. Génération d'attestation directement depuis ici. ── */
+let flottePersonneLigneCourante = null;
+
+function ouvrirModalePersonneFlotte(ligne){
+  const a = flotteInterneAppareilsCourants.find(x => x.ligne === ligne);
+  if(!a) return;
+  flottePersonneLigneCourante = ligne;
+
+  $('flotte-personne-titre').textContent = `${a.numeroSerie} — ${a.produit || ''}`.trim();
+  $('flotte-personne-contenu').innerHTML = `
+    <div class="grille-cases-structure" style="grid-template-columns:1fr 1fr;gap:10px">
+      <label>Nom<input data-fp-champ="personne" value="${echapper(a.personne)}"></label>
+      <label>Genre
+        <select data-fp-champ="genre">
+          ${GENRES_FLOTTE.map(g => `<option value="${g}" ${a.genre === g ? 'selected' : ''}>${g || '—'}</option>`).join('')}
+        </select>
+      </label>
+      <label>Date de naissance<input data-fp-champ="dateNaissance" value="${echapper(a.dateNaissance)}" placeholder="jj/mm/aaaa"></label>
+      <label>Type de paiement
+        <select data-fp-champ="typePaiement">
+          ${TYPES_PAIEMENT_FLOTTE.map(t => `<option value="${t}" ${a.typePaiement === t ? 'selected' : ''}>${t || '—'}</option>`).join('')}
+        </select>
+      </label>
+      <label>Vendeur
+        <select data-fp-champ="vendeur">${['', ...listesPersoFlotte.vendeurs].map(v => `<option value="${echapper(v)}" ${a.vendeur === v ? 'selected' : ''}>${v || '—'}</option>`).join('')}<option value="__nouveau__">+ Nouveau…</option></select>
+      </label>
+      <label>N° attestation<input data-fp-champ="numeroAttestation" value="${echapper(a.numeroAttestation)}"></label>
+      <label>N° rapprochement<input data-fp-champ="numeroRapprochement" value="${echapper(a.numeroRapprochement)}" placeholder="Zettle / dépôt"></label>
+      <label style="grid-column:1/-1">Commentaire<textarea data-fp-champ="commentaire" rows="2">${echapper(a.commentaire)}</textarea></label>
+    </div>
+    <div id="retour-generer-attestation-flotte" style="margin-top:10px"></div>
+    <button type="button" class="action" id="btn-generer-attestation-flotte-interne" style="width:100%;margin-top:8px">🧾 Générer l'attestation de paiement</button>`;
+  $('modale-flotte-personne').hidden = false;
+}
+$('flotte-personne-fermer')?.addEventListener('click', () => $('modale-flotte-personne').hidden = true);
+
+$('flotte-personne-contenu')?.addEventListener('click', async e => {
+  if(!e.target.closest('#btn-generer-attestation-flotte-interne')) return;
+  const a = flotteInterneAppareilsCourants.find(x => x.ligne === flottePersonneLigneCourante);
+  if(!a || !a.personne){ $('retour-generer-attestation-flotte').innerHTML = '<div class="msg msg-erreur">Le nom de la personne est obligatoire avant de générer.</div>'; return; }
+
+  const bouton = $('btn-generer-attestation-flotte-interne');
+  bouton.disabled = true;
+  $('retour-generer-attestation-flotte').innerHTML = '<div class="msg msg-info">Génération en cours…</div>';
+  try{
     const r = await poster({
-      action:'flotte-modifier-admin', code:flotteInterneCodeCourant,
-      ligne: parseInt(el.dataset.flotteInterneLigne, 10), champ: el.dataset.flotteInterneChamp, valeur: el.value,
+      action:'flotte-generer-attestation', code: flotteInterneCodeCourant,
+      numeroSerie: a.numeroSerie, nomComplet: a.personne, dateNaissance: a.dateNaissance,
     });
-    etat(r.ok ? 'Enregistré' : (r.erreur || 'Enregistrement impossible'), r.ok ? 'succes' : 'erreur');
+    $('retour-generer-attestation-flotte').innerHTML = r.ok
+      ? `<div class="msg msg-succes">Prête — <a href="${echapper(r.url)}" target="_blank" rel="noopener">l'ouvrir ↗</a></div>`
+      : `<div class="msg msg-erreur">${echapper(r.erreur || 'Génération impossible.')}</div>`;
+  }catch(err){
+    $('retour-generer-attestation-flotte').innerHTML = '<div class="msg msg-erreur">Génération impossible — réessaie.</div>';
+  }
+  bouton.disabled = false;
+});
+
+$('flotte-personne-contenu')?.addEventListener('change', async e => {
+  const el = e.target.closest('[data-fp-champ]');
+  if(!el) return;
+  const champ = el.dataset.fpChamp;
+  let valeur = el.value;
+
+  if(valeur === '__nouveau__'){
+    const nouvelle = prompt('Nom du nouveau vendeur :');
+    if(!nouvelle || !nouvelle.trim()){ ouvrirModalePersonneFlotte(flottePersonneLigneCourante); return; }
+    const r = await poster({ action:'flotte-liste-perso-ajouter', liste:'vendeur', valeur: nouvelle.trim() });
+    if(r.ok){ listesPersoFlotte.vendeurs = r.liste; valeur = nouvelle.trim(); }
+    else{ etat(r.erreur || 'Ajout impossible', 'erreur'); ouvrirModalePersonneFlotte(flottePersonneLigneCourante); return; }
+  }
+
+  el.disabled = true;
+  try{
+    const r = await poster({ action:'flotte-modifier-admin', code:flotteInterneCodeCourant, ligne: flottePersonneLigneCourante, champ, valeur });
+    if(r.ok){
+      const a = flotteInterneAppareilsCourants.find(x => x.ligne === flottePersonneLigneCourante);
+      if(a) a[champ] = valeur;
+      etat('Enregistré', 'succes');
+    }else{
+      etat(r.erreur || 'Enregistrement impossible', 'erreur');
+    }
   }catch(err){ etat('Enregistrement impossible', 'erreur'); }
   el.disabled = false;
 });
