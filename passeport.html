@@ -207,6 +207,7 @@ async function afficherPasseport(numeroSerie){
     $('zone-passeport').innerHTML = `
       <div class="carte-passeport">
         <div class="ligne-passeport"><span class="cle">N° de série</span><span class="valeur">${echapper(r.numeroSerie)}</span></div>
+        <div class="ligne-passeport"><span class="cle">N° de commande</span><span class="valeur mono">${echapper(r.referenceCommande)}</span></div>
         ${r.caracteristiques ? `<div class="ligne-passeport"><span class="cle">Configuration</span><span class="valeur">${echapper(r.caracteristiques)}</span></div>` : ''}
         ${r.structure ? `<div class="ligne-passeport"><span class="cle">Remis par</span><span class="valeur">${echapper(r.structure)}</span></div>` : ''}
         ${r.dateLivraison ? `<div class="ligne-passeport"><span class="cle">Livré le</span><span class="valeur">${echapper(r.dateLivraison)}</span></div>` : ''}

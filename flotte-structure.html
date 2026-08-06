@@ -440,6 +440,7 @@ function rendreAppareils(appareils){
   const barreOutils = `
     <div class="barre-outils-flotte">
       <button type="button" class="bouton-retour" id="btn-actualiser-flotte">🔄 Actualiser depuis mes commandes livrées</button>
+      ${estInterneFlotte ? `<button type="button" class="bouton-retour" id="btn-nouveau-lieu-stockage-portail">📍 Nouveau lieu de stockage</button>` : `<button type="button" class="bouton-retour" id="btn-recreer-tableau-flotte">🆕 Repartir d'un tableau neuf</button>`}
       <div class="bascule-vue-flotte" role="group" aria-label="Affichage de la flotte" ${estInterneFlotte ? 'hidden' : ''}>
         <button type="button" data-vue-flotte="cartes" class="${vueFlotteActuelle === 'cartes' ? 'actif' : ''}">🗂 Cartes</button>
         <button type="button" data-vue-flotte="tableau" class="${vueFlotteActuelle === 'tableau' ? 'actif' : ''}">📊 Tableau</button>
@@ -544,6 +545,31 @@ function cablerBarreOutils(){
     }
     bouton.disabled = false;
   });
+
+  const boutonLieu = $('btn-nouveau-lieu-stockage-portail');
+  if(boutonLieu){
+    boutonLieu.addEventListener('click', async () => {
+      const nouvelle = prompt('Nom du nouveau lieu de stockage :');
+      if(!nouvelle || !nouvelle.trim()) return;
+      try{
+        const r = await poster({ action:'flotte-liste-perso-ajouter', liste:'lieu', valeur: nouvelle.trim() });
+        if(r.ok){ listesPersoFlottePortail.lieux = r.liste; $('retour-actualiser-flotte').textContent = 'Lieu ajouté.'; }
+        else $('retour-actualiser-flotte').textContent = r.erreur || 'Ajout impossible.';
+      }catch(e){ $('retour-actualiser-flotte').textContent = 'Ajout impossible.'; }
+    });
+  }
+
+  const boutonRecreer = $('btn-recreer-tableau-flotte');
+  if(boutonRecreer){
+    boutonRecreer.addEventListener('click', async () => {
+      if(!confirm('Repartir d\'un tableau neuf ? Ton tableau actuel ne sera pas supprimé (il reste intact sur ton Drive), mais il ne sera plus lié ici — il faudra en dupliquer un nouveau depuis le modèle et recoller son lien.')) return;
+      try{
+        const r = await poster({ action:'flotte-delier', code: codeValide });
+        if(r.ok) chargerFlotte();
+        else alert(r.erreur || 'Impossible de délier le tableau actuel.');
+      }catch(e){ alert('Impossible de délier le tableau actuel — réessaie.'); }
+    });
+  }
 }
 
 function dateVersISO(dateStr){

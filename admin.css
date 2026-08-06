@@ -396,6 +396,27 @@ body.carte-style-couleur .ccm-pastille{background:rgba(255,255,255,.22)}
 .ligne-flotte-remis{background:var(--t-vert-f, #E3F3E9) !important}
 .ligne-flotte-alerte{background:var(--t-ambre-f, #FBF0CE) !important}
 .ligne-flotte-cloture{background:var(--paper) !important;opacity:.75}
+.accordeon-jetons{margin-top:8px;border:1px solid var(--line);border-radius:8px;padding:2px 12px}
+.accordeon-jetons summary{
+  cursor:pointer;padding:8px 0;font-size:12.5px;font-weight:600;color:var(--steel);list-style:none;
+  display:flex;align-items:center;gap:6px;
+}
+.accordeon-jetons summary::before{content:'▸';font-size:10px;transition:transform .15s}
+.accordeon-jetons[open] summary::before{transform:rotate(90deg)}
+.accordeon-jetons summary::-webkit-details-marker{display:none}
+.accordeon-jetons-contenu{padding:2px 0 12px;font-size:12.5px;line-height:1.8}
+.tsc-a-structure{font-weight:400;font-size:12px;color:var(--steel)}
+.anneau-sav-wrap{position:relative;width:48px;height:48px;flex-shrink:0}
+.anneau-sav-pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:10.5px;color:var(--ink)}
+.anneau-sav-wrap.teinte-t-ambre .anneau-sav-trace{stroke:var(--t-ambre-t)}
+.anneau-sav-wrap.teinte-t-orange .anneau-sav-trace{stroke:var(--t-orange-t)}
+.anneau-sav-wrap.teinte-t-bleu .anneau-sav-trace{stroke:var(--t-bleu-t)}
+.anneau-sav-wrap.teinte-t-violet .anneau-sav-trace{stroke:var(--t-violet-t)}
+.anneau-sav-wrap.teinte-t-turquoise .anneau-sav-trace{stroke:var(--t-turquoise-t, #0A6E6B)}
+.anneau-sav-wrap.teinte-t-vert .anneau-sav-trace{stroke:var(--t-vert-t)}
+.anneau-sav-wrap.teinte-t-rouge .anneau-sav-trace{stroke:var(--t-rouge-t)}
+.anneau-sav-wrap.teinte-t-gris .anneau-sav-trace{stroke:var(--steel)}
+.tsc-a-statut-texte{font-size:12px;font-weight:600;color:var(--steel);margin-top:6px}
 .bandeau-flotte-interne{display:grid;gap:10px;margin-bottom:12px}
 .bandeau-flotte-interne .stat-flotte{
   background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 16px;

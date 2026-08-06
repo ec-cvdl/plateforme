@@ -826,7 +826,8 @@ $('btn-envoyer').addEventListener('click', async function(){
       }),
       demandeDevis: etat.demandeDevis,
       paiementSepare: etat.paiementSepare || 'Non',
-      commentaire: (etat.dateLivraisonSouhaitee ? ('Date de livraison max. souhaitée : ' + etat.dateLivraisonSouhaitee.split('-').reverse().join('/') + '\n\n') : '') + $('commentaire').value.trim(),
+      dateLivraisonSouhaitee: etat.dateLivraisonSouhaitee ? etat.dateLivraisonSouhaitee.split('-').reverse().join('/') : '',
+      commentaire: $('commentaire').value.trim(),
       urlSuivi: urlSuiviCommandes(),
       urlPortail: urlPortailStructure()
     };
