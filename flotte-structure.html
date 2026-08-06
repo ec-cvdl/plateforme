@@ -39,6 +39,19 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
   .barre-outils-flotte{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:6px}
   .barre-outils-flotte a{font-size:13px;color:#5C6D7C}
   .bascule-vue-flotte{display:inline-flex;border:1px solid var(--trait);border-radius:8px;overflow:hidden}
+  .ligne-flotte-d3e{background:#FBE7E3 !important}
+  .ligne-flotte-remis{background:#E3F3E9 !important}
+  .ligne-flotte-alerte{background:#FFF3DB !important}
+  .ligne-flotte-cloture{background:var(--fond) !important;opacity:.75}
+  .select-d3e{color:#A32F1C;font-weight:700}
+  .btn-icone-mini-tableau{
+    display:inline-flex;align-items:center;justify-content:center;width:30px;height:26px;
+    border:1px solid var(--trait);border-radius:6px;background:var(--carte);cursor:pointer;
+    font-size:13px;text-decoration:none;color:var(--ink);
+  }
+  .tableau-appareils th{text-align:left;padding:8px 10px;font-size:11px;font-weight:600;color:var(--gris-texte,#6C7A89);background:var(--fond);border-bottom:1px solid var(--trait);white-space:nowrap}
+  .tableau-appareils select,.tableau-appareils input{font-family:inherit;font-size:12px;padding:5px 7px;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--ink)}
+  .tableau-appareils select:hover,.tableau-appareils input:hover{border-color:var(--trait)}
   .bascule-vue-flotte button{
     font-family:inherit;font-size:12.5px;font-weight:600;padding:7px 12px;border:none;
     background:#fff;color:#5C6D7C;cursor:pointer;border-right:1px solid var(--trait);
@@ -82,6 +95,16 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
   .carte-appareil-alerte{border-color:#E8A33D}
   .carte-appareil-d3e{border-color:#C0364A;background:#FBE7E3}
   .carte-appareil-remis{border-color:#2EA05A;background:#E3F3E9}
+  .champ-texte{
+    width:100%;box-sizing:border-box;font-family:inherit;font-size:13.5px;padding:9px 11px;
+    border:1px solid var(--trait);border-radius:8px;color:var(--ink);background:var(--carte);
+  }
+  .champ-texte:focus{outline:none;border-color:var(--ink)}
+  .btn-personne-flotte-portail{
+    width:100%;font-family:inherit;font-size:12.5px;padding:9px 10px;border:1px solid var(--trait);
+    border-radius:8px;background:var(--carte);color:var(--ink);cursor:pointer;text-align:left;
+  }
+  .btn-personne-flotte-portail.rempli{border-color:#2EA05A;background:#E3F3E9}
   .alerte-garantie-appareil{font-size:11.5px;font-weight:600;color:#8A5A00;background:#FDF1DC;padding:5px 9px;border-radius:6px;margin-bottom:10px;display:inline-block}
   .ligne-alerte-garantie{background:#FFFBF3}
 
@@ -163,6 +186,13 @@ try{
     <div id="retour-creer-structure-bo" style="margin-top:10px"></div>
     <button type="button" class="bouton-principal" id="btn-valider-creer-structure-bo" style="margin-top:12px">Créer la structure</button>
     <button type="button" class="lien-changer-code" id="bo-fermer" style="margin-top:12px">Annuler</button>
+  </div>
+</div>
+<div class="voile-modale-qr" id="modale-personne-portail">
+  <div class="modale-qr" style="text-align:left;max-width:420px;max-height:85vh;overflow-y:auto">
+    <h3 style="text-align:center">Personne — <span id="personne-portail-titre"></span></h3>
+    <div id="personne-portail-contenu"></div>
+    <button type="button" class="lien-changer-code" id="personne-portail-fermer" style="margin-top:12px">Fermer</button>
   </div>
 </div>
 <div class="voile-modale-qr" id="modale-attestation-flotte">
@@ -382,32 +412,7 @@ function construireCartesAppareilsInterne(appareils){
           </select>
         </label>
         <label>Date de vente<input type="text" data-ligne="${a.ligne}" data-champ="dateVente" value="${echapper(a.dateVente)}" placeholder="jj/mm/aaaa"></label>
-        <label>Personne<input type="text" data-ligne="${a.ligne}" data-champ="personne" value="${echapper(a.personne)}"></label>
-        <label>Genre
-          <select data-ligne="${a.ligne}" data-champ="genre">
-            <option value="" ${!a.genre ? 'selected' : ''}>—</option>
-            <option ${a.genre === 'Homme' ? 'selected' : ''}>Homme</option>
-            <option ${a.genre === 'Femme' ? 'selected' : ''}>Femme</option>
-          </select>
-        </label>
-        <label>Date de naissance<input type="text" data-ligne="${a.ligne}" data-champ="dateNaissance" value="${echapper(a.dateNaissance)}" placeholder="jj/mm/aaaa"></label>
-        <label>Type de paiement
-          <select data-ligne="${a.ligne}" data-champ="typePaiement">
-            ${TYPES_PAIEMENT_PORTAIL.map(t => `<option value="${t}" ${a.typePaiement === t ? 'selected' : ''}>${t || '—'}</option>`).join('')}
-          </select>
-        </label>
-        <label>Vendeur
-          <select data-ligne="${a.ligne}" data-champ="vendeur">
-            ${['', ...listesPersoFlottePortail.vendeurs].map(v => `<option value="${echapper(v)}" ${a.vendeur === v ? 'selected' : ''}>${v || '—'}</option>`).join('')}
-            <option value="__nouveau__">+ Nouveau…</option>
-          </select>
-        </label>
-        <label>N° attestation<input type="text" data-ligne="${a.ligne}" data-champ="numeroAttestation" value="${echapper(a.numeroAttestation)}"></label>
-        <label>N° rapprochement<input type="text" data-ligne="${a.ligne}" data-champ="numeroRapprochement" value="${echapper(a.numeroRapprochement)}" placeholder="Zettle / dépôt"></label>
-        <label>Saisie Salesforce
-          <input type="checkbox" data-ligne="${a.ligne}" data-champ="saisieSalesforce" data-checkbox="1" ${a.saisieSalesforce === 'Oui' ? 'checked' : ''} style="width:auto;margin-top:6px">
-        </label>
-        <label>Commentaire<input type="text" data-ligne="${a.ligne}" data-champ="commentaire" value="${echapper(a.commentaire)}"></label>
+        <label>&nbsp;<button type="button" class="btn-personne-flotte-portail${a.personne ? ' rempli' : ''}" data-personne-ligne="${a.ligne}">👤 ${a.personne ? echapper(a.personne) : 'Renseigner la personne'}</button></label>
       </div>
       <div class="pied-appareil">
         <span>Livré le ${a.dateLivraison ? echapper(a.dateLivraison) : '—'}</span>
@@ -417,6 +422,87 @@ function construireCartesAppareilsInterne(appareils){
     </div>`).join('');
   return `<div class="liste-appareils">${lignesHtml}</div>`;
 }
+
+/* ── Modale Personne (portail) — mêmes champs que côté admin, regroupés à part pour ne pas
+   surcharger la carte sur mobile en particulier. ── */
+let personnePortailLigneCourante = null;
+
+function ouvrirModalePersonnePortail(ligne){
+  const a = appareilsCourants.find(x => x.ligne === ligne);
+  if(!a) return;
+  personnePortailLigneCourante = ligne;
+  $('personne-portail-titre').textContent = `${a.numeroSerie} — ${a.produit || ''}`.trim();
+  $('personne-portail-contenu').innerHTML = `
+    <label style="display:block;font-size:13px;font-weight:600;margin:10px 0 4px">Nom<input type="text" class="champ-texte" data-pp-champ="personne" value="${echapper(a.personne)}"></label>
+    <label style="display:block;font-size:13px;font-weight:600;margin:10px 0 4px">Genre
+      <select class="champ-texte" data-pp-champ="genre">
+        <option value="" ${!a.genre ? 'selected' : ''}>—</option>
+        <option ${a.genre === 'Homme' ? 'selected' : ''}>Homme</option>
+        <option ${a.genre === 'Femme' ? 'selected' : ''}>Femme</option>
+      </select>
+    </label>
+    <label style="display:block;font-size:13px;font-weight:600;margin:10px 0 4px">Date de naissance<input type="text" class="champ-texte" data-pp-champ="dateNaissance" value="${echapper(a.dateNaissance)}" placeholder="jj/mm/aaaa"></label>
+    <label style="display:block;font-size:13px;font-weight:600;margin:10px 0 4px">Type de paiement
+      <select class="champ-texte" data-pp-champ="typePaiement">
+        ${TYPES_PAIEMENT_PORTAIL.map(t => `<option value="${t}" ${a.typePaiement === t ? 'selected' : ''}>${t || '—'}</option>`).join('')}
+      </select>
+    </label>
+    <label style="display:block;font-size:13px;font-weight:600;margin:10px 0 4px">Vendeur
+      <select class="champ-texte" data-pp-champ="vendeur">
+        ${['', ...listesPersoFlottePortail.vendeurs].map(v => `<option value="${echapper(v)}" ${a.vendeur === v ? 'selected' : ''}>${v || '—'}</option>`).join('')}
+        <option value="__nouveau__">+ Nouveau…</option>
+      </select>
+    </label>
+    <label style="display:block;font-size:13px;font-weight:600;margin:10px 0 4px">N° attestation<input type="text" class="champ-texte" data-pp-champ="numeroAttestation" value="${echapper(a.numeroAttestation)}"></label>
+    <label style="display:block;font-size:13px;font-weight:600;margin:10px 0 4px">N° rapprochement<input type="text" class="champ-texte" data-pp-champ="numeroRapprochement" value="${echapper(a.numeroRapprochement)}" placeholder="Zettle / dépôt"></label>
+    <label style="display:flex;align-items:center;gap:8px;margin:14px 0"><input type="checkbox" data-pp-champ="saisieSalesforce" data-pp-checkbox="1" ${a.saisieSalesforce === 'Oui' ? 'checked' : ''} style="width:auto"> Saisie Salesforce faite</label>
+    <label style="display:block;font-size:13px;font-weight:600;margin:10px 0 4px">Commentaire<input type="text" class="champ-texte" data-pp-champ="commentaire" value="${echapper(a.commentaire)}"></label>
+    <div id="retour-personne-portail" style="margin-top:8px"></div>`;
+  $('modale-personne-portail').classList.add('visible');
+}
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-personne-ligne]');
+  if(!b) return;
+  ouvrirModalePersonnePortail(parseInt(b.dataset.personneLigne, 10));
+});
+$('personne-portail-fermer')?.addEventListener('click', () => {
+  $('modale-personne-portail').classList.remove('visible');
+  chargerFlotte(); // pour rafraîchir le nom sur le bouton de la carte
+});
+
+$('personne-portail-contenu')?.addEventListener('change', async e => {
+  const el = e.target.closest('[data-pp-champ]');
+  if(!el) return;
+  const champ = el.dataset.ppChamp;
+  let valeur = el.dataset.ppCheckbox ? (el.checked ? 'Oui' : 'Non') : el.value;
+
+  if(valeur === '__nouveau__'){
+    const nouvelle = prompt('Nom du nouveau vendeur :');
+    if(!nouvelle || !nouvelle.trim()){ ouvrirModalePersonnePortail(personnePortailLigneCourante); return; }
+    try{
+      const r = await poster({ action:'flotte-liste-perso-ajouter', liste:'vendeur', valeur: nouvelle.trim() });
+      if(r.ok){ listesPersoFlottePortail.vendeurs = r.liste; valeur = nouvelle.trim(); }
+      else{ $('retour-personne-portail').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur || 'Ajout impossible.')}</div>`; ouvrirModalePersonnePortail(personnePortailLigneCourante); return; }
+    }catch(e){ ouvrirModalePersonnePortail(personnePortailLigneCourante); return; }
+  }
+
+  el.disabled = true;
+  try{
+    const r = await poster({ action:'flotte-modifier', code: codeValide, ligne: personnePortailLigneCourante, champ, valeur });
+    if(r.ok){
+      const a = appareilsCourants.find(x => x.ligne === personnePortailLigneCourante);
+      if(a) a[champ] = valeur;
+      $('retour-personne-portail').innerHTML = '<div class="msg msg-succes">Enregistré.</div>';
+    }else{
+      $('retour-personne-portail').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur || 'Enregistrement impossible.')}</div>`;
+    }
+  }catch(e){
+    $('retour-personne-portail').innerHTML = '<div class="msg msg-erreur">Enregistrement impossible.</div>';
+  }
+  el.disabled = false;
+});
+
 
 function construireTableauAppareils(appareils){
   const lignesHtml = appareils.map(a => `
@@ -459,14 +545,249 @@ function construireTableauAppareils(appareils){
     </div>`;
 }
 
+/* ── Parité admin pour les structures Internes : mêmes vues Saisie/Comptabilité, mêmes
+   couleurs de ligne, même bandeau, mêmes filtres et export. Remplace entièrement l'ancienne
+   vue cartes pour ce type de structure — les RN/ESN/BO gardent cartes+tableau comme avant. ── */
+let flotteVuePortail = 'saisie';
+let flotteFiltreRapprochementPortail = 'tout';
+const STATUTS_RAPPROCHEMENT_PORTAIL = ['À traiter', 'Rapproché', 'Clôturé'];
+
+function classeLigneFlottePortail(a){
+  if(a.statut === 'D3E') return 'ligne-flotte-d3e';
+  if(a.statut === 'Remis') return 'ligne-flotte-remis';
+  if(a.statut === 'En stock' && a.alerte2Mois) return 'ligne-flotte-alerte';
+  return '';
+}
+function classeLigneFlotteComptaPortail(a){
+  if(a.statutRapprochement === 'Clôturé') return 'ligne-flotte-cloture';
+  if(a.statutRapprochement === 'Rapproché') return 'ligne-flotte-remis';
+  return 'ligne-flotte-alerte';
+}
+
+function rendreFlotteInterneParitePortail(appareils){
+  const barreOutils = `
+    <div class="barre-outils-flotte">
+      <button type="button" class="bouton-retour" id="btn-actualiser-flotte">🔄 Actualiser depuis mes commandes livrées</button>
+      <button type="button" class="bouton-retour" id="btn-creer-structure-bo">➕ Créer une structure BO</button>
+    </div>
+    <div id="retour-actualiser-flotte" class="compteur-ajouts"></div>`;
+
+  if(!appareils.length){
+    $('zone-flotte').innerHTML = barreOutils + '<p class="sous-question" style="margin-top:14px">Aucun appareil pour le moment — ils apparaîtront ici automatiquement dès qu\'une commande sera livrée.</p>';
+    cablerBarreOutilsPortailInterne();
+    return;
+  }
+
+  const vendus = appareils.filter(a => a.statut === 'Remis' || a.dateVente);
+  const montantNonEncaisse = vendus.filter(a => a.statutRapprochement === 'À traiter').reduce((s, a) => s + (parseFloat(a.prix) || 0), 0);
+
+  const appareilsAffiches = appareils.filter(a => {
+    if(flotteVuePortail !== 'compta') return true;
+    if(flotteFiltreRapprochementPortail === 'tout') return true;
+    return a.statutRapprochement === flotteFiltreRapprochementPortail;
+  });
+
+  const entetesSaisie = '<th>N° série</th><th></th><th>Matériel</th><th>Prix</th><th>Statut</th><th>Stockage</th><th>Vente</th><th>Personne</th><th>SF</th>';
+  const entetesCompta = '<th>N° série</th><th>Personne</th><th>Prix</th><th>Paiement</th><th>Vendeur</th><th>Attestation</th><th>Commentaire</th><th>Rapprochement</th><th>Statut rapprochement</th>';
+
+  $('zone-flotte').innerHTML = `
+    ${barreOutils}
+    <div class="bandeau-flotte-interne" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0">
+      <div class="stat-flotte" style="background:var(--carte);border:1px solid var(--trait);border-radius:10px;padding:12px 16px">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:700">${vendus.length}</div>
+        <div style="font-size:11.5px;color:var(--gris-texte,#6C7A89)">Appareils remis</div>
+      </div>
+      <div class="stat-flotte" style="background:var(--carte);border:1px solid var(--trait);border-radius:10px;padding:12px 16px">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:700;color:#A32F1C">${Math.round(montantNonEncaisse)} €</div>
+        <div style="font-size:11.5px;color:var(--gris-texte,#6C7A89)">Non encaissé</div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+      <div class="bascule-vue-flotte" id="portail-vue-toggle">
+        <button type="button" data-vue="saisie" class="${flotteVuePortail === 'saisie' ? 'actif' : ''}">📝 Saisie</button>
+        <button type="button" data-vue="compta" class="${flotteVuePortail === 'compta' ? 'actif' : ''}">💶 Comptabilité</button>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button type="button" class="bouton-retour" id="btn-nouveau-lieu-stockage-portail" style="width:auto">📍 Nouveau lieu</button>
+        <button type="button" class="bouton-retour" id="btn-export-csv-salesforce-portail" style="width:auto">⬇️ Export CSV Salesforce</button>
+        ${flotteVuePortail === 'compta' ? `<div class="bascule-vue-flotte" id="portail-filtre-rapprochement">
+          <button type="button" data-filtre="tout" class="${flotteFiltreRapprochementPortail === 'tout' ? 'actif' : ''}">Tout</button>
+          ${STATUTS_RAPPROCHEMENT_PORTAIL.map(s => `<button type="button" data-filtre="${s}" class="${flotteFiltreRapprochementPortail === s ? 'actif' : ''}">${s}</button>`).join('')}
+        </div>` : ''}
+      </div>
+    </div>
+    <div style="overflow-x:auto;border:1px solid var(--trait);border-radius:12px">
+      <table class="tableau-appareils" style="width:100%;border-collapse:collapse;font-size:12.5px">
+        <thead><tr>${flotteVuePortail === 'compta' ? entetesCompta : entetesSaisie}</tr></thead>
+        <tbody>${appareilsAffiches.map(a => flotteVuePortail === 'compta' ? lignePortailComptaHtml(a) : lignePortailSaisieHtml(a)).join('')}</tbody>
+      </table>
+    </div>
+    <div class="legende" style="display:flex;gap:16px;margin-top:14px;font-size:11.5px;color:var(--gris-texte,#6C7A89);flex-wrap:wrap">
+      <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:12px;height:12px;border-radius:3px;display:inline-block;background:#E3F3E9;border:1px solid #2EA05A"></span> Remis${flotteVuePortail === 'compta' ? ' / Rapproché' : ''}</span>
+      <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:12px;height:12px;border-radius:3px;display:inline-block;background:#FFF3DB;border:1px solid #8A5A00"></span> ${flotteVuePortail === 'compta' ? 'À traiter' : 'En stock depuis + de 2 mois'}</span>
+      ${flotteVuePortail === 'compta'
+        ? '<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:12px;height:12px;border-radius:3px;display:inline-block;background:var(--fond);border:1px solid var(--trait);opacity:.75"></span> Clôturé</span>'
+        : '<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:12px;height:12px;border-radius:3px;display:inline-block;background:#FBE7E3;border:1px solid #C0364A"></span> D3E</span>'}
+    </div>`;
+
+  cablerBarreOutilsPortailInterne();
+}
+
+function lignePortailSaisieHtml(a){
+  const optionsLieu = ['', ...listesPersoFlottePortail.lieux].map(v => `<option value="${echapper(v)}" ${a.lieuStockage === v ? 'selected' : ''}>${v || '—'}</option>`).join('') + '<option value="__nouveau__">+ Nouveau lieu…</option>';
+  return `
+    <tr class="${classeLigneFlottePortail(a)}" style="border-bottom:1px solid var(--trait)">
+      <td class="mono" style="padding:8px 10px">${echapper(a.numeroSerie)}</td>
+      <td style="padding:8px 10px"><a href="passeport.html?sn=${encodeURIComponent(a.numeroSerie)}" target="_blank" rel="noopener" class="btn-icone-mini-tableau" title="Passeport">🛂</a></td>
+      <td style="padding:8px 10px;font-weight:700">${echapper(a.produit || '—')}</td>
+      <td class="mono" style="padding:8px 10px">${a.prix !== '' && a.prix != null ? Math.round(a.prix) + ' €' : '—'}</td>
+      <td style="padding:8px 10px">
+        <select data-pi-ligne="${a.ligne}" data-pi-champ="statut" class="${a.statut === 'D3E' ? 'select-d3e' : ''}">
+          ${STATUTS_FLOTTE_INTERNE_PORTAIL.map(s => `<option ${a.statut === s ? 'selected' : ''}>${s}</option>`).join('')}
+        </select>
+      </td>
+      <td style="padding:8px 10px"><select data-pi-ligne="${a.ligne}" data-pi-champ="lieuStockage">${optionsLieu}</select></td>
+      <td style="padding:8px 10px"><input type="text" data-pi-ligne="${a.ligne}" data-pi-champ="dateVente" value="${echapper(a.dateVente)}" placeholder="jj/mm/aaaa" style="width:90px"></td>
+      <td style="padding:8px 10px"><button type="button" class="btn-personne-flotte-portail${a.personne ? ' rempli' : ''}" data-personne-ligne="${a.ligne}" style="width:auto;white-space:nowrap">👤 ${a.personne ? echapper(a.personne) : '+'}</button></td>
+      <td style="padding:8px 10px;text-align:center"><input type="checkbox" data-pi-ligne="${a.ligne}" data-pi-champ="saisieSalesforce" data-pi-checkbox="1" ${a.saisieSalesforce === 'Oui' ? 'checked' : ''}></td>
+    </tr>`;
+}
+
+function lignePortailComptaHtml(a){
+  const optionsVendeur = ['', ...listesPersoFlottePortail.vendeurs].map(v => `<option value="${echapper(v)}" ${a.vendeur === v ? 'selected' : ''}>${v || '—'}</option>`).join('') + '<option value="__nouveau__">+ Nouveau vendeur…</option>';
+  return `
+    <tr class="${classeLigneFlotteComptaPortail(a)}" style="border-bottom:1px solid var(--trait)">
+      <td class="mono" style="padding:8px 10px">${echapper(a.numeroSerie)}</td>
+      <td style="padding:8px 10px">${echapper(a.personne || '—')}</td>
+      <td class="mono" style="padding:8px 10px">${a.prix !== '' && a.prix != null ? Math.round(a.prix) + ' €' : '—'}</td>
+      <td style="padding:8px 10px">
+        <select data-pi-ligne="${a.ligne}" data-pi-champ="typePaiement">
+          ${TYPES_PAIEMENT_PORTAIL.map(t => `<option value="${t}" ${a.typePaiement === t ? 'selected' : ''}>${t || '—'}</option>`).join('')}
+        </select>
+      </td>
+      <td style="padding:8px 10px"><select data-pi-ligne="${a.ligne}" data-pi-champ="vendeur">${optionsVendeur}</select></td>
+      <td style="padding:8px 10px"><input data-pi-ligne="${a.ligne}" data-pi-champ="numeroAttestation" value="${echapper(a.numeroAttestation)}" style="width:90px"></td>
+      <td style="padding:8px 10px"><input data-pi-ligne="${a.ligne}" data-pi-champ="commentaire" value="${echapper(a.commentaire)}" style="width:120px"></td>
+      <td style="padding:8px 10px"><input data-pi-ligne="${a.ligne}" data-pi-champ="numeroRapprochement" value="${echapper(a.numeroRapprochement)}" placeholder="Zettle / dépôt" style="width:110px"></td>
+      <td style="padding:8px 10px">
+        <select data-pi-ligne="${a.ligne}" data-pi-champ="statutRapprochement">
+          ${STATUTS_RAPPROCHEMENT_PORTAIL.map(s => `<option ${a.statutRapprochement === s ? 'selected' : ''}>${s}</option>`).join('')}
+        </select>
+      </td>
+    </tr>`;
+}
+
+function cablerBarreOutilsPortailInterne(){
+  $('btn-actualiser-flotte')?.addEventListener('click', async function(){
+    this.disabled = true;
+    $('retour-actualiser-flotte').textContent = 'Actualisation…';
+    try{
+      const rA = await poster({ action:'flotte-actualiser', code: codeValide });
+      if(rA.ok){
+        $('retour-actualiser-flotte').textContent = rA.ajoutes > 0 ? rA.ajoutes + ' nouvel(aux) appareil(s) ajouté(s).' : 'Déjà à jour, rien de nouveau.';
+        await chargerAppareils(lienFlotteActuel);
+      }else{
+        $('retour-actualiser-flotte').textContent = rA.erreur || 'Actualisation impossible.';
+      }
+    }catch(e){ $('retour-actualiser-flotte').textContent = 'Actualisation impossible.'; }
+    this.disabled = false;
+  });
+
+  $('btn-creer-structure-bo')?.addEventListener('click', () => {
+    ['bo-code','bo-nom','bo-adresse','bo-email','bo-telephone','bo-email-facturation'].forEach(id => $(id).value = '');
+    $('retour-creer-structure-bo').innerHTML = '';
+    $('modale-creer-structure-bo').classList.add('visible');
+  });
+
+  $('btn-nouveau-lieu-stockage-portail')?.addEventListener('click', async () => {
+    const nouvelle = prompt('Nom du nouveau lieu de stockage :');
+    if(!nouvelle || !nouvelle.trim()) return;
+    try{
+      const r = await poster({ action:'flotte-liste-perso-ajouter', liste:'lieu', valeur: nouvelle.trim() });
+      if(r.ok){ listesPersoFlottePortail.lieux = r.liste; rendreFlotteInterneParitePortail(appareilsCourants); }
+      else alert(r.erreur || 'Ajout impossible.');
+    }catch(e){ alert('Ajout impossible.'); }
+  });
+
+  $('btn-export-csv-salesforce-portail')?.addEventListener('click', () => {
+    const entetes = ['Numero_Serie__c','Materiel__c','Prenom_Nom__c','Genre__c','Date_Naissance__c','Type_Paiement__c','Prix__c','Date_Vente__c','Vendeur__c','Numero_Attestation__c'];
+    const lignesCsv = appareilsCourants
+      .filter(a => a.personne)
+      .map(a => [a.numeroSerie, a.produit, a.personne, a.genre, a.dateNaissance, a.typePaiement, a.prix, a.dateVente, a.vendeur, a.numeroAttestation]
+        .map(v => `"${String(v || '').replace(/"/g, '""')}"`).join(','));
+    const csv = [entetes.join(','), ...lignesCsv].join('\r\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const lien = document.createElement('a');
+    lien.href = url; lien.download = `export-salesforce-${codeValide}-${Date.now()}.csv`;
+    document.body.appendChild(lien); lien.click(); lien.remove();
+    URL.revokeObjectURL(url);
+  });
+
+  $('portail-vue-toggle')?.addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if(!b) return;
+    flotteVuePortail = b.dataset.vue;
+    rendreFlotteInterneParitePortail(appareilsCourants);
+  });
+
+  $('portail-filtre-rapprochement')?.addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if(!b) return;
+    flotteFiltreRapprochementPortail = b.dataset.filtre;
+    rendreFlotteInterneParitePortail(appareilsCourants);
+  });
+
+  document.querySelectorAll('#zone-flotte [data-pi-champ]').forEach(champ => {
+    champ.addEventListener('change', async () => {
+      const ligne = champ.dataset.piLigne;
+      const nomChamp = champ.dataset.piChamp;
+      let valeur = champ.dataset.piCheckbox ? (champ.checked ? 'Oui' : 'Non') : champ.value;
+
+      if(valeur === '__nouveau__' && (nomChamp === 'lieuStockage' || nomChamp === 'vendeur')){
+        const label = nomChamp === 'lieuStockage' ? 'lieu de stockage' : 'vendeur';
+        const nouvelle = prompt(`Nom du nouveau ${label} :`);
+        if(!nouvelle || !nouvelle.trim()){ rendreFlotteInterneParitePortail(appareilsCourants); return; }
+        const r = await poster({ action:'flotte-liste-perso-ajouter', liste: nomChamp === 'lieuStockage' ? 'lieu' : 'vendeur', valeur: nouvelle.trim() });
+        if(r.ok){
+          if(nomChamp === 'lieuStockage') listesPersoFlottePortail.lieux = r.liste; else listesPersoFlottePortail.vendeurs = r.liste;
+          valeur = nouvelle.trim();
+        }else{
+          alert(r.erreur || 'Ajout impossible.');
+          rendreFlotteInterneParitePortail(appareilsCourants);
+          return;
+        }
+      }
+
+      if(nomChamp === 'statut' && valeur === 'D3E'){
+        if(!confirm('Confirmer le passage de cet appareil en D3E (déchet électronique) ?')){ rendreFlotteInterneParitePortail(appareilsCourants); return; }
+      }
+
+      champ.disabled = true;
+      try{
+        const r = await poster({ action:'flotte-modifier', code: codeValide, ligne, champ: nomChamp, valeur });
+        if(r.ok){
+          const a = appareilsCourants.find(x => String(x.ligne) === String(ligne));
+          if(a) a[nomChamp] = valeur;
+          if(['statut','lieuStockage','vendeur','statutRapprochement'].includes(nomChamp)) rendreFlotteInterneParitePortail(appareilsCourants);
+        }else{
+          alert(r.erreur || 'Enregistrement impossible.');
+        }
+      }catch(e){ alert('Enregistrement impossible — réessaie.'); }
+      champ.disabled = false;
+    });
+  });
+}
+
 function rendreAppareils(appareils){
+  if(estInterneFlotte){ rendreFlotteInterneParitePortail(appareils); return; }
+
   const nbAlertes = appareils.filter(a => a.alerteGarantie).length;
   const barreOutils = `
     <div class="barre-outils-flotte">
       <button type="button" class="bouton-retour" id="btn-actualiser-flotte">🔄 Actualiser depuis mes commandes livrées</button>
-      ${estInterneFlotte ? `<button type="button" class="bouton-retour" id="btn-nouveau-lieu-stockage-portail">📍 Nouveau lieu de stockage</button>
-      <button type="button" class="bouton-retour" id="btn-creer-structure-bo">➕ Créer une structure BO</button>` : `<button type="button" class="bouton-retour" id="btn-recreer-tableau-flotte">🆕 Repartir d'un tableau neuf</button>`}
-      <div class="bascule-vue-flotte" role="group" aria-label="Affichage de la flotte" ${estInterneFlotte ? 'hidden' : ''}>
+      <button type="button" class="bouton-retour" id="btn-recreer-tableau-flotte">🆕 Repartir d'un tableau neuf</button>
+      <div class="bascule-vue-flotte" role="group" aria-label="Affichage de la flotte">
         <button type="button" data-vue-flotte="cartes" class="${vueFlotteActuelle === 'cartes' ? 'actif' : ''}">🗂 Cartes</button>
         <button type="button" data-vue-flotte="tableau" class="${vueFlotteActuelle === 'tableau' ? 'actif' : ''}">📊 Tableau</button>
       </div>
@@ -488,7 +809,7 @@ function rendreAppareils(appareils){
     : appareils;
 
   const contenu = appareilsFiltres.length
-    ? (!estInterneFlotte && vueFlotteActuelle === 'tableau' ? construireTableauAppareils(appareilsFiltres) : construireCartesAppareils(appareilsFiltres))
+    ? (vueFlotteActuelle === 'tableau' ? construireTableauAppareils(appareilsFiltres) : construireCartesAppareils(appareilsFiltres))
     : '<p class="sous-question" style="margin-top:14px">Aucun appareil ne correspond à cette recherche.</p>';
   document.body.classList.toggle('mode-tableau-flotte', vueFlotteActuelle === 'tableau');
   $('zone-flotte').innerHTML = barreOutils + contenu;
