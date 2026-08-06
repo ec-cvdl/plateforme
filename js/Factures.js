@@ -59,14 +59,15 @@ $('recherche-factures').addEventListener('input', () => {
 });
 
 let statutsSav = [];
-const COULEURS_SAV_DISPONIBLES = ['t-ambre', 't-bleu', 't-violet', 't-turquoise', 't-vert', 't-rouge', 't-gris'];
+const COULEURS_SAV_DISPONIBLES = ['t-ambre', 't-orange', 't-bleu', 't-violet', 't-turquoise', 't-vert', 't-rouge', 't-gris'];
 
-async function chargerStatutsSav(){
-  etat('Chargement des statuts SAV…', 'chargement');
+async function chargerStatutsSav(silencieux){
+  if(!silencieux) etat('Chargement des statuts SAV…', 'chargement');
   try{
     const r = await jsonp({action:'sav-statuts-list', password:motDePasse});
-    if(r.ok){ statutsSav = r.statuts; rendreFiltresSav(); rendreConfigStatutsSav(); }
-  }catch(e){ etat('Chargement des statuts SAV impossible', 'erreur'); }
+    if(r.ok){ statutsSav = r.statuts; rendreFiltresSav(); rendreConfigStatutsSav(); if(!silencieux) etat('À jour', 'succes'); }
+    else if(!silencieux) etat(r.erreur || 'Chargement des statuts SAV impossible', 'erreur');
+  }catch(e){ if(!silencieux) etat('Chargement des statuts SAV impossible', 'erreur'); }
 }
 
 function statutSavInfo(nom){
@@ -89,6 +90,41 @@ function parseDateFr(dateStr){
  *  résolution une fois le ticket sur un statut "Terminal", sinon calculé jusqu'à aujourd'hui.
  *  Renvoie null si le ticket n'a jamais atteint cette étape, ou si aucun statut ne porte ce
  *  drapeau (rien à mesurer). */
+function construireAnneauSav(statutActuel){
+  if(!statutsSav.length) return '';
+  const statutCourant = statutsSav.find(s => s.statut === statutActuel);
+  if(!statutCourant) return '';
+  const circonference = 2 * Math.PI * 20;
+
+  const parcours = statutsSav.filter(s => !s.terminal || s.finCycle);
+  const estSortieAlternative = statutCourant.terminal && !statutCourant.finCycle;
+
+  let progression, libellePct;
+  if(estSortieAlternative){
+    progression = 1;
+    libellePct = '—';
+  }else if(statutCourant.finCycle){
+    progression = 1;
+    libellePct = '✓';
+  }else{
+    const indexActuel = parcours.findIndex(s => s.statut === statutActuel);
+    const total = parcours.length;
+    progression = total ? (indexActuel + 1) / total : 0;
+    libellePct = `${indexActuel + 1}/${total}`;
+  }
+
+  const decalage = circonference * (1 - progression);
+  return `<div class="anneau-sav-wrap teinte-${statutCourant.couleur}">
+    <svg width="48" height="48" viewBox="0 0 48 48">
+      <circle cx="24" cy="24" r="20" fill="none" stroke="var(--line)" stroke-width="5"/>
+      <circle cx="24" cy="24" r="20" fill="none" class="anneau-sav-trace" stroke-width="5"
+        stroke-dasharray="${circonference.toFixed(1)}" stroke-dashoffset="${decalage.toFixed(1)}"
+        stroke-linecap="round" transform="rotate(-90 24 24)"/>
+    </svg>
+    <div class="anneau-sav-pct">${libellePct}</div>
+  </div>`;
+}
+
 function calculerDelaiSav(t){
   const statutDepart = statutsSav.find(s => s.departDelai);
   if(!statutDepart) return null;
@@ -148,7 +184,7 @@ async function chargerSav(silencieux, limiteForcee){
 }
 $('btn-recharger-sav').addEventListener('click', () => {
   etat('Actualisation…', 'neutre');
-  Promise.all([chargerSav(), chargerStatutsSav()]).then(() => etat('À jour', 'succes'));
+  Promise.all([chargerSav(), chargerStatutsSav(true)]).then(() => etat('À jour', 'succes'));
 });
 
 async function changerPageSav(nouveauDecalage){
@@ -237,7 +273,7 @@ $('liste-config-statuts-sav').addEventListener('change', async e => {
     const r = await poster({ action:'sav-statut-modifier', password:motDePasse, ligne, champ: el.dataset.champ, valeur });
     if(r.ok){
       etat('Statut mis à jour', 'succes');
-      await chargerStatutsSav();
+      await chargerStatutsSav(true);
       rendreSav(); // les couleurs/drapeaux affectent l'affichage des tickets
     }else{
       etat(r.erreur || 'Enregistrement impossible', 'erreur');
@@ -256,7 +292,7 @@ $('liste-config-statuts-sav').addEventListener('click', async e => {
     const ligne = parseInt((bMonter ? b.dataset.statutMonter : b.dataset.statutDescendre), 10);
     try{
       const r = await poster({ action:'sav-statut-deplacer', password:motDePasse, ligne, direction: bMonter ? 'haut' : 'bas' });
-      if(r.ok) await chargerStatutsSav();
+      if(r.ok) await chargerStatutsSav(true);
       else etat(r.erreur || 'Déplacement impossible', 'erreur');
     }catch(err){ etat('Déplacement impossible', 'erreur'); }
   }
@@ -265,7 +301,7 @@ $('liste-config-statuts-sav').addEventListener('click', async e => {
     if(!confirm(`Supprimer le statut "${bSupprimer.dataset.statutNom}" ? Les tickets qui l'utilisent garderont ce texte, mais sans couleur ni comportement associé.`)) return;
     try{
       const r = await poster({ action:'sav-statut-supprimer', password:motDePasse, ligne: parseInt(bSupprimer.dataset.statutSupprimer, 10) });
-      if(r.ok){ await chargerStatutsSav(); rendreSav(); etat('Statut supprimé', 'succes'); }
+      if(r.ok){ await chargerStatutsSav(true); rendreSav(); etat('Statut supprimé', 'succes'); }
       else etat(r.erreur || 'Suppression impossible', 'erreur');
     }catch(err){ etat('Suppression impossible', 'erreur'); }
   }
@@ -283,7 +319,7 @@ $('btn-ajouter-statut-sav').addEventListener('click', async () => {
     const r = await poster({ action:'sav-statut-ajouter', password:motDePasse, statut: nom });
     if(r.ok){
       $('nouveau-statut-sav-nom').value = '';
-      await chargerStatutsSav();
+      await chargerStatutsSav(true);
       etat('Statut ajouté', 'succes');
     }else{
       $('retour-config-statuts-sav').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur)}</div>`;
@@ -355,12 +391,13 @@ function rendreSav(){
           <div class="tsc-a-identite">
             <div class="tsc-a-icone">${svgIconeSymptome(t.symptome)}</div>
             <div class="tsc-a-entete">
-              <div class="tsc-a-nom">${echapper(t.nom)}</div>
+              <div class="tsc-a-nom">${echapper(t.nom)}${t.structureNom && t.structureNom !== t.nom ? ` <span class="tsc-a-structure">— ${echapper(t.structureNom)}</span>` : ''}</div>
               <div class="tsc-a-ref">${echapper(t.reference)} · ${echapper(t.date)}</div>
             </div>
           </div>
-          <span class="tsc-a-statut-pastille">${echapper(t.statut)}</span>
+          ${construireAnneauSav(t.statut)}
         </div>
+        <div class="tsc-a-statut-texte">${echapper(t.statut)}</div>
         <p class="tsc-a-symptome">${t.symptome ? echapper(t.symptome) : 'Symptôme non précisé'}</p>
         <div class="tsc-pilules">
           <span class="pilule-info-sav type-serie${t.numeroSerie ? '' : ' vide'}">

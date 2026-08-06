@@ -326,7 +326,17 @@ function listeSerieNettoyee(){
 function majCompteurSerie(){
   const liste = listeSerieNettoyee();
   const n = liste.length;
-  $('serie-compte').textContent = n + (n > 1 ? ' numéros' : ' numéro');
+  const c = commandes.find(x => x.ligne === serieLigneCourante);
+  const attendu = c ? c.quantiteTotale : null;
+
+  if(attendu){
+    const ok = n === attendu;
+    $('serie-compte').innerHTML = `${n} ${n > 1 ? 'numéros' : 'numéro'} sur ${attendu} attendu${attendu > 1 ? 's' : ''}` +
+      (ok ? ' <span style="color:var(--ok,#2ea05a);font-weight:700">✓</span>' : ` <span style="color:var(--t-rouge-t,#c0364a);font-weight:700">— ${n < attendu ? `il en manque ${attendu - n}` : `${n - attendu} en trop`}</span>`);
+  }else{
+    $('serie-compte').textContent = n + (n > 1 ? ' numéros' : ' numéro');
+  }
+
   $('serie-liste-passeports').innerHTML = liste.map(s =>
     `<a href="passeport.html?sn=${encodeURIComponent(s)}" target="_blank" rel="noopener">🛂 ${echapper(s)}</a>`
   ).join('');

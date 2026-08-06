@@ -46,6 +46,9 @@ function rendreStructures(){
         </button>
         ${s.interne ? `<button type="button" class="btn-icone-fiche" data-structure-flotte="${echapper(s.code)}" data-structure-flotte-nom="${echapper(s.nom)}" title="Gérer la flotte de cette structure Interne" aria-label="Flotte">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="7" height="7" rx="1.2"/><rect x="14" y="6" width="7" height="7" rx="1.2"/><rect x="3" y="17" width="7" height="4" rx="1"/><rect x="14" y="17" width="7" height="4" rx="1"/></svg>
+        </button>
+        <button type="button" class="btn-icone-fiche" data-structure-stats="${echapper(s.code)}" data-structure-stats-nom="${echapper(s.nom)}" title="Statistiques de cette structure Interne" aria-label="Statistiques">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M12 20V4M20 20v-7"/></svg>
         </button>` : ''}
         <button type="button" class="btn-icone-fiche danger" data-supprimer="${s.ligne}" data-nom="${echapper(s.nom)}" title="Supprimer la structure" aria-label="Supprimer">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7m2 0v13a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 7 20V7h10z"/><path d="M10 11v6M14 11v6"/></svg>
@@ -142,6 +145,7 @@ function rendreFlotteInterneAdmin(){
         <button data-flotte-vue="compta" class="${flotteInterneVue === 'compta' ? 'actif' : ''}">💶 Comptabilité</button>
       </div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        ${flotteInterneVue === 'saisie' ? `<button type="button" class="action claire" id="btn-nouveau-lieu-stockage" style="font-size:12px;padding:6px 12px">📍 Nouveau lieu de stockage</button>` : ''}
         <button type="button" class="action claire" id="btn-export-csv-salesforce" style="font-size:12px;padding:6px 12px">⬇️ Export CSV Salesforce</button>
         ${flotteInterneVue === 'compta' ? `
         <div class="filtres">
@@ -208,6 +212,15 @@ $('flotte-interne-contenu').addEventListener('click', e => {
   const bVue = e.target.closest('[data-flotte-vue]');
   if(bVue){ flotteInterneVue = bVue.dataset.flotteVue; rendreFlotteInterneAdmin(); return; }
   if(e.target.closest('#btn-export-csv-salesforce')){ exporterCsvSalesforce(); return; }
+  if(e.target.closest('#btn-nouveau-lieu-stockage')){
+    const nouvelle = prompt('Nom du nouveau lieu de stockage :');
+    if(!nouvelle || !nouvelle.trim()) return;
+    poster({ action:'flotte-liste-perso-ajouter', liste:'lieu', valeur: nouvelle.trim() }).then(r => {
+      if(r.ok){ listesPersoFlotte.lieux = r.liste; etat('Lieu ajouté', 'succes'); rendreFlotteInterneAdmin(); }
+      else etat(r.erreur || 'Ajout impossible', 'erreur');
+    }).catch(() => etat('Ajout impossible', 'erreur'));
+    return;
+  }
   const bPersonne = e.target.closest('[data-flotte-personne-ligne]');
   if(bPersonne){ ouvrirModalePersonneFlotte(parseInt(bPersonne.dataset.flottePersonneLigne, 10)); return; }
   const b = e.target.closest('[data-flotte-filtre-rapprochement]');
@@ -361,6 +374,33 @@ $('flotte-personne-contenu')?.addEventListener('change', async e => {
   }catch(err){ etat('Enregistrement impossible', 'erreur'); }
   el.disabled = false;
 });
+
+document.addEventListener('click', async e => {
+  const bStats = e.target.closest('[data-structure-stats]');
+  if(!bStats) return;
+  $('modale-stats-structure-interne').hidden = false;
+  $('stats-structure-interne-nom').textContent = bStats.dataset.structureStatsNom;
+  $('stats-structure-interne-contenu').innerHTML = '<p class="sous-question">Chargement…</p>';
+  try{
+    const r = await jsonp({action:'flotte-statistiques-admin', password:motDePasse, code:bStats.dataset.structureStats});
+    if(!r.ok){ $('stats-structure-interne-contenu').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur)}</div>`; return; }
+    $('stats-structure-interne-contenu').innerHTML = `
+      <div class="bandeau-flotte-interne" style="grid-template-columns:repeat(3,1fr)">
+        <div class="stat-flotte"><div class="n">${r.totalAppareils}</div><div class="l">Appareils au total</div></div>
+        <div class="stat-flotte"><div class="n">${r.totalRemis}</div><div class="l">Distribués (Remis)</div></div>
+        <div class="stat-flotte"><div class="n">${formaterMontant(r.montantTotal)}</div><div class="l">Montant facturé (distribués)</div></div>
+      </div>
+      <table class="tableau-appareils" style="margin-top:14px">
+        <thead><tr><th>Produit</th><th>Total</th><th>Distribués</th><th>Montant</th></tr></thead>
+        <tbody>${r.parProduit.map(p => `
+          <tr><td style="font-weight:600">${echapper(p.produit)}</td><td class="mono">${p.quantite}</td><td class="mono">${p.remis}</td><td class="mono">${formaterMontant(p.montant)}</td></tr>
+        `).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--steel)">Aucun appareil pour le moment</td></tr>'}</tbody>
+      </table>`;
+  }catch(err){
+    $('stats-structure-interne-contenu').innerHTML = '<div class="msg msg-erreur">Chargement impossible.</div>';
+  }
+});
+$('stats-structure-interne-fermer')?.addEventListener('click', () => $('modale-stats-structure-interne').hidden = true);
 
 $('btn-nouvelle-structure').addEventListener('click', () => {
   ['s-code','s-nom','s-email','s-email-facturation','s-tel','s-adresse'].forEach(i => $(i).value = '');

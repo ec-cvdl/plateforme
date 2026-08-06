@@ -185,15 +185,30 @@ function brancherClicsJoursCalendrier(){
 function afficherDetailJourCalendrier(cle){
   const evenements = [];
   calendrierCommandes.forEach(c => {
-    if(calendrierAfficherSouhaitee && c.dateLivraisonSouhaitee && c.dateLivraisonSouhaitee !== 'ASAP'){
+    if(calendrierAfficherSouhaitee && c.statutCommande !== 'Livrée' && c.dateLivraisonSouhaitee && c.dateLivraisonSouhaitee !== 'ASAP'){
       const d = parserDateCalendrier(c.dateLivraisonSouhaitee);
       if(d && cleJour(d) === cle) evenements.push({ commande: c, type: 'souhaitee' });
+    }
+    if(calendrierAfficherCible && c.dateCible && !(c.dateLivraisonSouhaitee && c.dateLivraisonSouhaitee !== 'ASAP')){
+      const d = parserDateCalendrier(c.dateCible);
+      if(d && cleJour(d) === cle) evenements.push({ commande: c, type: 'cible' });
     }
     if(calendrierAfficherReelle && c.dateLivraison){
       const d = parserDateCalendrier(c.dateLivraison);
       if(d && cleJour(d) === cle) evenements.push({ commande: c, type: 'reelle' });
     }
   });
+  if(calendrierAfficherLots){
+    calendrierLots.forEach(lot => {
+      const d = parserDateCalendrier(lot.dateLivraison);
+      if(d && cleJour(d) === cle){
+        evenements.push({
+          commande: { reference: lot.referenceLot, nom: `${lot.nomProjet} — ${lot.quantite} appareil${lot.quantite > 1 ? 's' : ''}`, statutCommande: lot.statut, dateLivraisonSouhaitee: '' },
+          type: 'lot',
+        });
+      }
+    });
+  }
   if(!evenements.length) return;
 
   const [an, mo, jo] = cle.split('-');
@@ -236,6 +251,7 @@ $('btn-calendrier-suivant').addEventListener('click', () => {
   rendreCalendrier();
 });
 $('btn-calendrier-aujourdhui').addEventListener('click', () => { calendrierDateRef = new Date(); rendreCalendrier(); });
+$('btn-recharger-calendrier').addEventListener('click', chargerCalendrier);
 
 $('filtres-calendrier-vue').addEventListener('click', e => {
   const b = e.target.closest('button'); if(!b) return;
