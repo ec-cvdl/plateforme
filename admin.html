@@ -1832,6 +1832,15 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
       <button type="button" class="action claire" id="detail-sav-envoyer-email" style="margin-top:8px">📧 Envoyer par email</button>
     </div>
 
+    <div class="carte-reglage" style="margin-top:16px">
+      <h3 style="font-size:13.5px">Envoyer un document PDF par email</h3>
+      <p class="reglage-texte">Ex. un rapport de diagnostic, une facture de réparation… envoyé directement à l'adresse du ticket.</p>
+      <input type="file" id="detail-sav-fichier-pdf" accept="application/pdf">
+      <textarea id="detail-sav-message-pdf" placeholder="Message accompagnant le PDF (facultatif — un message par défaut sera utilisé sinon)" style="min-height:60px;font-family:inherit;margin-top:8px;width:100%;box-sizing:border-box"></textarea>
+      <div id="retour-envoyer-pdf-sav" style="margin-top:6px"></div>
+      <button type="button" class="action claire" id="btn-envoyer-pdf-sav" style="margin-top:8px">📎 Envoyer ce PDF par email</button>
+    </div>
+
     <div id="detail-sav-zone-diagnostic" hidden>
       <label for="detail-sav-probleme-effectif" style="display:block;margin-top:14px">Problème effectif après contrôle</label>
       <select id="detail-sav-probleme-effectif"></select>

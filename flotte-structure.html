@@ -141,6 +141,27 @@ try{
     <button type="button" class="lien-changer-code" id="qr-fermer" style="margin-top:12px">Fermer</button>
   </div>
 </div>
+<div class="voile-modale-qr" id="modale-creer-structure-bo">
+  <div class="modale-qr" style="text-align:left;max-width:420px">
+    <h3 style="text-align:center">Créer une structure BO</h3>
+    <p>Mêmes informations qu'un admin renseignerait — la structure créée apparaît directement dans le tableau global, avec le statut BO.</p>
+    <label for="bo-code" style="display:block;font-size:13px;font-weight:600;margin:10px 0 4px">Code</label>
+    <input type="text" class="champ-texte" id="bo-code" autocomplete="off">
+    <label for="bo-nom" style="display:block;font-size:13px;font-weight:600;margin:10px 0 4px">Nom</label>
+    <input type="text" class="champ-texte" id="bo-nom" autocomplete="off">
+    <label for="bo-adresse" style="display:block;font-size:13px;font-weight:600;margin:10px 0 4px">Adresse</label>
+    <input type="text" class="champ-texte" id="bo-adresse" autocomplete="off">
+    <label for="bo-email" style="display:block;font-size:13px;font-weight:600;margin:10px 0 4px">Email</label>
+    <input type="email" class="champ-texte" id="bo-email" autocomplete="off">
+    <label for="bo-telephone" style="display:block;font-size:13px;font-weight:600;margin:10px 0 4px">Téléphone</label>
+    <input type="text" class="champ-texte" id="bo-telephone" autocomplete="off">
+    <label for="bo-email-facturation" style="display:block;font-size:13px;font-weight:600;margin:10px 0 4px">Email de facturation <em style="font-weight:400">(facultatif)</em></label>
+    <input type="email" class="champ-texte" id="bo-email-facturation" autocomplete="off">
+    <div id="retour-creer-structure-bo" style="margin-top:10px"></div>
+    <button type="button" class="bouton-principal" id="btn-valider-creer-structure-bo" style="margin-top:12px">Créer la structure</button>
+    <button type="button" class="lien-changer-code" id="bo-fermer" style="margin-top:12px">Annuler</button>
+  </div>
+</div>
 <div class="voile-modale-qr" id="modale-attestation-flotte">
   <div class="modale-qr">
     <h3>Attestation de paiement</h3>
@@ -440,7 +461,8 @@ function rendreAppareils(appareils){
   const barreOutils = `
     <div class="barre-outils-flotte">
       <button type="button" class="bouton-retour" id="btn-actualiser-flotte">🔄 Actualiser depuis mes commandes livrées</button>
-      ${estInterneFlotte ? `<button type="button" class="bouton-retour" id="btn-nouveau-lieu-stockage-portail">📍 Nouveau lieu de stockage</button>` : `<button type="button" class="bouton-retour" id="btn-recreer-tableau-flotte">🆕 Repartir d'un tableau neuf</button>`}
+      ${estInterneFlotte ? `<button type="button" class="bouton-retour" id="btn-nouveau-lieu-stockage-portail">📍 Nouveau lieu de stockage</button>
+      <button type="button" class="bouton-retour" id="btn-creer-structure-bo">➕ Créer une structure BO</button>` : `<button type="button" class="bouton-retour" id="btn-recreer-tableau-flotte">🆕 Repartir d'un tableau neuf</button>`}
       <div class="bascule-vue-flotte" role="group" aria-label="Affichage de la flotte" ${estInterneFlotte ? 'hidden' : ''}>
         <button type="button" data-vue-flotte="cartes" class="${vueFlotteActuelle === 'cartes' ? 'actif' : ''}">🗂 Cartes</button>
         <button type="button" data-vue-flotte="tableau" class="${vueFlotteActuelle === 'tableau' ? 'actif' : ''}">📊 Tableau</button>
@@ -570,7 +592,45 @@ function cablerBarreOutils(){
       }catch(e){ alert('Impossible de délier le tableau actuel — réessaie.'); }
     });
   }
+
+  const boutonCreerBo = $('btn-creer-structure-bo');
+  if(boutonCreerBo){
+    boutonCreerBo.addEventListener('click', () => {
+      ['bo-code','bo-nom','bo-adresse','bo-email','bo-telephone','bo-email-facturation'].forEach(id => $(id).value = '');
+      $('retour-creer-structure-bo').innerHTML = '';
+      $('modale-creer-structure-bo').classList.add('visible');
+    });
+  }
 }
+
+$('bo-fermer')?.addEventListener('click', () => $('modale-creer-structure-bo').classList.remove('visible'));
+
+$('btn-valider-creer-structure-bo')?.addEventListener('click', async () => {
+  const code = $('bo-code').value.trim();
+  const nom = $('bo-nom').value.trim();
+  if(!code || !nom){
+    $('retour-creer-structure-bo').innerHTML = '<div class="msg msg-erreur">Code et nom sont obligatoires.</div>';
+    return;
+  }
+  $('btn-valider-creer-structure-bo').disabled = true;
+  $('retour-creer-structure-bo').innerHTML = '';
+  try{
+    const r = await poster({
+      action:'structure-creer-bo', codeCreateur: codeValide, code, nom,
+      adresse: $('bo-adresse').value.trim(), email: $('bo-email').value.trim(),
+      telephone: $('bo-telephone').value.trim(), emailFacturation: $('bo-email-facturation').value.trim(),
+    });
+    if(r.ok){
+      $('retour-creer-structure-bo').innerHTML = `<div class="msg msg-succes">Structure "${echapper(nom)}" créée (code ${echapper(code)}).</div>`;
+      ['bo-code','bo-nom','bo-adresse','bo-email','bo-telephone','bo-email-facturation'].forEach(id => $(id).value = '');
+    }else{
+      $('retour-creer-structure-bo').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur || 'Création impossible.')}</div>`;
+    }
+  }catch(e){
+    $('retour-creer-structure-bo').innerHTML = '<div class="msg msg-erreur">Création impossible — réessaie.</div>';
+  }
+  $('btn-valider-creer-structure-bo').disabled = false;
+});
 
 function dateVersISO(dateStr){
   if(!dateStr) return '';
