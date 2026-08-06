@@ -80,6 +80,8 @@ const API = 'https://europe-west1-cvdl-plateforme.cloudfunctions.net/cvdl-api';
   @media(max-width:480px){.grille-champs-appareil{grid-template-columns:1fr}}
 
   .carte-appareil-alerte{border-color:#E8A33D}
+  .carte-appareil-d3e{border-color:#C0364A;background:#FBE7E3}
+  .carte-appareil-remis{border-color:#2EA05A;background:#E3F3E9}
   .alerte-garantie-appareil{font-size:11.5px;font-weight:600;color:#8A5A00;background:#FDF1DC;padding:5px 9px;border-radius:6px;margin-bottom:10px;display:inline-block}
   .ligne-alerte-garantie{background:#FFFBF3}
 
@@ -218,6 +220,7 @@ function echapper(s){
 }
 
 let codeValide = '';
+let estInterneFlotte = false;
 
 async function verifierCode(){
   const code = $('code').value.trim();
@@ -228,6 +231,7 @@ async function verifierCode(){
     const r = await jsonp({action:'check', code: code});
     if(r.ok){
       codeValide = code;
+      estInterneFlotte = !!r.interne;
       try{ sessionStorage.setItem('cvdl-code-structure', code); }catch(e){}
       document.querySelector('.etape[data-etape="code"]').hidden = true;
       document.querySelector('.etape[data-etape="flotte"]').hidden = false;
@@ -282,6 +286,7 @@ let vueFlotteActuelle = 'cartes';
 try{ vueFlotteActuelle = localStorage.getItem('cvdl-flotte-vue') || 'cartes'; }catch(e){}
 
 function construireCartesAppareils(appareils){
+  if(estInterneFlotte) return construireCartesAppareilsInterne(appareils);
   const lignesHtml = appareils.map(a => `
     <div class="carte-appareil${a.alerteGarantie ? ' carte-appareil-alerte' : ''}">
       <div class="carte-appareil-entete">
@@ -322,6 +327,68 @@ function construireCartesAppareils(appareils){
         <button type="button" class="lien-qr-passeport" data-qr-serie="${echapper(a.numeroSerie)}">🛂 Passeport</button>
         ${a.personne ? `<button type="button" class="lien-qr-passeport" data-attestation-serie="${echapper(a.numeroSerie)}" data-attestation-personne="${echapper(a.personne)}">🧾 Attestation</button>` : ''}
         ${a.lienPaiement ? `<a href="${echapper(a.lienPaiement)}" target="_blank" rel="noopener">Lien de paiement ↗</a>` : ''}
+      </div>
+    </div>`).join('');
+  return `<div class="liste-appareils">${lignesHtml}</div>`;
+}
+
+const STATUTS_FLOTTE_INTERNE_PORTAIL = ['En stock', 'Remis', 'SAV', 'D3E'];
+const TYPES_PAIEMENT_PORTAIL = ['', 'Chèque x1', 'Chèque x2', 'CB', 'Monétaire', 'Mixte'];
+let listesPersoFlottePortail = { lieux: [], vendeurs: [] };
+
+function construireCartesAppareilsInterne(appareils){
+  const lignesHtml = appareils.map(a => `
+    <div class="carte-appareil${a.alerte2Mois ? ' carte-appareil-alerte' : ''}${a.statut === 'D3E' ? ' carte-appareil-d3e' : ''}${a.statut === 'Remis' ? ' carte-appareil-remis' : ''}">
+      <div class="carte-appareil-entete">
+        <span class="mono">${echapper(a.numeroSerie)}</span>
+        <span class="prix-appareil">${a.prix !== '' && a.prix != null ? Math.round(a.prix) + ' €' : '—'}</span>
+      </div>
+      <div style="font-weight:700;font-size:14px;margin:2px 0 8px">${echapper(a.produit || 'Produit non précisé')}</div>
+      ${a.alerte2Mois ? '<div class="alerte-garantie-appareil">⏳ En stock depuis plus de 2 mois</div>' : ''}
+      <div class="grille-champs-appareil">
+        <label>Statut
+          <select data-ligne="${a.ligne}" data-champ="statut">
+            ${STATUTS_FLOTTE_INTERNE_PORTAIL.map(s => `<option ${a.statut === s ? 'selected' : ''}>${s}</option>`).join('')}
+          </select>
+        </label>
+        <label>Lieu de stockage
+          <select data-ligne="${a.ligne}" data-champ="lieuStockage">
+            ${['', ...listesPersoFlottePortail.lieux].map(v => `<option value="${echapper(v)}" ${a.lieuStockage === v ? 'selected' : ''}>${v || '—'}</option>`).join('')}
+            <option value="__nouveau__">+ Nouveau…</option>
+          </select>
+        </label>
+        <label>Date de vente<input type="text" data-ligne="${a.ligne}" data-champ="dateVente" value="${echapper(a.dateVente)}" placeholder="jj/mm/aaaa"></label>
+        <label>Personne<input type="text" data-ligne="${a.ligne}" data-champ="personne" value="${echapper(a.personne)}"></label>
+        <label>Genre
+          <select data-ligne="${a.ligne}" data-champ="genre">
+            <option value="" ${!a.genre ? 'selected' : ''}>—</option>
+            <option ${a.genre === 'Homme' ? 'selected' : ''}>Homme</option>
+            <option ${a.genre === 'Femme' ? 'selected' : ''}>Femme</option>
+          </select>
+        </label>
+        <label>Date de naissance<input type="text" data-ligne="${a.ligne}" data-champ="dateNaissance" value="${echapper(a.dateNaissance)}" placeholder="jj/mm/aaaa"></label>
+        <label>Type de paiement
+          <select data-ligne="${a.ligne}" data-champ="typePaiement">
+            ${TYPES_PAIEMENT_PORTAIL.map(t => `<option value="${t}" ${a.typePaiement === t ? 'selected' : ''}>${t || '—'}</option>`).join('')}
+          </select>
+        </label>
+        <label>Vendeur
+          <select data-ligne="${a.ligne}" data-champ="vendeur">
+            ${['', ...listesPersoFlottePortail.vendeurs].map(v => `<option value="${echapper(v)}" ${a.vendeur === v ? 'selected' : ''}>${v || '—'}</option>`).join('')}
+            <option value="__nouveau__">+ Nouveau…</option>
+          </select>
+        </label>
+        <label>N° attestation<input type="text" data-ligne="${a.ligne}" data-champ="numeroAttestation" value="${echapper(a.numeroAttestation)}"></label>
+        <label>N° rapprochement<input type="text" data-ligne="${a.ligne}" data-champ="numeroRapprochement" value="${echapper(a.numeroRapprochement)}" placeholder="Zettle / dépôt"></label>
+        <label>Saisie Salesforce
+          <input type="checkbox" data-ligne="${a.ligne}" data-champ="saisieSalesforce" data-checkbox="1" ${a.saisieSalesforce === 'Oui' ? 'checked' : ''} style="width:auto;margin-top:6px">
+        </label>
+        <label>Commentaire<input type="text" data-ligne="${a.ligne}" data-champ="commentaire" value="${echapper(a.commentaire)}"></label>
+      </div>
+      <div class="pied-appareil">
+        <span>Livré le ${a.dateLivraison ? echapper(a.dateLivraison) : '—'}</span>
+        <button type="button" class="lien-qr-passeport" data-qr-serie="${echapper(a.numeroSerie)}">🛂 Passeport</button>
+        ${a.personne ? `<button type="button" class="lien-qr-passeport" data-attestation-serie="${echapper(a.numeroSerie)}" data-attestation-personne="${echapper(a.personne)}">🧾 Attestation</button>` : ''}
       </div>
     </div>`).join('');
   return `<div class="liste-appareils">${lignesHtml}</div>`;
@@ -373,7 +440,7 @@ function rendreAppareils(appareils){
   const barreOutils = `
     <div class="barre-outils-flotte">
       <button type="button" class="bouton-retour" id="btn-actualiser-flotte">🔄 Actualiser depuis mes commandes livrées</button>
-      <div class="bascule-vue-flotte" role="group" aria-label="Affichage de la flotte">
+      <div class="bascule-vue-flotte" role="group" aria-label="Affichage de la flotte" ${estInterneFlotte ? 'hidden' : ''}>
         <button type="button" data-vue-flotte="cartes" class="${vueFlotteActuelle === 'cartes' ? 'actif' : ''}">🗂 Cartes</button>
         <button type="button" data-vue-flotte="tableau" class="${vueFlotteActuelle === 'tableau' ? 'actif' : ''}">📊 Tableau</button>
       </div>
@@ -395,7 +462,7 @@ function rendreAppareils(appareils){
     : appareils;
 
   const contenu = appareilsFiltres.length
-    ? (vueFlotteActuelle === 'tableau' ? construireTableauAppareils(appareilsFiltres) : construireCartesAppareils(appareilsFiltres))
+    ? (!estInterneFlotte && vueFlotteActuelle === 'tableau' ? construireTableauAppareils(appareilsFiltres) : construireCartesAppareils(appareilsFiltres))
     : '<p class="sous-question" style="margin-top:14px">Aucun appareil ne correspond à cette recherche.</p>';
   document.body.classList.toggle('mode-tableau-flotte', vueFlotteActuelle === 'tableau');
   $('zone-flotte').innerHTML = barreOutils + contenu;
@@ -415,11 +482,32 @@ function rendreAppareils(appareils){
     champ.addEventListener('change', async () => {
       const ligne = champ.dataset.ligne;
       const nomChamp = champ.dataset.champ;
-      const valeur = champ.value;
+      let valeur = champ.dataset.checkbox ? (champ.checked ? 'Oui' : 'Non') : champ.value;
+
+      if(valeur === '__nouveau__' && (nomChamp === 'lieuStockage' || nomChamp === 'vendeur')){
+        const label = nomChamp === 'lieuStockage' ? 'lieu de stockage' : 'vendeur';
+        const nouvelle = prompt(`Nom du nouveau ${label} :`);
+        if(!nouvelle || !nouvelle.trim()){ chargerFlotte(); return; }
+        const r = await poster({ action:'flotte-liste-perso-ajouter', liste: nomChamp === 'lieuStockage' ? 'lieu' : 'vendeur', valeur: nouvelle.trim() });
+        if(r.ok){
+          if(nomChamp === 'lieuStockage') listesPersoFlottePortail.lieux = r.liste; else listesPersoFlottePortail.vendeurs = r.liste;
+          valeur = nouvelle.trim();
+        }else{
+          alert(r.erreur || 'Ajout impossible.');
+          chargerFlotte();
+          return;
+        }
+      }
+
+      if(nomChamp === 'statut' && valeur === 'D3E'){
+        if(!confirm('Confirmer le passage de cet appareil en D3E (déchet électronique) ?')){ chargerFlotte(); return; }
+      }
+
       champ.disabled = true;
       try{
         const r = await poster({ action:'flotte-modifier', code: codeValide, ligne, champ: nomChamp, valeur });
         if(!r.ok) alert(r.erreur || 'Enregistrement impossible.');
+        else if(['statut','lieuStockage','vendeur'].includes(nomChamp)) chargerFlotte();
       }catch(e){
         alert('Enregistrement impossible — réessaie.');
       }
@@ -526,6 +614,10 @@ $('btn-generer-attestation-flotte').addEventListener('click', async () => {
 
 async function chargerFlotte(){
   try{
+    if(estInterneFlotte && !listesPersoFlottePortail.lieux.length && !listesPersoFlottePortail.vendeurs.length){
+      const rListes = await jsonp({action:'flotte-listes-perso'}).catch(() => null);
+      if(rListes && rListes.ok) listesPersoFlottePortail = rListes;
+    }
     const r = await jsonp({action:'flotte-obtenir', code: codeValide});
     if(!r.ok){ $('zone-flotte').innerHTML = '<p class="msg msg-erreur">Chargement impossible.</p>'; return; }
 
