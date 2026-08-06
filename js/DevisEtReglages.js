@@ -88,6 +88,8 @@ async function chargerReglages(){
       $('email-modele-sav-input').value = r.emailModeleSav || '';
       peuplerCasesOngletsVisibles(r.ongletsMasques || '');
       appliquerOngletsVisibles(r.ongletsMasques || '');
+      $('theme-visuel-input').value = r.themeVisuel || 'classique';
+      appliquerThemeVisuel(r.themeVisuel || 'classique');
       seuilAlerteImpayee = r.seuilAlerteImpayee;
       $('dossier-principal-input').value = r.dossierPrincipal || '';
       dossierPrincipalConfigure = !!r.dossierPrincipal;
@@ -706,6 +708,28 @@ function appliquerOngletsVisibles(masquesStr){
     if(premierVisible) premierVisible.click();
   }
 }
+
+function appliquerThemeVisuel(theme){
+  document.body.classList.toggle('theme-meteo', theme === 'meteo');
+}
+
+$('btn-theme-visuel-enregistrer').addEventListener('click', async () => {
+  const theme = $('theme-visuel-input').value;
+  $('btn-theme-visuel-enregistrer').disabled = true;
+  $('retour-theme-visuel').innerHTML = '';
+  try{
+    const r = await poster({ action:'reglages-set', password:motDePasse, themeVisuel: theme });
+    if(r.ok){
+      appliquerThemeVisuel(theme);
+      $('retour-theme-visuel').innerHTML = '<div class="msg msg-succes">Thème appliqué.</div>';
+    }else{
+      $('retour-theme-visuel').innerHTML = `<div class="msg msg-erreur">${echapper(r.erreur || 'Enregistrement impossible.')}</div>`;
+    }
+  }catch(e){
+    $('retour-theme-visuel').innerHTML = '<div class="msg msg-erreur">Enregistrement impossible.</div>';
+  }
+  $('btn-theme-visuel-enregistrer').disabled = false;
+});
 
 $('btn-onglets-visibles-enregistrer').addEventListener('click', async () => {
   const cases = $$('#cases-onglets-visibles input[type=checkbox]');

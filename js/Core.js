@@ -539,6 +539,7 @@ async function connecter(){
               heureDebutLundi = rg.heureDebutLundi != null ? rg.heureDebutLundi : 8;
               if(rg.symptomesSav && rg.symptomesSav.length) symptomesSav = rg.symptomesSav;
               appliquerOngletsVisibles(rg.ongletsMasques || '');
+              appliquerThemeVisuel(rg.themeVisuel || 'classique');
               if(rg.modeleFacturation) modeleFacturationUrl = 'https://docs.google.com/spreadsheets/d/' + rg.modeleFacturation;
             }
 
