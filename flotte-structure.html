@@ -565,6 +565,7 @@ function classeLigneFlotteComptaPortail(a){
 }
 
 function rendreFlotteInterneParitePortail(appareils){
+  document.body.classList.add('mode-tableau-flotte'); // même élargissement que la vue Tableau RN/BO
   const barreOutils = `
     <div class="barre-outils-flotte">
       <button type="button" class="bouton-retour" id="btn-actualiser-flotte">🔄 Actualiser depuis mes commandes livrées</button>
